@@ -17,5 +17,5 @@ function App() {
     </div>
   );
 }
-// alooo
+
 export default App;
