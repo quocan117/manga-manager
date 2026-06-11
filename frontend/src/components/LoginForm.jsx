@@ -40,7 +40,7 @@ export default function LoginForm() {
     //   };
 
 
-/**Đây là handle test thử, nhớ đổi sang cái ở trên */
+/**Đây là handle test thử, khi chay với backend nhớ đổi sang cái ở trên */
     const handleSubmit = async (e) => {
         e.preventDefault();
 
