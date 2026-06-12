@@ -1,5 +1,5 @@
 import { useState } from "react";
-import axios from "axios";
+import { login } from "../services/authService";
 
 export default function LoginForm() {
     const [form, setForm] = useState({
@@ -16,86 +16,83 @@ export default function LoginForm() {
         });
     };
 
-
-/**Chạy và gọi API thì dổi sang cái này */
-    //   const handleSubmit = async (e) => {
+    /**Chạy và gọi API thì dổi sang cái này, sửa API ở bên authService.js*/
+    // const handleSubmit = async (e) => {
     //     e.preventDefault();
 
     //     try {
-    //       setLoading(true);
+    //         setLoading(true);
 
-    //       const response = await axios.post(
-    //         "http://localhost:8080/api/login",
-    //         form
-    //       );
+    //         const data = await login(form);
 
-    //       console.log(response.data);
+    //         console.log("Response:", data);
 
-    //       alert("Đăng nhập thành công!");
+    //         alert("Đăng nhập thành công");
     //     } catch (error) {
-    //       alert("Sai tài khoản hoặc mật khẩu!");
+    //         console.error(error);
+
+    //         alert("Sai tài khoản hoặc mật khẩu");
     //     } finally {
-    //       setLoading(false);
+    //         setLoading(false);
     //     }
-    //   };
+    // };
 
-
-/**Đây là handle test thử, khi chay với backend nhớ đổi sang cái ở trên */
-    const handleSubmit = async (e) => {
+    const handleSubmit = (e) => {
         e.preventDefault();
-
-        console.log(form);
-
-        alert("Đã submit");
+        if (form.username === "admin" && form.password === "123456") {
+            alert("Đăng nhập thành công!");
+        } 
+        else {
+            alert("Sai tài khoản hoặc mật khẩu!");
+        }
     };
 
     return (
-        <form
-            onSubmit={handleSubmit}
-            className="card p-4 shadow"
-            style={{ maxWidth: "400px" }}
-        >
-            <h3 className="mb-3 text-center">
-                Đăng nhập
-            </h3>
+        <div className="card login-card">
 
-            <div className="mb-3">
-                <label className="form-label">
-                    Username
-                </label>
+            <h2 className="login-title">
+                Manga Manager
+            </h2>
 
-                <input
-                    type="text"
-                    name="username"
-                    className="form-control"
-                    value={form.username}
-                    onChange={handleChange}
-                />
-            </div>
+            <form onSubmit={handleSubmit}>
 
-            <div className="mb-3">
-                <label className="form-label">
-                    Password
-                </label>
+                <div className="mb-3">
+                    <label className="form-label">
+                        Username
+                    </label>
 
-                <input
-                    type="password"
-                    name="password"
-                    className="form-control"
-                    value={form.password}
-                    onChange={handleChange}
-                />
-            </div>
+                    <input
+                        type="text"
+                        name="username"
+                        className="form-control login-input"
+                        value={form.username}
+                        onChange={handleChange}
+                        placeholder="Nhập username"
+                    />
+                </div>
 
-            <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={loading}
-            >
-                {loading
-                    ? "Đang đăng nhập..."
-                    : "Đăng nhập"}
-            </button>
-        </form>
+                <div className="mb-4">
+                    <label className="form-label">
+                        Password
+                    </label>
+
+                    <input
+                        type="password"
+                        name="password"
+                        className="form-control login-input"
+                        value={form.password}
+                        onChange={handleChange}
+                        placeholder="Nhập mật khẩu"
+                    />
+                </div>
+
+                <button
+                    type="submit"
+                    className="btn btn-primary w-100 login-btn"
+                    disabled={loading}>
+                    {loading ? "Đang đăng nhập..." : "Đăng nhập"}
+                </button>
+            </form>
+        </div>
     );
 }
