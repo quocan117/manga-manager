@@ -1,10 +1,10 @@
 package com.examplevsc.demo.controller;
 
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import com.examplevsc.demo.model.Student;
 import com.examplevsc.demo.service.StudentService;
 
-import java.util.ArrayList;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -29,19 +29,29 @@ public class StudentController {
         return studentService.getAllStudents();
 
     }
-
-    @PostMapping
-    public Student addStudent(@RequestBody Student student){
-
-        return studentService.addStudent(student);
-
-    }
     @GetMapping("/{id}")
-    public Student getStudentById(@PathVariable Long id){
-        return studentService.getStudentById(id);
+    public ResponseEntity<Student> getStudentById(@PathVariable Long id){
+        Student student  = studentService.getStudentById(id);
+        if(student==null){
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(student);
     }
-    @DeleteMapping
-    public boolean deleteStudentById(@RequestParam Long id){
+    @PostMapping
+    public ResponseEntity<Student> addStudent(@RequestBody Student student){
+
+        Student saved = studentService.addStudent(student);
+        return ResponseEntity.status(201).body(saved);
+
+    }
+
+    @PutMapping("/{id}")
+    public Student UpdateStudent(@PathVariable Long id, @RequestBody Student student){
+        return studentService.updateStudent(id, student);
+    }
+    
+    @DeleteMapping("/{id}")
+    public boolean deleteStudentById(@PathVariable Long id){
         return studentService.deleteStudentById(id);
     }
     
