@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { login } from "../services/authService";
+import { Link } from "react-router-dom";
 
 export default function LoginForm() {
     const [form, setForm] = useState({
@@ -41,7 +42,7 @@ export default function LoginForm() {
         e.preventDefault();
         if (form.username === "admin" && form.password === "123456") {
             alert("Đăng nhập thành công!");
-        } 
+        }
         else {
             alert("Sai tài khoản hoặc mật khẩu!");
         }
@@ -92,6 +93,21 @@ export default function LoginForm() {
                     disabled={loading}>
                     {loading ? "Đang đăng nhập..." : "Đăng nhập"}
                 </button>
+
+                <div className="text-center mt-3">
+                    <span className="text-muted">
+                        Bạn chưa có tài khoản?
+                    </span>
+
+                    {" "}
+
+                    <Link
+                        to="/register"
+                        className="text-decoration-none fw-semibold"
+                    >
+                        Đăng ký làm Mangaka
+                    </Link>
+                </div>
             </form>
         </div>
     );
