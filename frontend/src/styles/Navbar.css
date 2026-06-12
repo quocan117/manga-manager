@@ -4,7 +4,7 @@
   align-items: center;
   padding: 15px 40px;
   background-color: #ffffff;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); /* Đổ bóng */
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); 
   position: sticky;
   top: 0;
   z-index: 1000;
@@ -34,6 +34,21 @@
   border: 1px solid #ccc;
   outline: none;
   width: 250px;
+}
+
+.auth-buttons {
+  display: flex;
+  gap: 12px; 
+}
+
+.signup-btn {
+  padding: 10px 20px;
+  background-color: transparent;
+  color: #007bff;
+  border: 1px solid #007bff;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
 }
 
 .login-btn {

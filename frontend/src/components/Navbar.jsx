@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import "./Navbar.css"; 
+import "../styles/Navbar.css";
 
 const Navbar = () => {
   const navigate = useNavigate();
@@ -19,9 +19,14 @@ const Navbar = () => {
           placeholder="Tìm truyện, tác giả..."
         />
       </div>
-      <button className="login-btn" onClick={() => navigate("/login")}>
-        Đăng nhập hệ thống
-      </button>
+      <div className="auth-buttons">
+        <button className="signup-btn" onClick={() => navigate("/signup")}>
+          Đăng ký
+        </button>
+        <button className="login-btn" onClick={() => navigate("/login")}>
+          Đăng nhập
+        </button>
+      </div>
     </nav>
   );
 };
