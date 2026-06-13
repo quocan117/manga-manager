@@ -10,6 +10,7 @@ export const trendingSeries = [
       { id: 101, title: "Chương 1111: Tứ Hoàng Hành Động", votes: 340 },
       { id: 102, title: "Chương 1110: Tinh Tú Giáng Lâm", votes: 325 },
     ],
+    status: "Published",
   },
   {
     id: 2,
@@ -22,6 +23,7 @@ export const trendingSeries = [
       { id: 201, title: "Chương 256: Hắc Thiểm", votes: 901 },
       { id: 202, title: "Chương 255: Quyết Chiến Trận Địa", votes: 850 },
     ],
+    status: "Reviewing",
   },
   {
     id: 3,
@@ -34,5 +36,6 @@ export const trendingSeries = [
       { id: 301, title: "Chương 205: Tương Lai Tuyệt Vời", votes: 219 },
       { id: 302, title: "Chương 204: Thế Giới Không Có Quỷ", votes: 198 },
     ],
+    status: "Draft",
   },
 ];
