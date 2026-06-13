@@ -29,6 +29,32 @@ export default function RegisterMangakaForm() {
         alert("Đăng ký thành công!");
     };
 
+    // /**Chạy và gọi API thì dổi sang cái này, sửa API ở bên authService.js */
+    // const handleSubmit = async (e) => {
+    //     e.preventDefault();
+
+    //     if (form.password !== form.confirmPassword) {
+    //         alert("Mật khẩu xác nhận không khớp!");
+    //         return;
+    //     }
+
+    //     try {
+    //         setLoading(true);
+
+    //         const data = await register(form);
+
+    //         console.log(data);
+
+    //         alert("Đăng ký thành công!");
+    //     } catch (error) {
+    //         console.error(error);
+
+    //         alert("Đăng ký thất bại!");
+    //     } finally {
+    //         setLoading(false);
+    //     }
+    // };
+
     return (
         <div className="card shadow p-4">
             <h2 className="text-center mb-4">
