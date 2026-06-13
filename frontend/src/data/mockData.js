@@ -1,8 +1,9 @@
-// File: src/data/mockData.js
-
 export const categories = [
   "Hành động", "Phiêu lưu", "Hài hước", "Tình cảm",
-  "Siêu nhiên", "Kinh dị", "Học đường", "Lịch sử"
+  "Siêu nhiên", "Kinh dị", "Học đường", "Lịch sử",
+  "Âm nhạc", "Phép thuật", "Thể thao", "Movie",
+  "Đời thường", "Huyền bí", "Võ thuật", "Trinh thám",
+  "Tâm lý", "Game", "Giả tưởng", "Phép thuật"
 ];
 
 export const trendingSeries = [

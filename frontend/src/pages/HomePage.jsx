@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import SeriesCard from "../components/SeriesCard";
 import SeriesModal from "../components/SeriesModal";
@@ -8,10 +8,30 @@ import "../styles/HomePage.css";
 
 const HomePage = () => {
   const [selectedSeries, setSelectedSeries] = useState(null);
-
   const [searchParams] = useSearchParams();
-  const currentGenre = searchParams.get('genre');
-  const displaySeries = currentGenre ? trendingSeries.filter(series => series.genres?.includes(currentGenre)) : trendingSeries;
+  const currentGenre = searchParams.get("genre");
+  const searchQuery = searchParams.get("search");
+
+  let displaySeries = trendingSeries;
+  if (currentGenre) {
+    displaySeries = displaySeries.filter((series) =>
+      series.genres?.includes(currentGenre),
+    );
+  }
+  if (searchQuery) {
+    const lowerCaseQuery = searchQuery.toLowerCase();
+    displaySeries = displaySeries.filter(
+      (series) =>
+        series.title.toLowerCase().includes(lowerCaseQuery) ||
+        series.author.toLowerCase().includes(lowerCaseQuery),
+    );
+  }
+  let sectionTitle = "🔥 Các Series Nổi Bật";
+  if (searchQuery) {
+    sectionTitle = `🔍 Kết quả tìm kiếm: "${searchQuery}"`;
+  } else if (currentGenre) {
+    sectionTitle = `📚 Thể loại: ${currentGenre}`;
+  }
 
   return (
     <div className="home-container">
@@ -27,9 +47,7 @@ const HomePage = () => {
       </div>
       <div className="main-content">
         <section>
-          <h2 className="section-title">
-            {currentGenre ? `📚 Thể loại: ${currentGenre}` : "🔥 Các Series Nổi Bật"}
-          </h2>
+          <h2 className="section-title">{sectionTitle}</h2>
           <div className="cards-grid">
             {displaySeries.length > 0 ? (
               displaySeries.map((series) => (
@@ -40,9 +58,12 @@ const HomePage = () => {
                 />
               ))
             ) : (
-              <p style={{ color: '#888', fontStyle: 'italic', gridColumn: '1 / -1' }}>
-                Chưa có bộ truyện nào thuộc thể loại này.
-              </p>
+              <div className="empty-state">
+                <h3 className="empty-title">
+                  Không tìm thấy kết quả nào phù hợp
+                </h3>
+                <p className="empty-subtitle">Vui lòng thử lại.</p>
+              </div>
             )}
           </div>
         </section>

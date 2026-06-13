@@ -6,6 +6,8 @@ import "../styles/Navbar.css";
 const Navbar = () => {
   const navigate = useNavigate();
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+
   const toggleCategory = () => {
     setIsCategoryOpen(!isCategoryOpen);
   };
@@ -13,6 +15,16 @@ const Navbar = () => {
   const handleCategoryClick = (category) => {
     navigate(`/?genre=${encodeURIComponent(category)}`);
     setIsCategoryOpen(false);
+  };
+
+  const handleSearch = (e) => {
+    if (e.key === 'Enter') {
+      if (searchTerm.trim() !== '') {
+        navigate(`/?search=${encodeURIComponent(searchTerm.trim())}`);
+      } else {
+        navigate('/');
+      }
+    }
   };
 
   return (
@@ -37,10 +49,13 @@ const Navbar = () => {
             )}
           </div>
           <span className="nav-link">Xếp hạng</span>
-          <input
+          <input 
             className="search-input"
-            type="text"
-            placeholder="Tìm truyện, tác giả..."
+            type="text" 
+            placeholder="Tìm truyện, tác giả" 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            onKeyDown={handleSearch}
           />
         </div>
         <div className="auth-buttons">

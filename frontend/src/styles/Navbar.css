@@ -101,18 +101,20 @@
 }
 
 .dropdown-item {
-  padding: 8px 10px;
+  padding: 8px 12px;
   cursor: pointer;
   color: #333;
   font-weight: 500;
   font-size: 14px;
-  transition: all 0.2s;
-  border-radius: 4px;
+  border-radius: 6px;
+  transition: all 0.25s ease-in-out; 
 }
 
 .dropdown-item:hover {
-  color: #ff4757;
-  background-color: #f4f4f4;
+  color: #ff4757;           
+  background-color: #fff0f1; 
+  transform: translateX(8px); 
+  font-weight: 600;           
 }
 
 @keyframes fadeIn {

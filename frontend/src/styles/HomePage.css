@@ -1,7 +1,7 @@
 .home-container {
   background-color: #f8f9fa;
   min-height: 100vh;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
 }
 
 .vote-banner {
@@ -30,7 +30,7 @@
 }
 
 .highlight-text {
-  color: #ffeaa7; 
+  color: #ffeaa7;
   font-weight: bold;
 }
 
@@ -52,4 +52,27 @@
   display: flex;
   gap: 25px;
   flex-wrap: wrap;
+}
+
+.empty-state {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  width: 100%;
+  text-align: center;
+}
+
+.empty-title {
+  color: #666;
+  font-size: 24px;
+  margin-bottom: 10px;
+}
+
+.empty-subtitle {
+  color: #a0a0a0;
+  font-size: 16px;
+  font-style: italic;
 }
