@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { login } from "../services/authService";
-import { Link } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 
 export default function LoginForm() {
+    const navigate = useNavigate();
+
     const [form, setForm] = useState({
         username: "",
         password: "",
@@ -40,8 +42,9 @@ export default function LoginForm() {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (form.username === "admin" && form.password === "123456") {
+        if (form.username === "mangaka" && form.password === "123456") {
             alert("Đăng nhập thành công!");
+            navigate("/mangaka");
         }
         else {
             alert("Sai tài khoản hoặc mật khẩu!");
