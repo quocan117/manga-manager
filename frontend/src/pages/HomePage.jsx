@@ -11,26 +11,39 @@ const HomePage = () => {
   const [searchParams] = useSearchParams();
   const currentGenre = searchParams.get("genre");
   const searchQuery = searchParams.get("search");
+  const isFiltering = currentGenre || searchQuery;
 
-  let displaySeries = trendingSeries;
+  const top4Series = [...trendingSeries]
+    .sort((a, b) => {
+      const totalVotesA =
+        a.chapters?.reduce((sum, ch) => sum + ch.votes, 0) || 0;
+      const totalVotesB =
+        b.chapters?.reduce((sum, ch) => sum + ch.votes, 0) || 0;
+      return totalVotesB - totalVotesA;
+    })
+    .slice(0, 4);
+
+  const top4Ids = top4Series.map((series) => series.id);
+  const remainingSeries = trendingSeries.filter(
+    (series) => !top4Ids.includes(series.id),
+  );
+
+  let filteredSeries = trendingSeries;
+  let filterTitle = "";
+
   if (currentGenre) {
-    displaySeries = displaySeries.filter((series) =>
+    filteredSeries = trendingSeries.filter((series) =>
       series.genres?.includes(currentGenre),
     );
-  }
-  if (searchQuery) {
+    filterTitle = `📚 Thể loại: ${currentGenre} (${filteredSeries.length} series)`;
+  } else if (searchQuery) {
     const lowerCaseQuery = searchQuery.toLowerCase();
-    displaySeries = displaySeries.filter(
+    filteredSeries = trendingSeries.filter(
       (series) =>
         series.title.toLowerCase().includes(lowerCaseQuery) ||
         series.author.toLowerCase().includes(lowerCaseQuery),
     );
-  }
-  let sectionTitle = "🔥 Các Series Nổi Bật";
-  if (searchQuery) {
-    sectionTitle = `🔍 Kết quả tìm kiếm: "${searchQuery}"`;
-  } else if (currentGenre) {
-    sectionTitle = `📚 Thể loại: ${currentGenre}`;
+    filterTitle = `🔍 Kết quả tìm kiếm: "${searchQuery}" (${filteredSeries.length} series)`;
   }
 
   return (
@@ -45,29 +58,69 @@ const HomePage = () => {
           động ngay!
         </p>
       </div>
+
       <div className="main-content">
-        <section>
-          <h2 className="section-title">{sectionTitle}</h2>
-          <div className="cards-grid">
-            {displaySeries.length > 0 ? (
-              displaySeries.map((series) => (
-                <SeriesCard
-                  key={series.id}
-                  series={series}
-                  onClick={(clickedSeries) => setSelectedSeries(clickedSeries)}
-                />
-              ))
-            ) : (
-              <div className="empty-state">
-                <h3 className="empty-title">
-                  Không tìm thấy kết quả nào phù hợp
-                </h3>
-                <p className="empty-subtitle">Vui lòng thử lại.</p>
+        {isFiltering ? (
+          <section>
+            <h2 className="section-title">{filterTitle}</h2>
+            <div className="cards-grid">
+              {filteredSeries.length > 0 ? (
+                filteredSeries.map((series) => (
+                  <SeriesCard
+                    key={series.id}
+                    series={series}
+                    onClick={(clickedSeries) =>
+                      setSelectedSeries(clickedSeries)
+                    }
+                  />
+                ))
+              ) : (
+                <div className="empty-state">
+                  <h3 className="empty-title">
+                    Không tìm thấy kết quả nào phù hợp 😢
+                  </h3>
+                  <p className="empty-subtitle">
+                    Vui lòng thử lại với từ khóa hoặc thể loại khác.
+                  </p>
+                </div>
+              )}
+            </div>
+          </section>
+        ) : (
+          <>
+            <section>
+              <h2 className="section-title">🔥 Các Series Nổi Bật</h2>
+              <div className="cards-grid">
+                {top4Series.map((series) => (
+                  <SeriesCard
+                    key={`top-${series.id}`}
+                    series={series}
+                    onClick={(clickedSeries) =>
+                      setSelectedSeries(clickedSeries)
+                    }
+                  />
+                ))}
               </div>
-            )}
-          </div>
-        </section>
+            </section>
+
+            <section style={{ marginTop: "50px" }}>
+              <h2 className="section-title">📚 Khám Phá Các Series Khác</h2>
+              <div className="cards-grid">
+                {remainingSeries.map((series) => (
+                  <SeriesCard
+                    key={`all-${series.id}`}
+                    series={series}
+                    onClick={(clickedSeries) =>
+                      setSelectedSeries(clickedSeries)
+                    }
+                  />
+                ))}
+              </div>
+            </section>
+          </>
+        )}
       </div>
+
       {selectedSeries && (
         <SeriesModal
           series={selectedSeries}
