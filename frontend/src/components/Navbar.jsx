@@ -1,18 +1,41 @@
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { categories } from '../data/mockData';
 import "../styles/Navbar.css";
 
 const Navbar = () => {
   const navigate = useNavigate();
+  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+  const toggleCategory = () => {
+    setIsCategoryOpen(!isCategoryOpen);
+  };
+
+  const handleCategoryClick = (category) => {
+    navigate(`/?genre=${encodeURIComponent(category)}`);
+    setIsCategoryOpen(false);
+  };
 
   return (
     <nav className="navbar">
       <div className="navbar-container">
-        <div className="nav-logo" onClick={() => navigate("/")}>
+        <div className="nav-logo" onClick={() => navigate('/')}>
           Manga Studio
         </div>
         <div className="nav-menu">
-          <span className="nav-link">Thể loại</span>
+          <div className="nav-dropdown">
+            <span className="nav-link" onClick={toggleCategory}>
+              Thể loại {isCategoryOpen ? '▴' : '▾'}
+            </span>
+            {isCategoryOpen && (
+              <div className="dropdown-content">
+                {categories.map((category, index) => (
+                  <div key={index} className="dropdown-item" onClick={() => handleCategoryClick(category)}>
+                    {category}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
           <span className="nav-link">Xếp hạng</span>
           <input
             className="search-input"

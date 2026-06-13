@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useSearchParams } from 'react-router-dom';
 import Navbar from "../components/Navbar";
 import SeriesCard from "../components/SeriesCard";
 import SeriesModal from "../components/SeriesModal";
@@ -7,6 +8,10 @@ import "../styles/HomePage.css";
 
 const HomePage = () => {
   const [selectedSeries, setSelectedSeries] = useState(null);
+
+  const [searchParams] = useSearchParams();
+  const currentGenre = searchParams.get('genre');
+  const displaySeries = currentGenre ? trendingSeries.filter(series => series.genres?.includes(currentGenre)) : trendingSeries;
 
   return (
     <div className="home-container">
@@ -22,15 +27,23 @@ const HomePage = () => {
       </div>
       <div className="main-content">
         <section>
-          <h2 className="section-title">🔥 Các Series Nổi Bật</h2>
+          <h2 className="section-title">
+            {currentGenre ? `📚 Thể loại: ${currentGenre}` : "🔥 Các Series Nổi Bật"}
+          </h2>
           <div className="cards-grid">
-            {trendingSeries.map((series) => (
-              <SeriesCard
-                key={series.id}
-                series={series}
-                onClick={(clickedSeries) => setSelectedSeries(clickedSeries)}
-              />
-            ))}
+            {displaySeries.length > 0 ? (
+              displaySeries.map((series) => (
+                <SeriesCard
+                  key={series.id}
+                  series={series}
+                  onClick={(clickedSeries) => setSelectedSeries(clickedSeries)}
+                />
+              ))
+            ) : (
+              <p style={{ color: '#888', fontStyle: 'italic', gridColumn: '1 / -1' }}>
+                Chưa có bộ truyện nào thuộc thể loại này.
+              </p>
+            )}
           </div>
         </section>
       </div>
