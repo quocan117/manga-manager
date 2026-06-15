@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { trendingSeries } from "../data/mockData";
+import { useNavigate } from "react-router-dom";
 
 export default function MangakaPage() {
     const [mangas, setMangas] = useState(trendingSeries);
-//**Chạy và gọi API thì dổi sang cái này, sửa API ở bên authService.js */
+    const navigate = useNavigate();
+    //**Chạy và gọi API thì dổi sang cái này, sửa API ở bên authService.js */
     // useEffect(() => {
     //     fetchMangas();
     // }, []);
@@ -119,6 +121,7 @@ export default function MangakaPage() {
                                         <th>Title</th>
                                         <th>Status</th>
                                         <th>Chapters</th>
+                                        <th>Action</th>
                                     </tr>
                                 </thead>
 
@@ -138,6 +141,14 @@ export default function MangakaPage() {
 
                                             <td>
                                                 {manga.chapters.length}
+                                            </td>
+                                            <td>
+                                                <button
+                                                    className="btn btn-primary btn-sm"
+                                                    onClick={() => navigate(`/manga/${manga.id}`)}
+                                                >
+                                                    View
+                                                </button>
                                             </td>
                                         </tr>
                                     ))}
