@@ -7,6 +7,7 @@ import MangakaPage from "./pages/MangakaPage";
 import RankingPage from "./pages/RankingPage";
 import FloatingMenu from "./components/FloatingMenu";
 import MangaDetailPage from "./pages/MangaDeatailPage";
+import CreateChapterPage from "./pages/CreateChapterPage";
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
         <Route path="/mangaka" element={<MangakaPage />} />
         <Route path="/ranking" element={<RankingPage />} />
         <Route path="/manga/:id" element={<MangaDetailPage />}/>
+        <Route path="/manga/:id/create-chapter" element={<CreateChapterPage />}/>
       </Routes>
       <FloatingMenu />
     </>

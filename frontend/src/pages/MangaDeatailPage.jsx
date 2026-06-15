@@ -1,9 +1,10 @@
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { trendingSeries } from "../data/mockData";
 
 export default function MangaDetailPage() {
 
     const { id } = useParams();
+    const navigate = useNavigate();
 
     const manga = trendingSeries.find(
         m => m.id === Number(id)
@@ -22,7 +23,7 @@ export default function MangaDetailPage() {
 
                 <button
                     className="btn btn-success"
-                >
+                    onClick={() => navigate(`/manga/${manga.id}/create-chapter`)}>
                     ➕ Create Chapter
                 </button>
 
