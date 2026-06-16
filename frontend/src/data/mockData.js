@@ -20,7 +20,7 @@ export const categories = [
   "Giả tưởng",
 ];
 
-export const trendingSeries = [
+const initialSeries = [
   {
     id: 1,
     title: "Vua Hải Tặc",
@@ -162,3 +162,36 @@ export const trendingSeries = [
     ],
   },
 ];
+
+const generatedSeries = Array.from({ length: 40 }, (_, index) => {
+  const id = index + 11;
+  const colorList = [
+    "ff7675",
+    "74b9ff",
+    "55efc4",
+    "ffeaa7",
+    "fab1a0",
+    "fdcb6e",
+    "e17055",
+    "9b59b6",
+    "34495e",
+    "e84393",
+  ];
+  const bgColor = colorList[index % colorList.length];
+
+  return {
+    id: id,
+    title: `Manga Series Khám Phá #${id}`,
+    author: `Mangaka Ẩn Danh ${id}`,
+    genres: [categories[index % categories.length], "Hài hước"],
+    coverUrl: `https://placehold.co/200x280/${bgColor}/ffffff?text=Manga+${id}`,
+    description: `Đây là dữ liệu truyện tranh giả lập số ${id} dùng để test tính năng phân trang.`,
+    status: id % 2 === 0 ? "Published" : "Draft",
+    chapters: [
+      { id: id * 100 + 1, title: `Chương 2`, votes: Math.floor(id * 1.5) },
+      { id: id * 100 + 2, title: `Chương 1`, votes: Math.floor(id * 2.5) },
+    ],
+  };
+});
+
+export const trendingSeries = [...initialSeries, ...generatedSeries];
