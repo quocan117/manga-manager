@@ -3,11 +3,14 @@ import { Routes, Route } from "react-router-dom";
 import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
-import MangakaPage from "./pages/MangakaPage";
 import RankingPage from "./pages/RankingPage";
 import FloatingMenu from "./components/FloatingMenu";
-import MangaDetailPage from "./pages/MangaDeatailPage";
-import CreateChapterPage from "./pages/CreateChapterPage";
+import MangaDetailPage from "./Mangaka/pages/MangaDeatailPage";
+import CreateChapterPage from "./Mangaka/pages/CreateChapterPage";
+import DashboardMangaka from "./Mangaka/components/DashboardMangaka";
+import MyManga from "./Mangaka/components/MyManga";
+import Notification from "./Mangaka/components/Notification";
+import MangakaLayout from "./Mangaka/components/MangakaLayout";
 
 function App() {
   return (
@@ -16,10 +19,17 @@ function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
-        <Route path="/mangaka" element={<MangakaPage />} />
+        <Route path="/mangaka" element={<MangakaLayout />} />
         <Route path="/ranking" element={<RankingPage />} />
-        <Route path="/manga/:id" element={<MangaDetailPage />}/>
-        <Route path="/manga/:id/create-chapter" element={<CreateChapterPage />}/>
+        <Route path="/manga/:id" element={<MangaDetailPage />} />
+        <Route path="/manga/:id/create-chapter" element={<CreateChapterPage />} />
+
+        <Route path="/mangaka" element={<MangakaLayout />}>
+          <Route index element={<DashboardMangaka />}/>
+          <Route path="manga" element={<MyManga />}/>
+          <Route path="notifications" element={<Notification />}/>
+        </Route>
+
       </Routes>
       <FloatingMenu />
     </>

@@ -1,5 +1,5 @@
 import { useNavigate, useParams } from "react-router-dom";
-import { trendingSeries } from "../data/mockData";
+import { trendingSeries } from "../../data/mockData";
 
 export default function MangaDetailPage() {
 
