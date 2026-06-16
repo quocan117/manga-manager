@@ -66,7 +66,7 @@ const FloatingMenu = () => {
               setShowSearch(false);
             }}
           >
-            📚 Thể loại {showGenres ? "▾" : "▸"}
+            🏷️ Thể loại {showGenres ? "▾" : "▸"}
           </button>
           {showGenres && (
             <div className="floating-genres-grid">

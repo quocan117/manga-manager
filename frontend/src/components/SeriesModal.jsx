@@ -83,7 +83,7 @@ const SeriesModal = ({ series, onClose }) => {
                   fontStyle: "italic",
                 }}
               >
-                👈 Hãy chọn một chương từ menu phía trên để tiến hành bình chọn.
+                Hãy chọn một chương từ menu phía trên để tiến hành bình chọn.
               </div>
             )}
           </div>
