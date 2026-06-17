@@ -26,7 +26,7 @@ const initialSeries = [
     title: "Vua Hải Tặc",
     author: "Eiichiro Oda",
     genres: ["Hành động", "Phiêu lưu", "Hài hước"],
-    coverUrl: "https://placehold.co/200x280/ff7675/ffffff?text=One+Piece",
+    coverUrl: "https://vov2.vov.vn/sites/default/files/images/vuahaitac.jpg",
     description:
       "Câu chuyện về kỷ nguyên hải tặc vĩ đại. Cùng bình chọn cho chặng đường cuối cùng của Vua Hải Tặc!",
     status: "Published",
@@ -40,7 +40,7 @@ const initialSeries = [
     title: "Chú Thuật Hồi Chiến",
     author: "Gege Akutami",
     genres: ["Hành động", "Siêu nhiên", "Kinh dị"],
-    coverUrl: "https://placehold.co/200x280/74b9ff/ffffff?text=JJK",
+    coverUrl: "https://i.redd.it/dk4x6yay4grg1.jpeg",
     description:
       "Cuộc chiến khốc liệt giữa các chú thuật sư. Ai sẽ là người sống sót cuối cùng?",
     status: "Reviewing",
@@ -193,5 +193,43 @@ const generatedSeries = Array.from({ length: 40 }, (_, index) => {
     ],
   };
 });
-
 export const trendingSeries = [...initialSeries, ...generatedSeries];
+
+export const pendingSeriesData = [
+  {
+    id: 1001,
+    title: "Kẻ Săn Bóng Đêm",
+    author: "Nguyễn Minh T",
+    genre: "Kinh dị, Hành động",
+    submissionDate: "2026-06-15",
+    description: "Một thợ săn quỷ vô tình bị dính lời nguyền hắc ám...",
+    status: "Pending"
+  },
+  {
+    id: 1002,
+    title: "Học Viện Pháp Thuật Ánh Sáng",
+    author: "Trần Lê V",
+    genre: "Fantasy, Học đường",
+    submissionDate: "2026-06-16",
+    description: "Hành trình vươn lên của một pháp sư không có năng lực bẩm sinh.",
+    status: "Pending"
+  }
+];
+
+export const pendingMangakaData = [
+  {
+    id: 2001,
+    name: "Lê Hoàng A",
+    email: "hoanga@example.com",
+    portfolioUrl: "https://behance.net/hoanga",
+    applyDate: "2026-06-14",
+    status: "Pending"
+  }
+];
+
+export const rankingData = [
+  { id: 1, title: "Vua Hải Tặc", author: "Eiichiro Oda", totalVotes: 15400, rank: 1, trend: "up" },
+  { id: 2, title: "Đại Chiến Titan", author: "Hajime Isayama", totalVotes: 14200, rank: 2, trend: "same" },
+  { id: 3, title: "Chú Thuật Hồi Chiến", author: "Gege Akutami", totalVotes: 8900, rank: 3, trend: "down" },
+  { id: 4, title: "Manga Khám Phá #45", author: "Mangaka Ẩn Danh 45", totalVotes: 120, rank: 45, trend: "danger" } 
+];
