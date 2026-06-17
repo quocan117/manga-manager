@@ -1,4 +1,5 @@
 package com.example.backend.model;
+
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
@@ -23,4 +24,5 @@ public class AIProcessing {
     private String status;
     private String resultUrl;
     private LocalDateTime createdAt;
+
 }
