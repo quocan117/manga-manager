@@ -6,7 +6,7 @@ export default function LoginForm() {
     const navigate = useNavigate();
 
     const [form, setForm] = useState({
-        username: "",
+        email: "",
         password: "",
     });
 
@@ -40,14 +40,36 @@ export default function LoginForm() {
     //     }
     // };
 
-    const handleSubmit = (e) => {
+    /**Handle Test */
+    // const handleSubmit = (e) => {
+    //     e.preventDefault();
+    //     if (form.username === "mangaka" && form.password === "123456") {
+    //         alert("Đăng nhập thành công!");
+    //         navigate("/mangaka");
+    //     }
+    //     else {
+    //         alert("Sai tài khoản hoặc mật khẩu!");
+    //     }
+    // };
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        if (form.username === "mangaka" && form.password === "123456") {
+
+        try {
+            setLoading(true);
+
+            const data = await login(form);
+
+            console.log("Response:", data);
+
             alert("Đăng nhập thành công!");
+
             navigate("/mangaka");
-        }
-        else {
+        } catch (error) {
+            console.error(error);
+
             alert("Sai tài khoản hoặc mật khẩu!");
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -62,16 +84,16 @@ export default function LoginForm() {
 
                 <div className="mb-3">
                     <label className="form-label">
-                        Username
+                        Email
                     </label>
 
                     <input
-                        type="text"
-                        name="username"
+                        type="email"
+                        name="email"
                         className="form-control login-input"
-                        value={form.username}
+                        value={form.email}
                         onChange={handleChange}
-                        placeholder="Nhập username"
+                        placeholder="Nhập email"
                     />
                 </div>
 
