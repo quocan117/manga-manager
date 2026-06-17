@@ -1,9 +1,9 @@
 # manga-manager
 
-<h1>FOR LOCAL DATABASE</h1>
+<h1>Dùng cho localhost DATABASE</h1>
 
-Use : MySQL<br>
+Chuyển sang sử dụng SSMS<br>
 // CREATE DATABASE mangadb<br>
-Name : mangadb
+Tên : mangadb
 
 
