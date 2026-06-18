@@ -6,5 +6,5 @@ import com.example.backend.model.RegistrationRequest;
 
 public interface RegistrationRequestRepository
         extends JpaRepository<RegistrationRequest, Long> {
-    boolean existsexistsByEmail(String email);
+    boolean existsByEmail(String email);
 }

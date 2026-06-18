@@ -4,6 +4,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.CrossOrigin;
 
 import com.example.backend.dto.RegistrationRequestDTO;
 import com.example.backend.model.RegistrationRequest;
@@ -11,6 +12,7 @@ import com.example.backend.service.RegistrationRequestService;
 
 @RestController
 @RequestMapping("/registration-request")
+@CrossOrigin(origins = "*")
 public class RegistrationRequestController {
     private final RegistrationRequestService service;
 

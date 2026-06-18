@@ -10,6 +10,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/editorial-board")
+@CrossOrigin(origins = "*")
 public class EditorialBoardController {
 
     private final EditorialBoardService service;

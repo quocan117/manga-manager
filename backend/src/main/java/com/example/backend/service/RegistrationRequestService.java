@@ -17,7 +17,7 @@ public class RegistrationRequestService {
     }
 
     public RegistrationRequest create(RegistrationRequestDTO dto) {
-        if (repository.existsexistsByEmail(dto.getEmail())) {
+        if (repository.existsByEmail(dto.getEmail())) {
             throw new RuntimeException("Email already registered.");
         }
         RegistrationRequest request = new RegistrationRequest();
