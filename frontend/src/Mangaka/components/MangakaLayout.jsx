@@ -1,4 +1,5 @@
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet, NavLink, useNavigate } from "react-router-dom";
+import "../styles/MangakaLayout.css";
 
 export default function MangakaLayout() {
     const navigate = useNavigate();
@@ -6,58 +7,92 @@ export default function MangakaLayout() {
     return (
         <div className="container-fluid">
             <div className="row">
-                {/* Sidebar */}
-                <div className="col-md-2 bg-dark text-white min-vh-100 p-3">
 
-                    <h3>Mangaka</h3>
+                <div className="col-md-2 sidebar">
+
+                    <h3 className="sidebar-title">
+                        Mangaka
+                    </h3>
 
                     <ul className="nav flex-column mt-4">
 
-                        <li
-                            className="nav-item mb-2"
-                            onClick={() => navigate("/mangaka")}
-                        >
-                            Dashboard
+                        <li>
+                            <NavLink
+                                to="/mangaka"
+                                end
+                                className={({ isActive }) =>
+                                    `sidebar-link ${
+                                        isActive ? "active-link" : ""
+                                    }`
+                                }
+                            >
+                                📊 Dashboard
+                            </NavLink>
                         </li>
 
-                        <li
-                            className="nav-item mb-2"
-                            onClick={() => navigate("/mangaka/manga")}
-                        >
-                            My Manga
+                        <li>
+                            <NavLink
+                                to="/mangaka/manga"
+                                className={({ isActive }) =>
+                                    `sidebar-link ${
+                                        isActive ? "active-link" : ""
+                                    }`
+                                }
+                            >
+                                📚 My Manga
+                            </NavLink>
                         </li>
 
-                        <li
-                            className="nav-item mb-2"
-                            onClick={() => navigate("/mangaka/notifications")}
-                        >
-                            Notifications
+                        <li>
+                            <NavLink
+                                to="/mangaka/notifications"
+                                className={({ isActive }) =>
+                                    `sidebar-link ${
+                                        isActive ? "active-link" : ""
+                                    }`
+                                }
+                            >
+                                🔔 Notifications
+                            </NavLink>
                         </li>
 
-                        <li
-                            className="nav-item mb-2"
-                            onClick={() => navigate("/mangaka/settings")}
-                        >
-                            Settings
+                        <li>
+                            <NavLink
+                                to="/mangaka/settings"
+                                className={({ isActive }) =>
+                                    `sidebar-link ${
+                                        isActive ? "active-link" : ""
+                                    }`
+                                }
+                            >
+                                ⚙️ Settings
+                            </NavLink>
                         </li>
 
-                        <li
-                            className="nav-item text-danger"
-                            onClick={() => navigate("/")}
-                        >
-                            Logout
+                        <li className="mt-4">
+                            <button
+                                className="logout-btn"
+                                onClick={() => navigate("/")}
+                            >
+                                🚪 Logout
+                            </button>
                         </li>
+
                     </ul>
                 </div>
 
-                {/* Content */}
                 <div className="col-md-10 p-4">
 
                     <div className="mb-4">
-                        <h4>Xin chào, Eiichiro Oda</h4>
+                        <h4>
+                            Xin chào, Eiichiro Oda
+                        </h4>
                     </div>
+
                     <Outlet />
+
                 </div>
+
             </div>
         </div>
     );
