@@ -30,6 +30,8 @@ public class RegistrationRequest {
 
     private String phoneNumber;
 
+    private String requestedRole;
+
     /**
      * PENDING
      * APPROVED

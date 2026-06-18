@@ -10,6 +10,7 @@ import com.example.backend.repository.UserRepository;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -37,6 +38,7 @@ public class EditorialBoardService {
         return requestRepository.findAll();
     }
 
+    @Transactional
     public RegistrationRequest approve(Long requestId, ReviewRegistrationRequest dto) {
         RegistrationRequest request = requestRepository.findById(requestId)
                 .orElseThrow(() -> new RuntimeException("Registration request not found"));
@@ -50,18 +52,26 @@ public class EditorialBoardService {
         User editorialBoard = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Editorial board user not found"));
 
-        Role mangakaRole = roleRepository.findByRoleName("MANGAKA")
-                .orElseThrow(() -> new RuntimeException("MANGAKA role not found"));
+        String requestedRole = request.getRequestedRole() == null
+                ? "MANGAKA"
+                : request.getRequestedRole();
+        Role role = roleRepository.findByRoleName(requestedRole)
+                .orElseThrow(() -> new RuntimeException(requestedRole + " role not found"));
 
-        User mangaka = new User();
-        mangaka.setUsername(request.getEmail());
-        mangaka.setEmail(request.getEmail());
-        mangaka.setPassword(passwordEncoder.encode(dto.getTempPassword()));
-        mangaka.setStatus("ACTIVE");
-        mangaka.setCreatedAt(LocalDateTime.now());
-        mangaka.setRole(mangakaRole);
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new RuntimeException("A user with this email already exists");
+        }
 
-        userRepository.save(mangaka);
+        User user = new User();
+        user.setUsername(request.getEmail());
+        user.setEmail(request.getEmail());
+        user.setPassword(passwordEncoder.encode(dto.getTempPassword()));
+        user.setStatus("ACTIVE");
+        user.setCreatedAt(LocalDateTime.now());
+        user.setCreatedBy(editorialBoard);
+        user.setRole(role);
+
+        userRepository.save(user);
 
         request.setStatus("APPROVED");
         request.setReviewNote(dto.getReviewNote());

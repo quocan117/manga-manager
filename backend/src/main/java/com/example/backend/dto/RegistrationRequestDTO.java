@@ -16,4 +16,6 @@ public class RegistrationRequestDTO {
 
     private String phoneNumber;
 
+    private String requestedRole;
+
 }
