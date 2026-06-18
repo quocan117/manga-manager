@@ -1,0 +1,50 @@
+package com.example.backend.model;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "registration_requests")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+public class RegistrationRequest {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long requestId;
+
+    private String fullName;
+
+    @Column(unique = true)
+    private String email;
+
+    @Column(columnDefinition = "TEXT")
+    private String portfolioUrl;
+
+    @Column(columnDefinition = "TEXT")
+    private String introduction;
+
+    private String phoneNumber;
+
+    /**
+     * PENDING
+     * APPROVED
+     * REJECTED
+     */
+    private String status;
+
+    private LocalDateTime createdAt;
+
+    private LocalDateTime reviewedAt;
+
+    @Column(columnDefinition = "TEXT")
+    private String reviewNote;
+
+    @ManyToOne
+    @JoinColumn(name = "reviewed_by")
+    private User reviewedBy;
+}

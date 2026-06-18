@@ -28,6 +28,10 @@ public class User {
     private LocalDateTime createdAt;
 
     @ManyToOne
+    @JoinColumn(name = "created_by")
+    private User createdBy;
+
+    @ManyToOne
     @JoinColumn(name = "role_id")
     private Role role;
 }
