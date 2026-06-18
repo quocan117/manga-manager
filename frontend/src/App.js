@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
@@ -17,6 +17,31 @@ import ReviewSeriesPage from "./EditorialBoard/pages/ReviewSeriesPage";
 import ReviewMangakaPage from "./EditorialBoard/pages/ReviewMangakaPage";
 
 function App() {
+
+  useEffect(() => {
+    const trackGuestAccess = async () => {
+      let sessionToken = localStorage.getItem("guest_session_token");
+      if (!sessionToken) {
+        sessionToken = crypto.randomUUID(); 
+        localStorage.setItem("guest_session_token", sessionToken);
+      }
+      try {
+        await fetch("http://localhost:8080/api/guest/access", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionToken: sessionToken,
+            userAgent: navigator.userAgent
+          })
+        });
+        console.log("Đã ghi nhận khách truy cập thành công!");
+      } catch (error) {
+        console.warn("API truy cập bị lỗi  chưa sẵn sàng.", error.message);
+      }
+    };
+    trackGuestAccess();
+  }, []);
+
   return (
     <>
       <Routes>
