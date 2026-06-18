@@ -15,6 +15,7 @@ import BoardLayout from "./EditorialBoard/components/BoardLayout";
 import RankingDecisionPage from "./EditorialBoard/pages/RankingDecisionPage";
 import ReviewSeriesPage from "./EditorialBoard/pages/ReviewSeriesPage";
 import ReviewMangakaPage from "./EditorialBoard/pages/ReviewMangakaPage";
+import Settings from "./Mangaka/components/Settings";
 
 function App() {
 
@@ -60,6 +61,7 @@ function App() {
           <Route index element={<DashboardMangaka />} />
           <Route path="manga" element={<MyManga />} />
           <Route path="notifications" element={<Notification />} />
+          <Route path="settings" element={<Settings/>}/>
         </Route>
 
         <Route path="/board" element={<BoardLayout />}>
