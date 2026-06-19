@@ -1,13 +1,14 @@
-import React from 'react';
-import Navbar from '../components/Navbar';
-import { trendingSeries } from '../data/mockData';
-import '../styles/RankingPage.css';
+import React from "react";
+import Navbar from "../components/Navbar";
+import { trendingSeries } from "../data/mockData";
+import "../styles/RankingPage.css";
+import FloatingMenu from "../components/FloatingMenu";
 
 const RankingPage = () => {
   const rankedSeries = [...trendingSeries].sort((a, b) => {
-    const totalVotesA = a.chapters?.reduce((sum, ch) => sum + ch.votes, 0) || 0;
-    const totalVotesB = b.chapters?.reduce((sum, ch) => sum + ch.votes, 0) || 0;
-    return totalVotesB - totalVotesA;
+    const totalLikesA = a.chapters?.reduce((sum, ch) => sum + ch.likes, 0) || 0;
+    const totalLikesB = b.chapters?.reduce((sum, ch) => sum + ch.likes, 0) || 0;
+    return totalLikesB - totalLikesA;
   });
 
   const getRankBadge = (index) => {
@@ -20,42 +21,50 @@ const RankingPage = () => {
   return (
     <div className="ranking-container">
       <Navbar />
-      
+
       <div className="ranking-header">
         <h1>BẢNG XẾP HẠNG MANGA STUDIO</h1>
-        <p>Cập nhật liên tục dựa trên lượt VOTE của độc giả</p>
+        <p>Cập nhật liên tục dựa trên lượt LIKE của độc giả</p>
       </div>
 
       <div className="ranking-list">
         {rankedSeries.map((series, index) => {
-          const totalVotes = series.chapters?.reduce((sum, ch) => sum + ch.votes, 0) || 0;
-          
+          const totalLikes =
+            series.chapters?.reduce((sum, ch) => sum + ch.likes, 0) || 0;
+
           return (
             <div key={series.id} className="ranking-item">
-              <div className="rank-number">
-                {getRankBadge(index)}
-              </div>
-              
-              <img src={series.coverUrl} alt={series.title} className="ranking-cover" />
-              
+              <div className="rank-number">{getRankBadge(index)}</div>
+
+              <img
+                src={series.coverUrl}
+                alt={series.title}
+                className="ranking-cover"
+              />
+
               <div className="ranking-info">
                 <h2>{series.title}</h2>
                 <p className="ranking-author">Tác giả: {series.author}</p>
                 <div className="ranking-genres">
                   {series.genres?.map((genre, i) => (
-                    <span key={i} className="genre-tag">{genre}</span>
+                    <span key={i} className="genre-tag">
+                      {genre}
+                    </span>
                   ))}
                 </div>
               </div>
-              
-              <div className="ranking-votes">
-                <span className="vote-count">{totalVotes.toLocaleString()}</span>
-                <span className="vote-label">VOTE</span>
+
+              <div className="ranking-likes">
+                <span className="like-count">
+                  {totalLikes.toLocaleString()}
+                </span>
+                <span className="like-label">LIKE</span>
               </div>
             </div>
           );
         })}
       </div>
+      <FloatingMenu />
     </div>
   );
 };

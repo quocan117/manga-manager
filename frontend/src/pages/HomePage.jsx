@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import SeriesCard from "../components/SeriesCard";
 import SeriesModal from "../components/SeriesModal";
 import FloatingMenu from "../components/FloatingMenu";
 import { trendingSeries } from "../data/mockData";
+// import { getAllSeries } from "../services/seriesService";
 import "../styles/HomePage.css";
 
 const HomePage = () => {
@@ -13,18 +14,33 @@ const HomePage = () => {
   const [searchParams] = useSearchParams();
   const [selectedSeries, setSelectedSeries] = useState(null);
   const [jumpPage, setJumpPage] = useState("");
+  // const [trendingSeries, setTrendingSeries] = useState([]);
+
   // Trích xuất parameters từ URL
   const currentGenre = searchParams.get("genre");
   const searchQuery = searchParams.get("search");
   const isFiltering = currentGenre || searchQuery;
   const currentPage = parseInt(searchParams.get("page")) || 1;
 
+  //Gọi API lấy toàn bộ series hiển thị lên trang chủ
+  // useEffect(() => {
+  //   const fetchSeries = async () => {
+  //     try {
+  //       const data = await getAllSeries();
+  //       setTrendingSeries(data);
+  //     } catch (error) {
+  //       console.error(error);
+  //     }
+  //   };
+  //   fetchSeries();
+  // }, []);
+
   // 2. XỬ LÝ DỮ LIỆU
-  // Lấy Top 4 Series có lượt Vote cao nhất
+  // Lấy Top 4 Series có lượt Like cao nhất
   const top4Series = [...trendingSeries]
     .sort((a, b) => {
-      const totalA = a.chapters?.reduce((sum, ch) => sum + ch.votes, 0) || 0;
-      const totalB = b.chapters?.reduce((sum, ch) => sum + ch.votes, 0) || 0;
+      const totalA = a.chapters?.reduce((sum, ch) => sum + ch.likes, 0) || 0;
+      const totalB = b.chapters?.reduce((sum, ch) => sum + ch.likes, 0) || 0;
       return totalB - totalA;
     })
     .slice(0, 4);
@@ -32,7 +48,7 @@ const HomePage = () => {
   // Xử lý Lọc & Tìm kiếm
   let filteredSeries = trendingSeries;
   let filterTitle = "";
-  
+
   if (currentGenre) {
     filteredSeries = trendingSeries.filter((series) =>
       series.genres?.includes(currentGenre),
@@ -88,7 +104,7 @@ const HomePage = () => {
       <div className="vote-banner">
         <h1 className="banner-title">ĐẠI CHIẾN MANGA: BẢNG XẾP HẠNG</h1>
         <p className="banner-subtitle">
-          Mỗi lượt <span className="highlight-text">VOTE</span> là một lá phiếu
+          Mỗi lượt <span className="highlight-text">LIKE</span> là một lá phiếu
           định đoạt danh tiếng của Series. Series nào sẽ thống trị đỉnh bảng?
           Series nào sẽ bị lãng quên? Quyền năng đó nằm trong tay bạn. Hãy hành
           động ngay!
@@ -112,7 +128,7 @@ const HomePage = () => {
               ) : (
                 <div className="empty-state">
                   <h3 className="empty-title">
-                    Không tìm thấy kết quả nào phù hợp 
+                    Không tìm thấy kết quả nào phù hợp
                   </h3>
                   <p className="empty-subtitle">
                     Vui lòng thử lại với từ khóa hoặc thể loại khác.

@@ -91,19 +91,19 @@
   margin-right: 8px;
 }
 
-.ranking-votes {
+.ranking-likes {
   text-align: right;
   min-width: 120px;
 }
 
-.vote-count {
+.like-count {
   display: block;
   font-size: 24px;
   font-weight: 800;
   color: #ff4757;
 }
 
-.vote-label {
+.like-label {
   font-size: 12px;
   color: #888;
   font-weight: bold;

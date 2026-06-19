@@ -1,11 +1,13 @@
 import React, { useState } from "react";
 import "../styles/SeriesModal.css";
+// import { likeChapter } from "../services/chapterService";
 
 const SeriesModal = ({ series, onClose }) => {
-  const [userVotes, setUserVotes] = useState({});
+  const [userLikes, setUserLikes] = useState({});
   const [filter, setFilter] = useState("");
-  const handleToggleVote = (chapterId) => {
-    setUserVotes((prev) => ({
+
+  const handleToggleLike = (chapterId) => {
+    setUserLikes((prev) => ({
       ...prev,
       [chapterId]: !prev[chapterId],
     }));
@@ -60,16 +62,16 @@ const SeriesModal = ({ series, onClose }) => {
           </div>
           <div className="chapter-list">
             {filteredChapters.map((chapter) => {
-              const hasVoted = userVotes[chapter.id];
-              const displayVotes = hasVoted ? chapter.votes + 1 : chapter.votes;
+              const hasLikes = userLikes[chapter.id];
+              const displayLikes = hasLikes ? chapter.likes + 1 : chapter.likes;
               return (
                 <div key={chapter.id} className="chapter-item">
                   <span className="chapter-title">{chapter.title}</span>
                   <button
-                    className={`modal-vote-btn ${hasVoted ? "voted" : ""}`}
-                    onClick={() => handleToggleVote(chapter.id)}
+                    className={`modal-vote-btn ${hasLikes ? "voted" : ""}`}
+                    onClick={() => handleToggleLike(chapter.id)}
                   >
-                    {hasVoted ? "❤️ Đã Vote" : "🤍 Bình chọn"} ({displayVotes})
+                    {hasLikes ? "❤️ Đã Like" : "🤍 Bình chọn"} ({displayLikes})
                   </button>
                 </div>
               );

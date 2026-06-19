@@ -31,8 +31,8 @@ const initialSeries = [
       "Câu chuyện về kỷ nguyên hải tặc vĩ đại. Cùng bình chọn cho chặng đường cuối cùng của Vua Hải Tặc!",
     status: "Published",
     chapters: [
-      { id: 101, title: "Chương 1111: Tứ Hoàng Hành Động", votes: 340 },
-      { id: 102, title: "Chương 1110: Tinh Tú Giáng Lâm", votes: 325 },
+      { id: 101, title: "Chương 1111: Tứ Hoàng Hành Động", likes: 340 },
+      { id: 102, title: "Chương 1110: Tinh Tú Giáng Lâm", likes: 325 },
     ],
   },
   {
@@ -45,8 +45,8 @@ const initialSeries = [
       "Cuộc chiến khốc liệt giữa các chú thuật sư. Ai sẽ là người sống sót cuối cùng?",
     status: "Reviewing",
     chapters: [
-      { id: 201, title: "Chương 256: Hắc Thiểm", votes: 901 },
-      { id: 202, title: "Chương 255: Quyết Chiến Trận Địa", votes: 850 },
+      { id: 201, title: "Chương 256: Hắc Thiểm", likes: 901 },
+      { id: 202, title: "Chương 255: Quyết Chiến Trận Địa", likes: 850 },
     ],
   },
   {
@@ -56,11 +56,11 @@ const initialSeries = [
     genres: ["Hành động", "Lịch sử", "Siêu nhiên"],
     coverUrl: "https://placehold.co/200x280/55efc4/ffffff?text=Demon+Slayer",
     description:
-      "Hành trình diệt quỷ bảo vệ em gái của Tanjirou. Hãy vote cho những phân cảnh cảm động nhất.",
+      "Hành trình diệt quỷ bảo vệ em gái của Tanjirou. Hãy like cho những phân cảnh cảm động nhất.",
     status: "Draft",
     chapters: [
-      { id: 301, title: "Chương 205: Tương Lai Tuyệt Vời", votes: 219 },
-      { id: 302, title: "Chương 204: Thế Giới Không Có Quỷ", votes: 198 },
+      { id: 301, title: "Chương 205: Tương Lai Tuyệt Vời", likes: 219 },
+      { id: 302, title: "Chương 204: Thế Giới Không Có Quỷ", likes: 198 },
     ],
   },
   {
@@ -73,8 +73,8 @@ const initialSeries = [
       "Hành trình phá án tìm lại thân xác thực sự của thám tử học sinh Kudo Shinichi.",
     status: "Published",
     chapters: [
-      { id: 401, title: "Chương 1120: Vụ Án Ở Đền Thờ", votes: 450 },
-      { id: 402, title: "Chương 1119: Lời Giải Chiếc Chìa Khóa", votes: 410 },
+      { id: 401, title: "Chương 1120: Vụ Án Ở Đền Thờ", likes: 450 },
+      { id: 402, title: "Chương 1119: Lời Giải Chiếc Chìa Khóa", likes: 410 },
     ],
   },
   {
@@ -87,8 +87,8 @@ const initialSeries = [
       "Cuộc chiến sinh tồn tàn khốc của nhân loại trước những thực thể Titan khổng lồ khát máu.",
     status: "Published",
     chapters: [
-      { id: 501, title: "Chương 139: Bầu Trời Tự Do", votes: 1200 },
-      { id: 502, title: "Chương 138: Giấc Mơ Dài", votes: 1150 },
+      { id: 501, title: "Chương 139: Bầu Trời Tự Do", likes: 1200 },
+      { id: 502, title: "Chương 138: Giấc Mơ Dài", likes: 1150 },
     ],
   },
   {
@@ -101,8 +101,8 @@ const initialSeries = [
       "Hành trình chinh phục đỉnh cao giải bóng chuyền cao trung của Hinata Shoyo cùng đội Karasuno.",
     status: "Published",
     chapters: [
-      { id: 601, title: "Chương 402: Trận Chiến Cuối Cùng", votes: 670 },
-      { id: 602, title: "Chương 401: Ngôi Sao Tỏa Sáng", votes: 610 },
+      { id: 601, title: "Chương 402: Trận Chiến Cuối Cùng", likes: 670 },
+      { id: 602, title: "Chương 401: Ngôi Sao Tỏa Sáng", likes: 610 },
     ],
   },
   {
@@ -115,8 +115,8 @@ const initialSeries = [
       "Ước mơ trở thành Hokage vĩ đại nhất làng Lá của cậu bé mang trong mình phong ấn Cửu Vĩ.",
     status: "Published",
     chapters: [
-      { id: 701, title: "Chương 700: Uzumaki Naruto!!", votes: 890 },
-      { id: 702, title: "Chương 699: Dấu Ấn Hòa Bình", votes: 820 },
+      { id: 701, title: "Chương 700: Uzumaki Naruto!!", likes: 890 },
+      { id: 702, title: "Chương 699: Dấu Ấn Hòa Bình", likes: 820 },
     ],
   },
   {
@@ -129,8 +129,8 @@ const initialSeries = [
       "Những cuộc phiêu lưu đầy phép thuật, tình đồng đội của Natsu, Lucy và hội Fairy Tail.",
     status: "Published",
     chapters: [
-      { id: 801, title: "Chương 545: Những Người Bạn Tri Kỷ", votes: 310 },
-      { id: 802, title: "Chương 544: Sức Mạnh Của Cảm Xúc", votes: 295 },
+      { id: 801, title: "Chương 545: Những Người Bạn Tri Kỷ", likes: 310 },
+      { id: 802, title: "Chương 544: Sức Mạnh Của Cảm Xúc", likes: 295 },
     ],
   },
   {
@@ -143,8 +143,8 @@ const initialSeries = [
       "Từ thợ săn yếu nhất thế giới, Sung Jin-Woo có được khả năng thăng cấp vô hạn thông qua hệ thống bí ẩn.",
     status: "Published",
     chapters: [
-      { id: 901, title: "Chương 179: Tân Vương Trỗi Dậy", votes: 1450 },
-      { id: 902, title: "Chương 178: Trận Chiến Bóng Đêm", votes: 1390 },
+      { id: 901, title: "Chương 179: Tân Vương Trỗi Dậy", likes: 1450 },
+      { id: 902, title: "Chương 178: Trận Chiến Bóng Đêm", likes: 1390 },
     ],
   },
   {
@@ -157,8 +157,8 @@ const initialSeries = [
       "Câu chuyện cảm động về sự chuộc lỗi, thấu hiểu và kết nối giữa một cậu bé ngỗ nghịch và cô bé khiếm thính.",
     status: "Published",
     chapters: [
-      { id: 1001, title: "Chương 62: Đi Về Phía Ánh Sáng", votes: 520 },
-      { id: 1002, title: "Chương 61: Lời Xin Lỗi Chân Thành", votes: 490 },
+      { id: 1001, title: "Chương 62: Đi Về Phía Ánh Sáng", likes: 520 },
+      { id: 1002, title: "Chương 61: Lời Xin Lỗi Chân Thành", likes: 490 },
     ],
   },
 ];
@@ -188,8 +188,8 @@ const generatedSeries = Array.from({ length: 40 }, (_, index) => {
     description: `Đây là dữ liệu truyện tranh giả lập số ${id} dùng để test tính năng phân trang.`,
     status: id % 2 === 0 ? "Published" : "Draft",
     chapters: [
-      { id: id * 100 + 1, title: `Chương 2`, votes: Math.floor(id * 1.5) },
-      { id: id * 100 + 2, title: `Chương 1`, votes: Math.floor(id * 2.5) },
+      { id: id * 100 + 1, title: `Chương 2`, likes: Math.floor(id * 1.5) },
+      { id: id * 100 + 2, title: `Chương 1`, likes: Math.floor(id * 2.5) },
     ],
   };
 });
@@ -203,7 +203,7 @@ export const pendingSeriesData = [
     genre: "Kinh dị, Hành động",
     submissionDate: "2026-06-15",
     description: "Một thợ săn quỷ vô tình bị dính lời nguyền hắc ám...",
-    status: "Pending"
+    status: "Pending",
   },
   {
     id: 1002,
@@ -211,9 +211,10 @@ export const pendingSeriesData = [
     author: "Trần Lê V",
     genre: "Fantasy, Học đường",
     submissionDate: "2026-06-16",
-    description: "Hành trình vươn lên của một pháp sư không có năng lực bẩm sinh.",
-    status: "Pending"
-  }
+    description:
+      "Hành trình vươn lên của một pháp sư không có năng lực bẩm sinh.",
+    status: "Pending",
+  },
 ];
 
 export const pendingMangakaData = [
@@ -223,13 +224,41 @@ export const pendingMangakaData = [
     email: "hoanga@example.com",
     portfolioUrl: "https://behance.net/hoanga",
     applyDate: "2026-06-14",
-    status: "Pending"
-  }
+    status: "Pending",
+  },
 ];
 
 export const rankingData = [
-  { id: 1, title: "Vua Hải Tặc", author: "Eiichiro Oda", totalVotes: 15400, rank: 1, trend: "up" },
-  { id: 2, title: "Đại Chiến Titan", author: "Hajime Isayama", totalVotes: 14200, rank: 2, trend: "same" },
-  { id: 3, title: "Chú Thuật Hồi Chiến", author: "Gege Akutami", totalVotes: 8900, rank: 3, trend: "down" },
-  { id: 4, title: "Manga Khám Phá #45", author: "Mangaka Ẩn Danh 45", totalVotes: 120, rank: 45, trend: "danger" } 
+  {
+    id: 1,
+    title: "Vua Hải Tặc",
+    author: "Eiichiro Oda",
+    totalLikes: 15400,
+    rank: 1,
+    trend: "up",
+  },
+  {
+    id: 2,
+    title: "Đại Chiến Titan",
+    author: "Hajime Isayama",
+    totalLikes: 14200,
+    rank: 2,
+    trend: "same",
+  },
+  {
+    id: 3,
+    title: "Chú Thuật Hồi Chiến",
+    author: "Gege Akutami",
+    totalLikes: 8900,
+    rank: 3,
+    trend: "down",
+  },
+  {
+    id: 4,
+    title: "Manga Khám Phá #45",
+    author: "Mangaka Ẩn Danh 45",
+    totalLikes: 120,
+    rank: 45,
+    trend: "danger",
+  },
 ];
