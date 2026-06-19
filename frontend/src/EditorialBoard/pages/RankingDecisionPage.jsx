@@ -29,7 +29,7 @@ const RankingDecisionPage = () => {
                 <strong>{series.title}</strong>
               </td>
               <td>{series.author}</td>
-              <td>{series.totalVotes.toLocaleString()}</td>
+              <td>{series.totalLikes.toLocaleString()}</td>
               <td>
                 {series.trend === "danger" ? (
                   <span className="badge badge-danger">Nguy cơ hủy</span>
