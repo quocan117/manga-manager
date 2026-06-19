@@ -11,9 +11,9 @@ PS: Check phần backend/database rồi copy dán vào local ssms và chạy d�
 <h3>Cho Mangaka</h3>
 Tài khoản:
 
-oda@manga.test
-gege@manga.test
-gotouge@manga.test
+oda@manga.test<br>
+gege@manga.test<br>
+gotouge@manga.test<br>
 aoyama@manga.test
 
 Mật khẩu chung: Mangaka@123
