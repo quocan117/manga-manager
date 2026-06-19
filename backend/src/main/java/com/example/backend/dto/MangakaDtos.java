@@ -1,0 +1,142 @@
+package com.example.backend.dto;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+import jakarta.validation.constraints.Future;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
+
+public final class MangakaDtos {
+    private MangakaDtos() {
+    }
+
+    public record CreateSeriesRequest(
+            @NotBlank String title,
+            @NotEmpty List<@NotBlank String> genres,
+            String coverUrl,
+            String description,
+            String publicationType,
+            String artStyle) {
+    }
+
+    public record SubmitSeriesReviewRequest(@NotBlank String storyboardUrl) {
+    }
+
+    public record CreateChapterRequest(
+            @NotNull Long seriesId,
+            @NotNull @Positive Integer chapterNumber,
+            @NotBlank String title) {
+    }
+
+    public record CreatePageRequest(
+            @NotNull Long chapterId,
+            @NotNull @Positive Integer pageNumber,
+            @NotBlank String imageUrl) {
+    }
+
+    public record AssignTaskRequest(
+            @NotNull Long pageId,
+            @NotNull Long assistantId,
+            @NotBlank String taskType,
+            @NotBlank String title,
+            String description,
+            @NotNull @Future LocalDateTime dueDate,
+            @NotNull @PositiveOrZero Float areaX,
+            @NotNull @PositiveOrZero Float areaY,
+            @NotNull @Positive Float areaWidth,
+            @NotNull @Positive Float areaHeight) {
+    }
+
+    public record ReviewSubmissionRequest(
+            @NotBlank String decision,
+            String reviewNote) {
+    }
+
+    public record SeriesResponse(
+            Long id,
+            String title,
+            List<String> genres,
+            String coverUrl,
+            String description,
+            String status,
+            String storyboardUrl,
+            LocalDateTime submittedAt,
+            Float rankingScore) {
+    }
+
+    public record AssistantResponse(Long id, String username, String email, String avatarUrl) {
+    }
+
+    public record ChapterResponse(
+            Long id,
+            Long seriesId,
+            Integer chapterNumber,
+            String title,
+            String status,
+            LocalDateTime createdAt) {
+    }
+
+    public record PageResponse(
+            Long id,
+            Long chapterId,
+            Integer pageNumber,
+            String imageUrl,
+            String status) {
+    }
+
+    public record TaskResponse(
+            Long id,
+            Long chapterId,
+            Long pageId,
+            Integer pageNumber,
+            Long assistantId,
+            String assistantName,
+            String taskType,
+            String title,
+            String description,
+            String status,
+            LocalDateTime dueDate,
+            Float areaX,
+            Float areaY,
+            Float areaWidth,
+            Float areaHeight) {
+    }
+
+    public record SubmissionResponse(
+            Long id,
+            Long taskId,
+            Long chapterId,
+            Long submittedById,
+            String submittedByName,
+            String artifactUrl,
+            String note,
+            String status,
+            String reviewNote,
+            LocalDateTime submittedAt,
+            LocalDateTime reviewedAt) {
+    }
+
+    public record RankingResponse(
+            Long id,
+            Long seriesId,
+            String seriesTitle,
+            Integer position,
+            Float score,
+            Integer voteCount,
+            String period,
+            LocalDateTime calculatedAt) {
+    }
+
+    public record NotificationResponse(
+            Long id,
+            String type,
+            Long referenceId,
+            String message,
+            Boolean isRead,
+            LocalDateTime createdAt) {
+    }
+}

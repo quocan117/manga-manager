@@ -38,9 +38,12 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers("/error").permitAll()
                         .requestMatchers("/auth/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/manga-series/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/chapters/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/guest-access").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/guest/access").permitAll()
                         .requestMatchers(HttpMethod.POST, "/chapters/*/likes").permitAll()
                         .requestMatchers(HttpMethod.POST, "/registration-request").permitAll()
                         .anyRequest().authenticated())

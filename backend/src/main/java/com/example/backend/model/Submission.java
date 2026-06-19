@@ -21,6 +21,10 @@ public class Submission {
     private Chapter chapter;
 
     @ManyToOne
+    @JoinColumn(name = "task_id")
+    private Task task;
+
+    @ManyToOne
     @JoinColumn(name = "submitted_by")
     private User submittedBy;
 
@@ -29,4 +33,16 @@ public class Submission {
 
     @Column(columnDefinition = "TEXT")
     private String note;
+
+    @Column(columnDefinition = "TEXT")
+    private String artifactUrl;
+
+    @ManyToOne
+    @JoinColumn(name = "reviewed_by")
+    private User reviewedBy;
+
+    private LocalDateTime reviewedAt;
+
+    @Column(columnDefinition = "NVARCHAR(MAX)")
+    private String reviewNote;
 }

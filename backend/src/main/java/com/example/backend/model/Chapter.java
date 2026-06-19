@@ -21,6 +21,8 @@ public class Chapter {
     private MangaSeries series;
 
     private Integer chapterNumber;
+
+    @Column(columnDefinition = "NVARCHAR(255)")
     private String title;
     private String status;
     private LocalDateTime releaseDate;

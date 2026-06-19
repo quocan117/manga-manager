@@ -1,0 +1,115 @@
+package com.example.backend.service;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.util.List;
+import java.util.Optional;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.server.ResponseStatusException;
+
+import com.example.backend.dto.MangakaDtos.CreateSeriesRequest;
+import com.example.backend.dto.MangakaDtos.SubmitSeriesReviewRequest;
+import com.example.backend.model.MangaSeries;
+import com.example.backend.model.User;
+import com.example.backend.repository.ChapterPageRepository;
+import com.example.backend.repository.ChapterRepository;
+import com.example.backend.repository.MangaSeriesRepository;
+import com.example.backend.repository.NotificationRepository;
+import com.example.backend.repository.SeriesRankingRepository;
+import com.example.backend.repository.SubmissionRepository;
+import com.example.backend.repository.TaskRepository;
+import com.example.backend.repository.UserRepository;
+
+@ExtendWith(MockitoExtension.class)
+class MangakaServiceTests {
+    private static final String EMAIL = "mangaka@test.local";
+
+    @Mock
+    private UserRepository userRepository;
+    @Mock
+    private MangaSeriesRepository mangaSeriesRepository;
+    @Mock
+    private ChapterRepository chapterRepository;
+    @Mock
+    private ChapterPageRepository chapterPageRepository;
+    @Mock
+    private TaskRepository taskRepository;
+    @Mock
+    private SubmissionRepository submissionRepository;
+    @Mock
+    private SeriesRankingRepository seriesRankingRepository;
+    @Mock
+    private NotificationRepository notificationRepository;
+
+    @InjectMocks
+    private MangakaService service;
+
+    @BeforeEach
+    void authenticateMangaka() {
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(EMAIL, null, List.of()));
+    }
+
+    @AfterEach
+    void clearSecurityContext() {
+        SecurityContextHolder.clearContext();
+    }
+
+    @Test
+    void createSeriesAssignsAuthenticatedMangakaAndDraftStatus() {
+        User mangaka = user(1L, EMAIL);
+        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(mangaka));
+        when(mangaSeriesRepository.save(any(MangaSeries.class))).thenAnswer(invocation -> {
+            MangaSeries series = invocation.getArgument(0);
+            series.setSeriesId(10L);
+            return series;
+        });
+
+        var response = service.createSeries(new CreateSeriesRequest(
+                "New series", List.of("Action", "Comedy"), null, "Description", null, null));
+
+        assertEquals(10L, response.id());
+        assertEquals("DRAFT", response.status());
+        assertEquals(List.of("Action", "Comedy"), response.genres());
+        verify(mangaSeriesRepository).save(any(MangaSeries.class));
+    }
+
+    @Test
+    void submitSeriesRejectsSeriesOwnedByAnotherMangaka() {
+        MangaSeries series = new MangaSeries();
+        series.setSeriesId(20L);
+        series.setAuthor(user(2L, "other@test.local"));
+        series.setStatus("DRAFT");
+        when(mangaSeriesRepository.findById(20L)).thenReturn(Optional.of(series));
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> service.submitSeries(20L, new SubmitSeriesReviewRequest("storyboard-url")));
+
+        assertSame(HttpStatus.FORBIDDEN, exception.getStatusCode());
+        verify(mangaSeriesRepository, never()).save(any());
+    }
+
+    private User user(Long id, String email) {
+        User user = new User();
+        user.setUserId(id);
+        user.setEmail(email);
+        user.setUsername(email);
+        return user;
+    }
+}

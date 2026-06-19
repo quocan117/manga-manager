@@ -12,17 +12,19 @@ import com.example.backend.dto.GuestAccessResponse;
 import com.example.backend.service.GuestAccessService;
 
 @RestController
-@RequestMapping("/guest-access")
+@RequestMapping({ "/guest-access", "/api/guest/access" })
 @CrossOrigin(origins = "*")
 public class GuestAccessController {
     private final GuestAccessService service;
-    public GuestAccessController(GuestAccessService service){
+
+    public GuestAccessController(GuestAccessService service) {
         this.service = service;
 
     }
+
     @PostMapping
     public ResponseEntity<GuestAccessResponse> createGuest(
-        @RequestBody GuestAccessRequest request){
+            @RequestBody GuestAccessRequest request) {
         return ResponseEntity.ok(service.createGuest(request));
 
     }

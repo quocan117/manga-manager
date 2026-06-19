@@ -16,15 +16,17 @@ public class MangaSeries {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long seriesId;
 
+    @Column(columnDefinition = "NVARCHAR(255)")
     private String title;
 
     @ManyToOne
     @JoinColumn(name = "author_id")
     private User author;
 
+    @Column(columnDefinition = "NVARCHAR(255)")
     private String genre;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(columnDefinition = "NVARCHAR(MAX)")
     private String description;
 
     private String coverImage;
@@ -33,4 +35,9 @@ public class MangaSeries {
     private String publicationType;
     private LocalDateTime createdAt;
     private String artStyle;
+
+    @Column(columnDefinition = "TEXT")
+    private String storyboardUrl;
+
+    private LocalDateTime submittedAt;
 }

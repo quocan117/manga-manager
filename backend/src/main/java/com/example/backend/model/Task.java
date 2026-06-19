@@ -33,6 +33,16 @@ public class Task {
     @JoinColumn(name = "chapter_id")
     private Chapter chapter;
 
+    @ManyToOne
+    @JoinColumn(name = "page_id")
+    private ChapterPage page;
+
+    private String taskType;
+    private Float areaX;
+    private Float areaY;
+    private Float areaWidth;
+    private Float areaHeight;
+
     private LocalDateTime dueDate;
     private String status;
     private LocalDateTime createdAt;
