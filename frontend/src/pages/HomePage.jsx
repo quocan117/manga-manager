@@ -4,8 +4,8 @@ import Navbar from "../components/Navbar";
 import SeriesCard from "../components/SeriesCard";
 import SeriesModal from "../components/SeriesModal";
 import FloatingMenu from "../components/FloatingMenu";
-import { trendingSeries } from "../data/mockData";
-// import { getAllSeries } from "../services/seriesService";
+// import { trendingSeries } from "../data/mockData";
+import { getAllSeries } from "../services/seriesService";
 import "../styles/HomePage.css";
 
 const HomePage = () => {
@@ -14,7 +14,7 @@ const HomePage = () => {
   const [searchParams] = useSearchParams();
   const [selectedSeries, setSelectedSeries] = useState(null);
   const [jumpPage, setJumpPage] = useState("");
-  // const [trendingSeries, setTrendingSeries] = useState([]);
+  const [trendingSeries, setTrendingSeries] = useState([]);
 
   // Trích xuất parameters từ URL
   const currentGenre = searchParams.get("genre");
@@ -23,17 +23,17 @@ const HomePage = () => {
   const currentPage = parseInt(searchParams.get("page")) || 1;
 
   //Gọi API lấy toàn bộ series hiển thị lên trang chủ
-  // useEffect(() => {
-  //   const fetchSeries = async () => {
-  //     try {
-  //       const data = await getAllSeries();
-  //       setTrendingSeries(data);
-  //     } catch (error) {
-  //       console.error(error);
-  //     }
-  //   };
-  //   fetchSeries();
-  // }, []);
+  useEffect(() => {
+    const fetchSeries = async () => {
+      try {
+        const data = await getAllSeries();
+        setTrendingSeries(data);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+    fetchSeries();
+  }, []);
 
   // 2. XỬ LÝ DỮ LIỆU
   // Lấy Top 4 Series có lượt Like cao nhất

@@ -9,6 +9,5 @@ export const likeChapter = async (chapterId, sessionToken) => {
     body: JSON.stringify({ sessionToken: sessionToken }),
   });
 
-  if (!response.ok) throw new Error(`Lỗi từ Backend: ${response.status}`);
-  return await response.json();
+  return response.ok;
 };

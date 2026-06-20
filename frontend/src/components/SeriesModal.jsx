@@ -1,16 +1,34 @@
 import React, { useState } from "react";
 import "../styles/SeriesModal.css";
-// import { likeChapter } from "../services/chapterService";
+import { likeChapter } from "../services/chapterService";
 
 const SeriesModal = ({ series, onClose }) => {
   const [userLikes, setUserLikes] = useState({});
   const [filter, setFilter] = useState("");
 
-  const handleToggleLike = (chapterId) => {
+  const handleToggleLike = async (chapterId) => {
+    const sessionToken = localStorage.getItem("guest_session_token");
+    if (!sessionToken) {
+      alert("Hệ thống chưa nhận diện được bạn, vui lòng F5 tải lại trang!");
+      return;
+    }
+    const isCurrentlyLiked = userLikes[chapterId];
     setUserLikes((prev) => ({
       ...prev,
       [chapterId]: !prev[chapterId],
     }));
+    console.log("Đang gửi Like cho chương ID:", chapterId, "với token:", sessionToken);
+    try {
+      await likeChapter(chapterId, sessionToken); 
+      console.log(`Đã lưu Like cho chương ${chapterId} vào Database thành công!`);
+    } catch (error) {
+      console.error("Lỗi gọi API Like:", error);
+      setUserLikes((prev) => ({
+        ...prev,
+        [chapterId]: isCurrentlyLiked,
+      }));
+      alert("Lỗi máy chủ! Không thể thực hiện thích lúc này.");
+    }
   };
 
   if (!series) return null;

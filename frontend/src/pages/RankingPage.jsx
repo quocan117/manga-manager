@@ -1,14 +1,40 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Navbar from "../components/Navbar";
-import { trendingSeries } from "../data/mockData";
 import "../styles/RankingPage.css";
 import FloatingMenu from "../components/FloatingMenu";
 
 const RankingPage = () => {
-  const rankedSeries = [...trendingSeries].sort((a, b) => {
-    const totalLikesA = a.chapters?.reduce((sum, ch) => sum + ch.likes, 0) || 0;
-    const totalLikesB = b.chapters?.reduce((sum, ch) => sum + ch.likes, 0) || 0;
-    return totalLikesB - totalLikesA;
+  const [seriesList, setSeriesList] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchRankingSeries = async () => {
+      try {
+        const response = await fetch("http://localhost:8080/manga-series", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json"
+          }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setSeriesList(data);
+        } else {
+          console.error("Lỗi server khi lấy dữ liệu xếp hạng, Mã lỗi:", response.status);
+        }
+      } catch (error) {
+        console.error("Lỗi kết nối mạng khi tải bảng xếp hạng:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchRankingSeries();
+  }, []);
+
+  const rankedSeries = [...seriesList].sort((a, b) => {
+    const totalLikesA = a.totalLikes ?? (a.chapters?.reduce((sum, ch) => sum + ch.likes, 0) || 0);
+    const totalLikesB = b.totalLikes ?? (b.chapters?.reduce((sum, ch) => sum + ch.likes, 0) || 0);
+    return totalLikesB - totalLikesA; 
   });
 
   const getRankBadge = (index) => {
