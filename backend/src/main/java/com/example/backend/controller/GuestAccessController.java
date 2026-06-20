@@ -11,6 +11,8 @@ import com.example.backend.dto.GuestAccessRequest;
 import com.example.backend.dto.GuestAccessResponse;
 import com.example.backend.service.GuestAccessService;
 
+import jakarta.servlet.http.HttpServletRequest;
+
 @RestController
 @RequestMapping({ "/guest-access", "/api/guest/access" })
 @CrossOrigin(origins = "*")
@@ -24,8 +26,17 @@ public class GuestAccessController {
 
     @PostMapping
     public ResponseEntity<GuestAccessResponse> createGuest(
-            @RequestBody GuestAccessRequest request) {
-        return ResponseEntity.ok(service.createGuest(request));
+            @RequestBody GuestAccessRequest request,
+            HttpServletRequest httpRequest) {
+        return ResponseEntity.ok(service.createGuest(request, resolveIpAddress(httpRequest)));
 
+    }
+
+    private String resolveIpAddress(HttpServletRequest request) {
+        String forwardedFor = request.getHeader("X-Forwarded-For");
+        if (forwardedFor != null && !forwardedFor.isBlank()) {
+            return forwardedFor.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
     }
 }

@@ -34,8 +34,19 @@ public class MangaSeriesQueryService {
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Manga series not found"));
 
+        return toResponse(series);
+    }
+
+    public List<MangaSeriesDetailResponse> getAll() {
+        return mangaSeriesRepository.findAllByOrderByCreatedAtDesc()
+                .stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    private MangaSeriesDetailResponse toResponse(MangaSeries series) {
         List<ChapterSummaryResponse> chapters = chapterRepository
-                .findBySeriesSeriesIdOrderByChapterNumberAsc(seriesId)
+                .findBySeriesSeriesIdOrderByChapterNumberAsc(series.getSeriesId())
                 .stream()
                 .map(chapter -> new ChapterSummaryResponse(
                         chapter.getChapterId(),

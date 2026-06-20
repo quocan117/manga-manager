@@ -1,5 +1,7 @@
 package com.example.backend.controller;
 
+import java.util.List;
+
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -17,6 +19,11 @@ public class MangaSeriesController {
 
     public MangaSeriesController(MangaSeriesQueryService service) {
         this.service = service;
+    }
+
+    @GetMapping
+    public List<MangaSeriesDetailResponse> getAll() {
+        return service.getAll();
     }
 
     @GetMapping("/{id}")

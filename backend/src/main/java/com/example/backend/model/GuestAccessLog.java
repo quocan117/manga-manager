@@ -5,7 +5,12 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "guest_access_logs")
+@Table(
+        name = "guest_access_logs",
+        indexes = @Index(
+                name = "ux_guest_access_session_token",
+                columnList = "session_token",
+                unique = true))
 @Getter
 @Setter
 @NoArgsConstructor
@@ -16,6 +21,7 @@ public class GuestAccessLog {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long logId;
 
+    @Column(nullable = false, unique = true)
     private String sessionToken;
     private String ipAddress;
 

@@ -30,7 +30,8 @@ public class LikeLogController {
 
         likeChapter.likeChapter(
                 chapterId,
-                request.getLogId());
+                request.getLogId(),
+                request.getSessionToken());
 
         return ResponseEntity.ok().build();
     }

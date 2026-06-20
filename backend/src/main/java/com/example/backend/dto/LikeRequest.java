@@ -1,15 +1,22 @@
 package com.example.backend.dto;
 
 public class LikeRequest {
-    private Long logId;
+    private String logId;
+    private String sessionToken;
 
-    public Long getLogId() {
+    public String getLogId() {
         return logId;
     }
 
-    public void setLogId(Long logId) {
+    public void setLogId(String logId) {
         this.logId = logId;
     }
 
-    
+    public String getSessionToken() {
+        return sessionToken;
+    }
+
+    public void setSessionToken(String sessionToken) {
+        this.sessionToken = sessionToken;
+    }
 }
