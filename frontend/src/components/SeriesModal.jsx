@@ -3,31 +3,26 @@ import "../styles/SeriesModal.css";
 import { likeChapter } from "../services/chapterService";
 
 const SeriesModal = ({ series, onClose }) => {
-  const [userLikes, setUserLikes] = useState({});
-  const [filter, setFilter] = useState("");
+  const [userLikes, setUserLikes] = useState(() => {
+    const savedLikes = localStorage.getItem("guest_liked_chapters");
+    return savedLikes ? JSON.parse(savedLikes) : {};
+  });
 
+  const [filter, setFilter] = useState("");
   const handleToggleLike = async (chapterId) => {
     const sessionToken = localStorage.getItem("guest_session_token");
-    if (!sessionToken) {
-      alert("Hệ thống chưa nhận diện được bạn, vui lòng F5 tải lại trang!");
+
+    if (userLikes[chapterId]) {
       return;
     }
-    const isCurrentlyLiked = userLikes[chapterId];
-    setUserLikes((prev) => ({
-      ...prev,
-      [chapterId]: !prev[chapterId],
-    }));
-    console.log("Đang gửi Like cho chương ID:", chapterId, "với token:", sessionToken);
+    const newLikesState = { ...userLikes, [chapterId]: true };
+    setUserLikes(newLikesState);
+    localStorage.setItem("guest_liked_chapters", JSON.stringify(newLikesState));
+
     try {
-      await likeChapter(chapterId, sessionToken); 
-      console.log(`Đã lưu Like cho chương ${chapterId} vào Database thành công!`);
+      await likeChapter(chapterId, sessionToken);
     } catch (error) {
       console.error("Lỗi gọi API Like:", error);
-      setUserLikes((prev) => ({
-        ...prev,
-        [chapterId]: isCurrentlyLiked,
-      }));
-      alert("Lỗi máy chủ! Không thể thực hiện thích lúc này.");
     }
   };
 
