@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import { getRankings }
-    from "../../services/rankingService";
+import { getRankings } from "../../services/mangakaService";
 
 export default function Ranking() {
 

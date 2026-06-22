@@ -1,136 +1,201 @@
 import { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import {
+    useParams,
+    useNavigate
+} from "react-router-dom";
+
+import {
+    createChapter
+} from "../../services/mangakaService";
 
 export default function CreateChapterPage() {
+
     const { id } = useParams();
+
     const navigate = useNavigate();
 
-    const [chapter, setChapter] = useState({
-        title: "",
-        description: "",
-        pdfFile: null,
+    const [form, setForm] = useState({
+
+        chapterNumber: "",
+        title: ""
+
     });
 
+    const [loading, setLoading] =
+        useState(false);
+
     const handleChange = (e) => {
-        setChapter({
-            ...chapter,
-            [e.target.name]: e.target.value,
-        });
-    };
 
-    const handleFileChange = (e) => {
-        setChapter({
-            ...chapter,
-            pdfFile: e.target.files[0],
-        });
-    };
+        setForm({
 
-    const handleSubmit = (e) => {
-        e.preventDefault();
+            ...form,
 
-        console.log({
-            mangaId: id,
-            title: chapter.title,
-            description: chapter.description,
-            pdfFile: chapter.pdfFile,
+            [e.target.name]:
+                e.target.value
+
         });
 
-        alert("Chapter đã được gửi để xét duyệt!");
-
-        navigate(`/manga/${id}`);
     };
+
+    const handleSubmit =
+        async (e) => {
+
+            e.preventDefault();
+
+            try {
+
+                setLoading(true);
+
+                await createChapter({
+
+                    seriesId:
+                        Number(id),
+
+                    chapterNumber:
+                        Number(
+                            form.chapterNumber
+                        ),
+
+                    title:
+                        form.title
+
+                });
+
+                alert(
+                    "Tạo chapter thành công!"
+                );
+
+                navigate(
+                    "/mangaka/manga"
+                );
+
+            } catch (error) {
+
+                console.error(error);
+
+                alert(
+                    "Tạo chapter thất bại!"
+                );
+
+            } finally {
+
+                setLoading(false);
+
+            }
+
+        };
 
     return (
+
         <div className="container mt-4">
+
             <div
                 className="card shadow mx-auto"
-                style={{ maxWidth: "900px" }}>
-                <div className="card-body p-4">
+                style={{
+                    maxWidth: "700px"
+                }}
+            >
 
-                    <h2 className="mb-4 text-center">
+                <div className="card-body">
+
+                    <h3 className="mb-4">
+
                         Create Chapter
-                    </h2>
 
-                    <form onSubmit={handleSubmit}>
+                    </h3>
+
+                    <form
+                        onSubmit={
+                            handleSubmit
+                        }
+                    >
 
                         <div className="mb-3">
-                            <label className="form-label">
-                                Chapter Title
+
+                            <label>
+                                Chapter Number
+                            </label>
+
+                            <input
+                                type="number"
+                                name="chapterNumber"
+                                className="form-control"
+                                value={
+                                    form.chapterNumber
+                                }
+                                onChange={
+                                    handleChange
+                                }
+                                required
+                            />
+
+                        </div>
+
+                        <div className="mb-3">
+
+                            <label>
+                                Title
                             </label>
 
                             <input
                                 type="text"
                                 name="title"
                                 className="form-control"
-                                value={chapter.title}
-                                onChange={handleChange}
-                                placeholder="Ví dụ: Chapter 1112 - Trận Chiến Cuối Cùng"
-                                required
-                            />
-                        </div>
-
-                        <div className="mb-3">
-                            <label className="form-label">
-                                Description
-                            </label>
-
-                            <textarea
-                                rows="5"
-                                name="description"
-                                className="form-control"
-                                value={chapter.description}
-                                onChange={handleChange}
-                                placeholder="Mô tả ngắn nội dung chapter"
-                            />
-                        </div>
-
-                        <div className="mb-4">
-                            <label className="form-label">
-                                Upload PDF
-                            </label>
-
-                            <input
-                                type="file"
-                                accept=".pdf"
-                                className="form-control"
-                                onChange={handleFileChange}
+                                value={
+                                    form.title
+                                }
+                                onChange={
+                                    handleChange
+                                }
                                 required
                             />
 
-                            <div className="form-text">
-                                Chỉ chấp nhận file PDF.
-                            </div>
-
-                            {chapter.pdfFile && (
-                                <div className="alert alert-info mt-3">
-                                    <strong>Selected file:</strong>{" "}
-                                    {chapter.pdfFile.name}
-                                </div>
-                            )}
                         </div>
 
-                        <div className="d-flex gap-2">
+                        <div
+                            className="d-flex gap-2"
+                        >
 
                             <button
                                 type="submit"
                                 className="btn btn-success"
+                                disabled={
+                                    loading
+                                }
                             >
-                                Upload Chapter
+
+                                {
+                                    loading
+                                        ? "Creating..."
+                                        : "Create Chapter"
+                                }
+
                             </button>
 
                             <button
                                 type="button"
                                 className="btn btn-secondary"
                                 onClick={() =>
-                                    navigate(`/manga/${id}`)
+                                    navigate(
+                                        "/mangaka/manga"
+                                    )
                                 }
                             >
+
                                 Cancel
+
                             </button>
+
                         </div>
+
                     </form>
+
                 </div>
+
             </div>
+
         </div>
+
     );
+
 }

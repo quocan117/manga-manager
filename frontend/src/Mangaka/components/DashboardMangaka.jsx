@@ -1,10 +1,5 @@
 import { useEffect, useState } from "react";
-import {
-    getMySeries
-} from "../../services/mangakaService";
-import {
-    getNotifications
-} from "../../services/notificationService";
+import { getMySeries, getNotifications } from "../../services/mangakaService";
 
 export default function DashboardMangaka() {
 

@@ -17,6 +17,8 @@ import ReviewMangakaPage from "./EditorialBoard/pages/ReviewMangakaPage";
 import Settings from "./Mangaka/components/Settings";
 import Ranking from "./Mangaka/components/Ranking";
 import PrivateRoute from "./Route/PrivateRoute";
+import CreateSeriesPage from "./Mangaka/pages/CreateSeriesPage";
+import AssistantTasks from "./Mangaka/components/AssistantTasks";
 
 function App() {
 
@@ -24,7 +26,7 @@ function App() {
     const trackGuestAccess = async () => {
       let sessionToken = localStorage.getItem("guest_session_token");
       if (!sessionToken) {
-        sessionToken = crypto.randomUUID(); 
+        sessionToken = crypto.randomUUID();
         localStorage.setItem("guest_session_token", sessionToken);
       }
       try {
@@ -64,6 +66,8 @@ function App() {
           <Route path="notifications" element={<Notification />} />
           <Route path="settings" element={<Settings/>}/>
           <Route path="ranking" element={<Ranking/>}/>
+          <Route path="create-series" element={<CreateSeriesPage />}/>
+          <Route path="tasks" element={<AssistantTasks />}/>
         </Route>
 
         <Route path="/board" element={<BoardLayout />}>

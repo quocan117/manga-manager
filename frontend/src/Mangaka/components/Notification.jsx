@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getNotifications } from "../../services/notificationService";
+import { getNotifications } from "../../services/mangakaService";
 
 export default function Notification() {
 

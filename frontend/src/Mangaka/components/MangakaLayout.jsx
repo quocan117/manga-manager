@@ -82,17 +82,6 @@ export default function MangakaLayout() {
 
                         <li>
                             <NavLink
-                                to="/mangaka/submissions"
-                                className={({ isActive }) =>
-                                    `sidebar-link ${isActive ? "active-link" : ""}`
-                                }
-                            >
-                                📤 Submissions
-                            </NavLink>
-                        </li>
-
-                        <li>
-                            <NavLink
                                 to="/mangaka/ranking"
                                 className={({ isActive }) =>
                                     `sidebar-link ${isActive ? "active-link" : ""}`

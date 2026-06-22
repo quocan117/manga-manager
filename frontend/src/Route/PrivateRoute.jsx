@@ -5,25 +5,39 @@ export default function PrivateRoute({
     role
 }) {
 
+    const token =
+        localStorage.getItem("token");
+
     const user =
         JSON.parse(
             localStorage.getItem("user")
         );
 
-    if (!user) {
+    // Chưa đăng nhập
+    if (!token || !user) {
+
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
 
         return (
-            <Navigate to="/login" />
+            <Navigate
+                to="/login"
+                replace
+            />
         );
     }
 
+    // Sai role
     if (
         role &&
         user.role !== role
     ) {
 
         return (
-            <Navigate to="/" />
+            <Navigate
+                to="/"
+                replace
+            />
         );
     }
 
