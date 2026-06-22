@@ -13,14 +13,17 @@ const RankingPage = () => {
         const response = await fetch("http://localhost:8080/manga-series", {
           method: "GET",
           headers: {
-            "Content-Type": "application/json"
-          }
+            "Content-Type": "application/json",
+          },
         });
         if (response.ok) {
           const data = await response.json();
           setSeriesList(data);
         } else {
-          console.error("Lỗi server khi lấy dữ liệu xếp hạng, Mã lỗi:", response.status);
+          console.error(
+            "Lỗi server khi lấy dữ liệu xếp hạng, Mã lỗi:",
+            response.status,
+          );
         }
       } catch (error) {
         console.error("Lỗi kết nối mạng khi tải bảng xếp hạng:", error);
@@ -32,9 +35,11 @@ const RankingPage = () => {
   }, []);
 
   const rankedSeries = [...seriesList].sort((a, b) => {
-    const totalLikesA = a.totalLikes ?? (a.chapters?.reduce((sum, ch) => sum + ch.likes, 0) || 0);
-    const totalLikesB = b.totalLikes ?? (b.chapters?.reduce((sum, ch) => sum + ch.likes, 0) || 0);
-    return totalLikesB - totalLikesA; 
+    const totalLikesA =
+      a.totalLikes ?? (a.chapters?.reduce((sum, ch) => sum + ch.likes, 0) || 0);
+    const totalLikesB =
+      b.totalLikes ?? (b.chapters?.reduce((sum, ch) => sum + ch.likes, 0) || 0);
+    return totalLikesB - totalLikesA;
   });
 
   const getRankBadge = (index) => {
@@ -63,7 +68,11 @@ const RankingPage = () => {
               <div className="rank-number">{getRankBadge(index)}</div>
 
               <img
-                src={series.coverUrl}
+                src={
+                  series.coverUrl
+                    ? `http://localhost:8080/covers/${series.coverUrl}`
+                    : "https://placehold.co/200x280/cccccc/ffffff?text=No+Image"
+                }
                 alt={series.title}
                 className="ranking-cover"
               />

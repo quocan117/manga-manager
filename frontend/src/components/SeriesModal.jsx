@@ -42,7 +42,11 @@ const SeriesModal = ({ series, onClose }) => {
         </button>
         <div className="custom-modal-header">
           <img
-            src={series.coverUrl}
+            src={
+              series.coverUrl
+                ? `http://localhost:8080/covers/${series.coverUrl}`
+                : "https://placehold.co/200x280/cccccc/ffffff?text=No+Image"
+            }
             alt={series.title}
             className="modal-cover"
           />

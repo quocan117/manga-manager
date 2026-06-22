@@ -108,3 +108,12 @@
   color: #888;
   font-weight: bold;
 }
+
+.ranking-cover {
+  width: 90px;
+  height: 130px;
+  object-fit: cover;
+  border-radius: 6px;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1); /* Đổ bóng nhẹ cho ảnh nổi lên */
+  flex-shrink: 0; /* Ép ảnh không bị móp lại khi tên truyện quá dài */
+}
