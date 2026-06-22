@@ -4,7 +4,6 @@ import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import RankingPage from "./pages/RankingPage";
-import FloatingMenu from "./components/FloatingMenu";
 import MangaDetailPage from "./Mangaka/pages/MangaDeatailPage";
 import CreateChapterPage from "./Mangaka/pages/CreateChapterPage";
 import DashboardMangaka from "./Mangaka/components/DashboardMangaka";
@@ -16,6 +15,7 @@ import RankingDecisionPage from "./EditorialBoard/pages/RankingDecisionPage";
 import ReviewSeriesPage from "./EditorialBoard/pages/ReviewSeriesPage";
 import ReviewMangakaPage from "./EditorialBoard/pages/ReviewMangakaPage";
 import Settings from "./Mangaka/components/Settings";
+import Ranking from "./Mangaka/components/Ranking";
 
 function App() {
 
@@ -62,6 +62,7 @@ function App() {
           <Route path="manga" element={<MyManga />} />
           <Route path="notifications" element={<Notification />} />
           <Route path="settings" element={<Settings/>}/>
+          <Route path="ranking" element={<Ranking/>}/>
         </Route>
 
         <Route path="/board" element={<BoardLayout />}>
