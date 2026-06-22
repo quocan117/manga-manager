@@ -100,6 +100,15 @@ public class MangakaService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<ChapterResponse> getSeriesChapters(Long seriesId) {
+        ownedSeries(seriesId);
+        return chapterRepository.findBySeriesSeriesIdOrderByChapterNumberAsc(seriesId)
+                .stream()
+                .map(this::toChapterResponse)
+                .toList();
+    }
+
     @Transactional
     public SeriesResponse submitSeries(Long seriesId, SubmitSeriesReviewRequest request) {
         MangaSeries series = ownedSeries(seriesId);
@@ -196,7 +205,7 @@ public class MangakaService {
     public List<TaskResponse> getChapterTasks(Long chapterId) {
         ownedChapter(chapterId);
         return taskRepository.findByChapterChapterIdAndAssignedByEmailOrderByCreatedAtDesc(
-                        chapterId, currentEmail())
+                chapterId, currentEmail())
                 .stream()
                 .map(this::toTaskResponse)
                 .toList();

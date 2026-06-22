@@ -25,6 +25,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.example.backend.dto.MangakaDtos.CreateSeriesRequest;
 import com.example.backend.dto.MangakaDtos.SubmitSeriesReviewRequest;
+import com.example.backend.model.Chapter;
 import com.example.backend.model.MangaSeries;
 import com.example.backend.model.User;
 import com.example.backend.repository.ChapterPageRepository;
@@ -103,6 +104,28 @@ class MangakaServiceTests {
 
         assertSame(HttpStatus.FORBIDDEN, exception.getStatusCode());
         verify(mangaSeriesRepository, never()).save(any());
+    }
+
+    @Test
+    void getsChaptersForOwnedSeries() {
+        MangaSeries series = new MangaSeries();
+        series.setSeriesId(20L);
+        series.setAuthor(user(1L, EMAIL));
+        Chapter chapter = new Chapter();
+        chapter.setChapterId(30L);
+        chapter.setSeries(series);
+        chapter.setChapterNumber(1);
+        chapter.setTitle("Chapter 1");
+        chapter.setStatus("DRAFT");
+        when(mangaSeriesRepository.findById(20L)).thenReturn(Optional.of(series));
+        when(chapterRepository.findBySeriesSeriesIdOrderByChapterNumberAsc(20L))
+                .thenReturn(List.of(chapter));
+
+        var response = service.getSeriesChapters(20L);
+
+        assertEquals(1, response.size());
+        assertEquals(30L, response.get(0).id());
+        assertEquals(1, response.get(0).chapterNumber());
     }
 
     private User user(Long id, String email) {

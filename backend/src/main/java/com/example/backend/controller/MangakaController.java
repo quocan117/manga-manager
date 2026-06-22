@@ -49,9 +49,14 @@ public class MangakaController {
         return service.createSeries(request);
     }
 
-    @GetMapping("/series")
+    @GetMapping({"/series", "/my-series"})
     public List<SeriesResponse> getMySeries() {
         return service.getMySeries();
+    }
+
+    @GetMapping("/series/{seriesId}/chapters")
+    public List<ChapterResponse> getSeriesChapters(@PathVariable Long seriesId) {
+        return service.getSeriesChapters(seriesId);
     }
 
     @PostMapping("/series/{seriesId}/submit")
