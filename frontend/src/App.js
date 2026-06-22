@@ -16,6 +16,7 @@ import ReviewSeriesPage from "./EditorialBoard/pages/ReviewSeriesPage";
 import ReviewMangakaPage from "./EditorialBoard/pages/ReviewMangakaPage";
 import Settings from "./Mangaka/components/Settings";
 import Ranking from "./Mangaka/components/Ranking";
+import PrivateRoute from "./Route/PrivateRoute";
 
 function App() {
 
@@ -57,7 +58,7 @@ function App() {
           element={<CreateChapterPage />}
         />
 
-        <Route path="/mangaka" element={<MangakaLayout />}>
+        <Route path="/mangaka" element={<PrivateRoute role="MANGAKA"><MangakaLayout/></PrivateRoute>}>
           <Route index element={<DashboardMangaka />} />
           <Route path="manga" element={<MyManga />} />
           <Route path="notifications" element={<Notification />} />

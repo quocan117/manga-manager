@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { login } from "../services/authService";
-import { Link, Navigate, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 export default function LoginForm() {
     const navigate = useNavigate();
@@ -55,21 +55,62 @@ export default function LoginForm() {
         e.preventDefault();
 
         try {
+
             setLoading(true);
 
             const data = await login(form);
 
-            console.log("Response:", data);
+            console.log(data);
+
+            localStorage.setItem(
+                "token",
+                data.token
+            );
+
+            localStorage.setItem(
+                "user",
+                JSON.stringify({
+                    id: data.userId,
+                    username: data.username,
+                    email: data.email,
+                    role: data.role
+                })
+            );
 
             alert("Đăng nhập thành công!");
 
-            navigate("/mangaka");
+            switch (data.role) {
+
+                case "MANGAKA":
+                    navigate("/mangaka");
+                    break;
+
+                case "ASSISTANT":
+                    navigate("/assistant");
+                    break;
+
+                case "EDITOR":
+                    navigate("/editor");
+                    break;
+
+                case "ADMIN":
+                    navigate("/admin");
+                    break;
+
+                default:
+                    navigate("/");
+            }
+
         } catch (error) {
+
             console.error(error);
 
             alert("Sai tài khoản hoặc mật khẩu!");
+
         } finally {
+
             setLoading(false);
+
         }
     };
 

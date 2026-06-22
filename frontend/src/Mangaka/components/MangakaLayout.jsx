@@ -18,9 +18,7 @@ export default function MangakaLayout() {
 
     const handleLogout = () => {
 
-        localStorage.removeItem("token");
-        localStorage.removeItem("role");
-        localStorage.removeItem("user");
+        localStorage.clear();
 
         navigate("/login");
     };
@@ -149,22 +147,18 @@ export default function MangakaLayout() {
 
                             <div>
 
-                                <h4 className="mb-1">
-
-                                    Xin chào,
-
-                                    {" "}
-
-                                    {user?.username ||
-                                        "Chưa có thông tin tài khoản"}
-
+                                <h4 className="mb-0">
+                                    {
+                                        user
+                                            ? `Xin chào, ${user.username}`
+                                            : "Chưa có thông tin tài khoản"
+                                    }
                                 </h4>
 
                                 <small className="text-muted">
-
-                                    {user?.email ||
-                                        "Chưa có email"}
-
+                                    {
+                                        user?.role || "Guest"
+                                    }
                                 </small>
 
                             </div>

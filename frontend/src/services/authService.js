@@ -1,24 +1,14 @@
 import axios from "axios";
 
-const API_URL = "http://localhost:8080/api";
+const API_URL = "http://localhost:8080/auth";
 
 export const login = async (form) => {
-    const response = await fetch(
-        "http://localhost:8080/auth/login",
-        {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(form),
-        }
+    const response = await axios.post(
+        `${API_URL}/login`,
+        form
     );
 
-    if (!response.ok) {
-        throw new Error("Login failed");
-    }
-
-    return await response.json();
+    return response.data;
 };
 
 export const register = async (registerData) => {
