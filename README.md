@@ -15,6 +15,7 @@ B3: chạy query trong backend/database<br>
 1. seed_mangaka_test_data.sql<br>
 2. normalize_guest_sessions.sql<br>
 3. seed_random_chapter_likes.sql<br>
+<h5><strong>Lưu ý: số lượng like sẽ khá nhau ở mỗi máy vì dùng %*00 + *0 </strong></h5>
 
 <h3>Cho Mangaka</h3>
 Tài khoản:(Hiện có đến 40 tài khoản mangaka khác nhau, dưới đây là một số tài khoản để test):
