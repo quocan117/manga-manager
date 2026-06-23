@@ -17,7 +17,7 @@ B3: chạy query trong backend/database<br>
 3. seed_random_chapter_likes.sql<br>
 
 <h3>Cho Mangaka</h3>
-Tài khoản:(Hiện có đến 40 tài khoản mangaka khác nhau, dưới đây là vài tài khoản để test):
+Tài khoản:(Hiện có đến 40 tài khoản mangaka khác nhau, dưới đây là một số tài khoản để test):
 
 oda@manga.test<br>
 gege@manga.test<br>
