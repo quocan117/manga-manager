@@ -201,11 +201,16 @@ export default function MyManga() {
 
                                 <img
                                     src={
-                                        item.coverUrl ||
-                                        "https://placehold.co/250x350?text=No+Cover"
+                                        item.coverUrl
+                                            ? `http://localhost:8080/covers/${item.coverUrl}`
+                                            : "https://placehold.co/250x350?text=No+Cover"
                                     }
                                     alt={item.title}
                                     className="img-fluid rounded"
+                                    onError={(e) => {
+                                        e.target.src =
+                                            "https://placehold.co/250x350?text=No+Cover";
+                                    }}
                                 />
 
                             </div>
@@ -282,7 +287,7 @@ export default function MyManga() {
                                     >
                                         {
                                             expandedSeries ===
-                                            item.id
+                                                item.id
                                                 ? "Hide Chapters"
                                                 : "Show Chapters"
                                         }
@@ -318,7 +323,7 @@ export default function MyManga() {
 
                                     {chapters[item.id]
                                         ?.length ===
-                                    0 ? (
+                                        0 ? (
 
                                         <div className="alert alert-warning">
 
@@ -389,8 +394,8 @@ export default function MyManga() {
                                                                 {
                                                                     chapter.createdAt
                                                                         ? new Date(
-                                                                              chapter.createdAt
-                                                                          ).toLocaleDateString()
+                                                                            chapter.createdAt
+                                                                        ).toLocaleDateString()
                                                                         : "-"
                                                                 }
                                                             </td>
