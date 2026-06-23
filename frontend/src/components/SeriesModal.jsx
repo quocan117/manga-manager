@@ -15,9 +15,15 @@ const SeriesModal = ({ series, onClose }) => {
     if (userLikes[chapterId]) {
       return;
     }
+
     const newLikesState = { ...userLikes, [chapterId]: true };
     setUserLikes(newLikesState);
     localStorage.setItem("guest_liked_chapters", JSON.stringify(newLikesState));
+
+    const targetChapter = series.chapters.find((c) => c.id === chapterId);
+    if (targetChapter) {
+      targetChapter.likes += 1;
+    }
 
     try {
       await likeChapter(chapterId, sessionToken);
@@ -80,7 +86,6 @@ const SeriesModal = ({ series, onClose }) => {
           <div className="chapter-list">
             {filteredChapters.map((chapter) => {
               const hasLikes = userLikes[chapter.id];
-              const displayLikes = hasLikes ? chapter.likes + 1 : chapter.likes;
               return (
                 <div key={chapter.id} className="chapter-item">
                   <span className="chapter-title">{chapter.title}</span>
@@ -88,7 +93,8 @@ const SeriesModal = ({ series, onClose }) => {
                     className={`modal-vote-btn ${hasLikes ? "voted" : ""}`}
                     onClick={() => handleToggleLike(chapter.id)}
                   >
-                    {hasLikes ? "❤️ Đã Like" : "🤍 Bình chọn"} ({displayLikes})
+                    {hasLikes ? "❤️ Đã Like" : "🤍 Bình chọn"} (
+                    {chapter.likes.toLocaleString()})
                   </button>
                 </div>
               );
