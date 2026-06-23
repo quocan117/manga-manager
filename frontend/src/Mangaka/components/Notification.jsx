@@ -34,7 +34,7 @@ export default function Notification() {
     }, []);
 
     if (loading) {
-
+        
         return (
             <div className="text-center mt-4">
                 Loading...
