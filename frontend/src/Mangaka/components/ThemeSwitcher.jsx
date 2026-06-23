@@ -23,9 +23,10 @@ export default function ThemeSwitcher() {
     const toggleTheme = () => {
 
         setTheme(
-            theme === "light"
-                ? "dark"
-                : "light"
+            prevTheme =>
+                prevTheme === "light"
+                    ? "dark"
+                    : "light"
         );
 
     };

@@ -1,5 +1,6 @@
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import "../styles/MangakaLayout.css";
+import ThemeProvider from "../../components/ThemeProvider";
 
 export default function MangakaLayout() {
 
@@ -18,14 +19,15 @@ export default function MangakaLayout() {
 
     const handleLogout = () => {
 
-        localStorage.clear();
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
 
         navigate("/login");
     };
 
     return (
         <div className="container-fluid">
-
+            <ThemeProvider />
             <div className="row">
 
                 {/* Sidebar */}

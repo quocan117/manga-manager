@@ -52,7 +52,6 @@ function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
-        <Route path="/mangaka" element={<MangakaLayout />} />
         <Route path="/ranking" element={<RankingPage />} />
         <Route path="/manga/:id" element={<MangaDetailPage />} />
         <Route
