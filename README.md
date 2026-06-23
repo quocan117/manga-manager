@@ -11,11 +11,14 @@ PS: Check phần backend/database rồi copy dán vào local ssms và chạy d�
 B1: Tạo database mangadb<br>
 B2: <strong><em>Chạy project để tạo tables cho database</em></strong><br>
 B3: chạy query trong backend/database<br>
-
-PSS: có thêm 1 bảng query trong backend/database. Chạy cả 2 bảng để database thực hiện được logic cho APIs
++ Chạy theo thứ tự này: <br>
+1. seed_mangaka_test_data.sql<br>
+2. normalize_guest_sessions.sql<br>
+3. seed_random_chapter_likes.sql<br>
+<h5><strong>Lưu ý: số lượng like sẽ khá nhau ở mỗi máy vì dùng %*00 + *0 </strong></h5>
 
 <h3>Cho Mangaka</h3>
-Tài khoản:
+Tài khoản:(Hiện có đến 40 tài khoản mangaka khác nhau, dưới đây là một số tài khoản để test):
 
 oda@manga.test<br>
 gege@manga.test<br>
