@@ -12,8 +12,6 @@ import Notification from "./Mangaka/components/Notification";
 import MangakaLayout from "./Mangaka/components/MangakaLayout";
 import BoardLayout from "./EditorialBoard/components/BoardLayout";
 import RankingDecisionPage from "./EditorialBoard/pages/RankingDecisionPage";
-import ReviewSeriesPage from "./EditorialBoard/pages/ReviewSeriesPage";
-import ReviewMangakaPage from "./EditorialBoard/pages/ReviewMangakaPage";
 import Settings from "./Mangaka/components/Settings";
 import Ranking from "./Mangaka/components/Ranking";
 import PrivateRoute from "./Route/PrivateRoute";
@@ -72,8 +70,6 @@ function App() {
         <Route path="/board" element={<BoardLayout />}>
           <Route index element={<Navigate to="ranking" replace />} />
           <Route path="ranking" element={<RankingDecisionPage />} />
-          <Route path="review-series" element={<ReviewSeriesPage />} />
-          <Route path="review-mangaka" element={<ReviewMangakaPage />} />
         </Route>
       </Routes>
     </>
