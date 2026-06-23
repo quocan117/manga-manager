@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
-// Đã tháo bỏ: import { rankingData } from "../../data/mockData";
 
 const RankingDecisionPage = () => {
   const [seriesList, setSeriesList] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // 1. GỌI API VÀ SẮP XẾP TỪ DƯỚI LÊN
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterOption, setFilterOption] = useState("all"); 
+
   useEffect(() => {
     const fetchRankingForBoard = async () => {
       try {
@@ -13,17 +14,21 @@ const RankingDecisionPage = () => {
         if (response.ok) {
           const data = await response.json();
 
-          // Tính tổng Like và gán vào mỗi series
           const processedData = data.map((series) => {
             const totalLikes =
               series.chapters?.reduce((sum, ch) => sum + ch.likes, 0) || 0;
             return { ...series, totalLikes };
           });
 
-          // SẮP XẾP TĂNG DẦN: Truyện ít Like nhất (bét bảng) sẽ trồi lên đầu tiên
           processedData.sort((a, b) => a.totalLikes - b.totalLikes);
 
-          setSeriesList(processedData);
+          const rankedData = processedData.map((series, index) => ({
+            ...series,
+            globalRank: processedData.length - index,
+            isDanger: index < 3,
+          }));
+
+          setSeriesList(rankedData);
         } else {
           console.error("Lỗi khi tải dữ liệu xếp hạng.");
         }
@@ -37,36 +42,16 @@ const RankingDecisionPage = () => {
     fetchRankingForBoard();
   }, []);
 
-  // 2. XỬ LÝ HÀNH ĐỘNG "TRẢM TRUYỆN"
   const handleCancelSeries = async (id, title) => {
     if (
       window.confirm(
-        `CẢNH BÁO: Bạn có chắc chắn muốn ĐÌNH CHỈ bộ truyện "${title}"? Hành động này sẽ ẩn truyện khỏi màn hình độc giả.`,
+        `XÁC NHẬN: Bạn có chắc chắn muốn ĐÌNH BẢN bộ truyện "${title}"? Tác phẩm sẽ bị gỡ khỏi nền tảng độc giả.`,
       )
     ) {
-      /*
-      // ĐOẠN CODE GỌI API THẬT (Nhờ team Backend cung cấp URL chuẩn)
-      try {
-        // Ví dụ URL: /editorial-board/series/{id}/cancel
-        const response = await fetch(`http://localhost:8080/editorial-board/series/${id}/cancel`, {
-          method: "PUT", 
-        });
-        
-        if (!response.ok) {
-          alert("Lỗi máy chủ! Không thể hủy bộ truyện lúc này.");
-          return; 
-        }
-      } catch (error) {
-        console.error("Lỗi gọi API Hủy truyện:", error);
-        return;
-      }
-      */
-
-      // Cập nhật lại giao diện ngay lập tức nếu hủy thành công
       setSeriesList((prevList) =>
         prevList.map((s) => (s.id === id ? { ...s, status: "CANCELLED" } : s)),
       );
-      alert(`Đã đình chỉ thành công bộ truyện "${title}".`);
+      alert(`Đã ra quyết định đình bản bộ truyện "${title}".`);
     }
   };
 
@@ -77,60 +62,146 @@ const RankingDecisionPage = () => {
       </div>
     );
 
-  // Lọc ra danh sách truyện đang hoạt động (không tính những bộ đã bị hủy trước đó)
-  // để Hội đồng dễ nhìn. Nếu bạn muốn hiển thị cả bộ đã hủy thì bỏ .filter() này đi.
   const activeSeriesList = seriesList.filter((s) => s.status !== "CANCELLED");
+
+  const displayedSeries = activeSeriesList.filter((series) => {
+    const matchesSearch =
+      series.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (series.author &&
+        series.author.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    const matchesFilter =
+      filterOption === "all"
+        ? true
+        : filterOption === "danger"
+          ? series.isDanger
+          : !series.isDanger;
+
+    return matchesSearch && matchesFilter;
+  });
+
+  const totalSeries = activeSeriesList.length;
+  const totalPlatformLikes = activeSeriesList.reduce(
+    (sum, s) => sum + s.totalLikes,
+    0,
+  );
+  const atRiskCount = activeSeriesList.filter((s) => s.isDanger).length;
 
   return (
     <div className="tab-content">
-      <h2>Bảng Xếp Hạng & Phán Quyết Sinh Tử</h2>
+      <h2>Bảng Xếp Hạng & Đánh Giá Năng Lực Series</h2>
       <p>
-        Theo dõi thứ hạng (từ thấp lên cao) để ra quyết định duy trì hoặc hủy bỏ
-        series.
+        Theo dõi chỉ số tương tác định kỳ để ra quyết định duy trì phát hành
+        hoặc đình bản tác phẩm.
       </p>
 
-      <table className="admin-table">
-        <thead>
-          <tr>
-            <th>Hạng (Từ dưới lên)</th>
-            <th>Tên Series</th>
-            <th>Tác giả</th>
-            <th>Tổng Lượt Thích</th>
-            <th>Trạng Thái</th>
-            <th>Phán Quyết</th>
-          </tr>
-        </thead>
-        <tbody>
-          {activeSeriesList.length > 0 ? (
-            activeSeriesList.map((series, index) => {
-              // Logic cảnh báo: 3 bộ truyện có ít Like nhất sẽ bị highlight đỏ
-              const isDanger = index < 3;
+      <div className="dashboard-summary">
+        <div className="summary-card">
+          <h3>Tổng Series Xuất Bản</h3>
+          <p className="summary-value">{totalSeries}</p>
+        </div>
+        <div className="summary-card">
+          <h3>Tổng Tương Tác Hệ Thống</h3>
+          <p className="summary-value">{totalPlatformLikes.toLocaleString()}</p>
+        </div>
+        <div className="summary-card danger-card">
+          <h3>Series Cần Đánh Giá Lại</h3>
+          <p className="summary-value">{atRiskCount}</p>
+        </div>
+      </div>
 
-              return (
-                <tr key={series.id} className={isDanger ? "row-danger" : ""}>
-                  {/* Do đã sort tăng dần, index 0 là bét bảng, nên hạng = Tổng số truyện - index */}
-                  <td>#{activeSeriesList.length - index}</td>
+      <div
+        className="board-header"
+        style={{ marginBottom: "15px", alignItems: "flex-end" }}
+      >
+        <div
+          className="board-tabs"
+          style={{ marginBottom: 0, borderBottom: "none", gap: "10px" }}
+        >
+          <button
+            className={`tab-btn ${filterOption === "all" ? "active" : ""}`}
+            onClick={() => setFilterOption("all")}
+          >
+            Toàn bộ danh sách
+          </button>
+          <button
+            className={`tab-btn ${filterOption === "danger" ? "active" : ""}`}
+            style={
+              filterOption === "danger"
+                ? { color: "#c0392b", borderBottomColor: "#c0392b" }
+                : {}
+            }
+            onClick={() => setFilterOption("danger")}
+          >
+            Cảnh báo đình bản
+          </button>
+          <button
+            className={`tab-btn ${filterOption === "safe" ? "active" : ""}`}
+            style={
+              filterOption === "safe"
+                ? { color: "#27ae60", borderBottomColor: "#27ae60" }
+                : {}
+            }
+            onClick={() => setFilterOption("safe")}
+          >
+            Xuất bản ổn định
+          </button>
+        </div>
+
+        <input
+          type="text"
+          placeholder="🔍 Tìm tên truyện, tác giả..."
+          className="search-input-board"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+      </div>
+
+      <div className="table-wrapper">
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th>Hạng</th>
+              <th>Tên Series</th>
+              <th>Tác giả</th>
+              <th>Tổng Lượt Thích</th>
+              <th>Đánh Giá Năng Lực</th>
+              <th>Quyết Định</th>
+            </tr>
+          </thead>
+          <tbody>
+            {displayedSeries.length > 0 ? (
+              displayedSeries.map((series) => (
+                <tr
+                  key={series.id}
+                  className={series.isDanger ? "row-danger" : ""}
+                >
+                  <td>#{series.globalRank}</td>
                   <td>
                     <strong>{series.title}</strong>
                   </td>
                   <td>{series.author || "Chưa cập nhật"}</td>
                   <td>{series.totalLikes.toLocaleString()}</td>
                   <td>
-                    {isDanger ? (
-                      <span className="badge badge-danger">Nguy cơ hủy</span>
+                    {series.isDanger ? (
+                      <span className="badge badge-danger">
+                        Cảnh báo đình bản
+                      </span>
                     ) : (
-                      <span className="badge badge-success">An toàn</span>
+                      <span className="badge badge-success">
+                        Xuất bản ổn định
+                      </span>
                     )}
                   </td>
                   <td>
-                    {isDanger ? (
+                    {series.isDanger ? (
                       <button
                         className="btn-cancel-series"
                         onClick={() =>
                           handleCancelSeries(series.id, series.title)
                         }
                       >
-                        Đình chỉ Series
+                        Quyết định đình bản
                       </button>
                     ) : (
                       <span
@@ -140,22 +211,29 @@ const RankingDecisionPage = () => {
                           fontSize: "0.9rem",
                         }}
                       >
-                        Tiếp tục duy trì
+                        Duy trì phát hành
                       </span>
                     )}
                   </td>
                 </tr>
-              );
-            })
-          ) : (
-            <tr>
-              <td colSpan="6" style={{ textAlign: "center", padding: "20px" }}>
-                Không có dữ liệu hiển thị.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+              ))
+            ) : (
+              <tr>
+                <td
+                  colSpan="6"
+                  style={{
+                    textAlign: "center",
+                    padding: "40px",
+                    color: "#7f8c8d",
+                  }}
+                >
+                  Không tìm thấy series nào khớp với yêu cầu.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };

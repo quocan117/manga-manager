@@ -16,22 +16,6 @@ const BoardLayout = () => {
               📊 Bảng Xếp Hạng
             </NavLink>
           </li>
-          <li>
-            <NavLink
-              to="/board/review-series"
-              className={({ isActive }) => (isActive ? "active" : "")}
-            >
-              📚 Duyệt Series Mới
-            </NavLink>
-          </li>
-          <li>
-            <NavLink
-              to="/board/review-mangaka"
-              className={({ isActive }) => (isActive ? "active" : "")}
-            >
-              👤 Duyệt Mangaka
-            </NavLink>
-          </li>
         </ul>
       </div>
 
