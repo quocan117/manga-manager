@@ -17,12 +17,20 @@ B3: chạy query trong backend/database<br>
 3. seed_random_chapter_likes.sql<br>
 <h5><strong>Lưu ý: số lượng like sẽ khá nhau ở mỗi máy vì dùng %*00 + *0 </strong></h5>
 
-<h3>Cho Mangaka</h3>
-Tài khoản:(Hiện có đến 40 tài khoản mangaka khác nhau, dưới đây là một số tài khoản để test):
+<h3>Tài khoản:</h3>
+
+Mangaka(Hiện có đến 40 tài khoản mangaka khác nhau, dưới đây là một số tài khoản để test):
 
 oda@manga.test<br>
 gege@manga.test<br>
 gotouge@manga.test<br>
 aoyama@manga.test
 
-Mật khẩu chung: Mangaka@123
+Editorial_Board:
+
+editorial1@manga.test<br>
+editorial2@manga.test<br>
+editorial3@manga.test
+
+
+<h3>Mật khẩu chung: Mangaka@123</h3>
