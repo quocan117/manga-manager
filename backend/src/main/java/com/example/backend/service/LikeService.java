@@ -17,6 +17,9 @@ import com.example.backend.repository.GuestAccessLogRepository;
 
 @Service
 public class LikeService {
+        private static final String PUBLISHED_SERIES_STATUS = "Published";
+        private static final String PUBLISHED_CHAPTER_STATUS = "PUBLISHED";
+
         private final ChapterRepository chapterRepository;
         private final GuestAccessLogRepository guestRepository;
         private final ChapterLikeLogRepository likeRepository;
@@ -36,6 +39,10 @@ public class LikeService {
                 Chapter chapter = chapterRepository.findById(chapterId)
                                 .orElseThrow(() -> new ResponseStatusException(
                                                 HttpStatus.NOT_FOUND, "Chapter not found"));
+                if (!isPublishedChapter(chapter)) {
+                        throw new ResponseStatusException(
+                                        HttpStatus.NOT_FOUND, "Chapter not found");
+                }
 
                 GuestAccessLog guest = resolveGuest(logId, sessionToken);
 
@@ -64,6 +71,14 @@ public class LikeService {
 
         }
 
+        private boolean isPublishedChapter(Chapter chapter) {
+                return chapter.getStatus() != null
+                                && PUBLISHED_CHAPTER_STATUS.equalsIgnoreCase(chapter.getStatus())
+                                && chapter.getSeries() != null
+                                && chapter.getSeries().getStatus() != null
+                                && PUBLISHED_SERIES_STATUS.equalsIgnoreCase(chapter.getSeries().getStatus());
+        }
+
         private GuestAccessLog resolveGuest(String logId, String sessionToken) {
                 if (sessionToken != null && !sessionToken.isBlank()) {
                         return guestRepository.findBySessionToken(sessionToken.trim())
@@ -75,8 +90,8 @@ public class LikeService {
                         try {
                                 Long numericLogId = Long.valueOf(identity);
                                 return guestRepository.findById(numericLogId)
-                                        .orElseThrow(() -> new ResponseStatusException(
-                                                        HttpStatus.NOT_FOUND, "Guest log not found"));
+                                                .orElseThrow(() -> new ResponseStatusException(
+                                                                HttpStatus.NOT_FOUND, "Guest log not found"));
                         } catch (NumberFormatException exception) {
                                 return guestRepository.findBySessionToken(identity)
                                                 .orElseThrow(() -> new ResponseStatusException(

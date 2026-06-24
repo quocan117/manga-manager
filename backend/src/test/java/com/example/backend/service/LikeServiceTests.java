@@ -20,6 +20,7 @@ import org.springframework.web.server.ResponseStatusException;
 import com.example.backend.model.Chapter;
 import com.example.backend.model.ChapterLikeLog;
 import com.example.backend.model.GuestAccessLog;
+import com.example.backend.model.MangaSeries;
 import com.example.backend.repository.ChapterLikeLogRepository;
 import com.example.backend.repository.ChapterRepository;
 import com.example.backend.repository.GuestAccessLogRepository;
@@ -77,9 +78,28 @@ class LikeServiceTests {
         verify(likeRepository, never()).saveAndFlush(any());
     }
 
+    @Test
+    void unpublishedChapterIsNotLikable() {
+        Chapter chapter = chapter(5L);
+        chapter.setStatus("DRAFT");
+        when(chapterRepository.findById(5L)).thenReturn(Optional.of(chapter));
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> service.likeChapter(5L, null, "guest-token"));
+
+        assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
+        verify(guestRepository, never()).findBySessionToken(any());
+        verify(likeRepository, never()).saveAndFlush(any());
+    }
+
     private Chapter chapter(Long id) {
+        MangaSeries series = new MangaSeries();
+        series.setSeriesId(3L);
+        series.setStatus("Published");
         Chapter chapter = new Chapter();
         chapter.setChapterId(id);
+        chapter.setSeries(series);
+        chapter.setStatus("PUBLISHED");
         return chapter;
     }
 
