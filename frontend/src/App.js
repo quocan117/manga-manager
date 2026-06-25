@@ -18,6 +18,10 @@ import PrivateRoute from "./Route/PrivateRoute";
 import CreateSeriesPage from "./Mangaka/pages/CreateSeriesPage";
 import AssistantTasks from "./Mangaka/components/AssistantTasks";
 import ManageMangakaPage from "./EditorialBoard/pages/ManageMangakaPage";
+import AssistantLayout from "./Assistant/components/AssistantLayout";
+import DashboardAssistant from "./Assistant/components/DashboardAssistant";
+import MyTasks from "./Assistant/components/MyTasks";
+import MySubmissions from "./Assistant/components/MySubmissions";
 
 function App() {
   useEffect(() => {
@@ -57,6 +61,7 @@ function App() {
           element={<CreateChapterPage />}
         />
 
+{/**Route Mangaka */}
         <Route
           path="/mangaka"
           element={
@@ -74,6 +79,7 @@ function App() {
           <Route path="tasks" element={<AssistantTasks />} />
         </Route>
 
+{/**Route Editor Board */}
         <Route
           path="/board"
           element={
@@ -86,7 +92,20 @@ function App() {
           <Route path="ranking" element={<RankingDecisionPage />} />
           <Route path="manage-mangaka" element={<ManageMangakaPage />} />
         </Route>
+
+{/**Route Assistant */}
+        <Route
+          path="/assistant"
+          element={
+            <AssistantLayout />
+          }
+        >
+          <Route index element={<DashboardAssistant />} />
+          <Route path="tasks" element={<MyTasks />} />
+          <Route path="submissions" element={<MySubmissions />} />
+        </Route>
       </Routes>
+
     </>
   );
 }
