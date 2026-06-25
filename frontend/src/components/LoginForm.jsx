@@ -62,20 +62,8 @@ export default function LoginForm() {
 
             console.log(data);
 
-            localStorage.setItem(
-                "token",
-                data.token
-            );
-
-            localStorage.setItem(
-                "user",
-                JSON.stringify({
-                    id: data.userId,
-                    username: data.username,
-                    email: data.email,
-                    role: data.role
-                })
-            );
+            localStorage.setItem("token", data.token);
+            localStorage.setItem("user", JSON.stringify(data));
 
             alert("Đăng nhập thành công!");
 
@@ -93,8 +81,8 @@ export default function LoginForm() {
                     navigate("/editor");
                     break;
 
-                case "ADMIN":
-                    navigate("/admin");
+                case "EDITORIAL_BOARD":
+                    navigate("/board");
                     break;
 
                 default:

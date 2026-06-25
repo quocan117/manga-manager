@@ -1,8 +1,17 @@
+// src/EditorialBoard/components/BoardLayout.jsx
 import React from "react";
-import { Outlet, NavLink } from "react-router-dom";
+import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import "../styles/EditorialBoard.css";
 
 const BoardLayout = () => {
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    navigate("/login");
+  };
+
   return (
     <div className="editorial-dashboard-container">
       <div className="sidebar">
@@ -15,6 +24,19 @@ const BoardLayout = () => {
             >
               📊 Bảng Xếp Hạng
             </NavLink>
+          </li>
+          <li>
+            <NavLink
+              to="/board/manage-mangaka"
+              className={({ isActive }) => (isActive ? "active" : "")}
+            >
+              👤 Quản lý Mangaka
+            </NavLink>
+          </li>
+          <li style={{ marginTop: "auto", padding: "20px" }}>
+            <button className="btn btn-danger w-100" onClick={handleLogout}>
+              Đăng xuất
+            </button>
           </li>
         </ul>
       </div>

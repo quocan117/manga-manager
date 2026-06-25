@@ -17,9 +17,9 @@ import Ranking from "./Mangaka/components/Ranking";
 import PrivateRoute from "./Route/PrivateRoute";
 import CreateSeriesPage from "./Mangaka/pages/CreateSeriesPage";
 import AssistantTasks from "./Mangaka/components/AssistantTasks";
+import ManageMangakaPage from "./EditorialBoard/pages/ManageMangakaPage";
 
 function App() {
-
   useEffect(() => {
     const trackGuestAccess = async () => {
       let sessionToken = localStorage.getItem("guest_session_token");
@@ -33,8 +33,8 @@ function App() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             sessionToken: sessionToken,
-            userAgent: navigator.userAgent
-          })
+            userAgent: navigator.userAgent,
+          }),
         });
         console.log("Đã ghi nhận khách truy cập thành công!");
       } catch (error) {
@@ -57,19 +57,34 @@ function App() {
           element={<CreateChapterPage />}
         />
 
-        <Route path="/mangaka" element={<PrivateRoute role="MANGAKA"><MangakaLayout/></PrivateRoute>}>
+        <Route
+          path="/mangaka"
+          element={
+            <PrivateRoute role="MANGAKA">
+              <MangakaLayout />
+            </PrivateRoute>
+          }
+        >
           <Route index element={<DashboardMangaka />} />
           <Route path="manga" element={<MyManga />} />
           <Route path="notifications" element={<Notification />} />
-          <Route path="settings" element={<Settings/>}/>
-          <Route path="ranking" element={<Ranking/>}/>
-          <Route path="create-series" element={<CreateSeriesPage />}/>
-          <Route path="tasks" element={<AssistantTasks />}/>
+          <Route path="settings" element={<Settings />} />
+          <Route path="ranking" element={<Ranking />} />
+          <Route path="create-series" element={<CreateSeriesPage />} />
+          <Route path="tasks" element={<AssistantTasks />} />
         </Route>
 
-        <Route path="/board" element={<BoardLayout />}>
+        <Route
+          path="/board"
+          element={
+            <PrivateRoute role="EDITORIAL_BOARD">
+              <BoardLayout />
+            </PrivateRoute>
+          }
+        >
           <Route index element={<Navigate to="ranking" replace />} />
           <Route path="ranking" element={<RankingDecisionPage />} />
+          <Route path="manage-mangaka" element={<ManageMangakaPage />} />
         </Route>
       </Routes>
     </>
