@@ -47,7 +47,13 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/guest/access").permitAll()
                         .requestMatchers(HttpMethod.POST, "/chapters/*/likes").permitAll()
                         .requestMatchers(HttpMethod.POST, "/registration-request").permitAll()
-                        .anyRequest().authenticated())
+                        .requestMatchers(
+                                "/auth/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/v3/api-docs/**")
+                        .permitAll().anyRequest()
+                        .authenticated())
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }

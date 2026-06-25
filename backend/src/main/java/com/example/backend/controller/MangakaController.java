@@ -29,6 +29,7 @@ import com.example.backend.dto.MangakaDtos.SubmissionResponse;
 import com.example.backend.dto.MangakaDtos.SubmitSeriesReviewRequest;
 import com.example.backend.dto.MangakaDtos.TaskResponse;
 import com.example.backend.service.MangakaService;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
 import jakarta.validation.Valid;
 
@@ -36,6 +37,7 @@ import jakarta.validation.Valid;
 @RequestMapping("/mangaka")
 @CrossOrigin(origins = "*")
 @PreAuthorize("hasRole('MANGAKA')")
+@SecurityRequirement(name = "Bearer Authentication")
 public class MangakaController {
     private final MangakaService service;
 

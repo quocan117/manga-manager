@@ -29,6 +29,7 @@ public class MangaSeries {
     @Column(columnDefinition = "NVARCHAR(MAX)")
     private String description;
 
+    @Column(columnDefinition = "NVARCHAR(MAX)")
     private String coverImage;
     private String status;
     private Float rankingScore;

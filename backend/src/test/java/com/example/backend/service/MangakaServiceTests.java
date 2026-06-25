@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -89,6 +90,27 @@ class MangakaServiceTests {
         assertEquals("DRAFT", response.status());
         assertEquals(List.of("Action", "Comedy"), response.genres());
         verify(mangaSeriesRepository).save(any(MangaSeries.class));
+    }
+
+    @Test
+    void createSeriesKeepsLongCoverUrl() {
+        User mangaka = user(1L, EMAIL);
+        String coverUrl = "https://cdn.example.test/covers/series-cover.jpg?token="
+                + "a".repeat(300);
+        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(mangaka));
+        when(mangaSeriesRepository.save(any(MangaSeries.class))).thenAnswer(invocation -> {
+            MangaSeries series = invocation.getArgument(0);
+            series.setSeriesId(10L);
+            return series;
+        });
+
+        var response = service.createSeries(new CreateSeriesRequest(
+                "New series", List.of("Action"), "  " + coverUrl + "  ", null, null, null));
+
+        ArgumentCaptor<MangaSeries> captor = ArgumentCaptor.forClass(MangaSeries.class);
+        verify(mangaSeriesRepository).save(captor.capture());
+        assertEquals(coverUrl, captor.getValue().getCoverImage());
+        assertEquals(coverUrl, response.coverUrl());
     }
 
     @Test

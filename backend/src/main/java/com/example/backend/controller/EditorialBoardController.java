@@ -9,6 +9,7 @@ import com.example.backend.dto.EditorialBoardDtos.UserResponse;
 import com.example.backend.dto.ReviewRegistrationRequest;
 import com.example.backend.model.RegistrationRequest;
 import com.example.backend.service.EditorialBoardService;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -19,6 +20,7 @@ import java.util.List;
 @RequestMapping("/editorial-board")
 @CrossOrigin(origins = "*")
 @PreAuthorize("hasRole('EDITORIAL_BOARD')")
+@SecurityRequirement(name = "Bearer Authentication")
 public class EditorialBoardController {
 
     private final EditorialBoardService service;

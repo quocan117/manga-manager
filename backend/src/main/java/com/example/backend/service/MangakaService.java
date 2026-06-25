@@ -83,10 +83,10 @@ public class MangakaService {
         series.setTitle(request.title().trim());
         series.setAuthor(mangaka);
         series.setGenre(String.join(", ", request.genres()));
-        series.setCoverImage(request.coverUrl());
-        series.setDescription(request.description());
-        series.setPublicationType(request.publicationType());
-        series.setArtStyle(request.artStyle());
+        series.setCoverImage(blankToNull(request.coverUrl()));
+        series.setDescription(blankToNull(request.description()));
+        series.setPublicationType(blankToNull(request.publicationType()));
+        series.setArtStyle(blankToNull(request.artStyle()));
         series.setStatus("DRAFT");
         series.setCreatedAt(LocalDateTime.now());
         return toSeriesResponse(mangaSeriesRepository.save(series));
@@ -382,5 +382,12 @@ public class MangakaService {
 
     private ResponseStatusException conflict(String message) {
         return new ResponseStatusException(HttpStatus.CONFLICT, message);
+    }
+
+    private String blankToNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 }
