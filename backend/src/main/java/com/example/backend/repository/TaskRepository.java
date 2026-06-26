@@ -8,4 +8,6 @@ import java.util.List;
 public interface TaskRepository extends JpaRepository<Task, Long> {
     List<Task> findByChapterChapterIdAndAssignedByEmailOrderByCreatedAtDesc(
             Long chapterId, String assignedByEmail);
+
+    List<Task> findByAssignedToEmailOrderByCreatedAtDesc(String assignedToEmail);
 }

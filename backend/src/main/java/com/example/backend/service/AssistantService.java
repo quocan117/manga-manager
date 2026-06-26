@@ -1,0 +1,417 @@
+package com.example.backend.service;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Set;
+
+import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+
+import com.example.backend.dto.AssistantDtos.SubmissionResponse;
+import com.example.backend.dto.AssistantDtos.SubmitTaskRequest;
+import com.example.backend.dto.AssistantDtos.TaskResponse;
+import com.example.backend.dto.DrawingDtos.DrawingResponse;
+import com.example.backend.dto.DrawingDtos.RevisionResponse;
+import com.example.backend.dto.DrawingDtos.SaveDrawingRequest;
+import com.example.backend.dto.DrawingDtos.VersionRequest;
+import com.example.backend.model.Chapter;
+import com.example.backend.model.ChapterPage;
+import com.example.backend.model.MangaSeries;
+import com.example.backend.model.PageDrawing;
+import com.example.backend.model.PageDrawingRevision;
+import com.example.backend.model.Submission;
+import com.example.backend.model.Task;
+import com.example.backend.model.User;
+import com.example.backend.repository.PageDrawingRepository;
+import com.example.backend.repository.PageDrawingRevisionRepository;
+import com.example.backend.repository.SubmissionRepository;
+import com.example.backend.repository.TaskRepository;
+import com.example.backend.repository.UserRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+@Service
+public class AssistantService {
+    private static final String ASSIGNED_STATUS = "ASSIGNED";
+    private static final String IN_PROGRESS_STATUS = "IN_PROGRESS";
+    private static final String SUBMITTED_STATUS = "SUBMITTED";
+    private static final String APPROVED_STATUS = "APPROVED";
+    private static final String REVISION_REQUESTED_STATUS = "REVISION_REQUESTED";
+    private static final Set<String> WORKABLE_STATUSES = Set.of(
+            ASSIGNED_STATUS,
+            IN_PROGRESS_STATUS,
+            REVISION_REQUESTED_STATUS);
+
+    private final TaskRepository taskRepository;
+    private final SubmissionRepository submissionRepository;
+    private final PageDrawingRepository drawingRepository;
+    private final PageDrawingRevisionRepository revisionRepository;
+    private final UserRepository userRepository;
+    private final ObjectMapper objectMapper;
+
+    public AssistantService(
+            TaskRepository taskRepository,
+            SubmissionRepository submissionRepository,
+            PageDrawingRepository drawingRepository,
+            PageDrawingRevisionRepository revisionRepository,
+            UserRepository userRepository,
+            ObjectMapper objectMapper) {
+        this.taskRepository = taskRepository;
+        this.submissionRepository = submissionRepository;
+        this.drawingRepository = drawingRepository;
+        this.revisionRepository = revisionRepository;
+        this.userRepository = userRepository;
+        this.objectMapper = objectMapper;
+    }
+
+    @Transactional(readOnly = true)
+    public List<TaskResponse> getMyTasks() {
+        return taskRepository.findByAssignedToEmailOrderByCreatedAtDesc(currentEmail())
+                .stream()
+                .map(this::toTaskResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public TaskResponse getTask(Long taskId) {
+        return toTaskResponse(assignedTask(taskId));
+    }
+
+    @Transactional
+    public TaskResponse acceptTask(Long taskId) {
+        Task task = assignedTask(taskId);
+        if (APPROVED_STATUS.equals(task.getStatus()) || SUBMITTED_STATUS.equals(task.getStatus())) {
+            throw conflict("Task cannot be accepted in its current status");
+        }
+        task.setStatus(IN_PROGRESS_STATUS);
+        return toTaskResponse(taskRepository.save(task));
+    }
+
+    @Transactional
+    public DrawingResponse getDrawing(Long taskId) {
+        Task task = assignedTask(taskId);
+        return toDrawingResponse(getOrCreateDrawing(task, currentUser()));
+    }
+
+    @Transactional
+    public DrawingResponse saveDrawing(Long taskId, SaveDrawingRequest request) {
+        Task task = assignedTask(taskId);
+        assertTaskCanBeWorkedOn(task);
+
+        User assistant = currentUser();
+        PageDrawing drawing = drawingRepository
+                .findByTaskTaskIdAndOwnerEmail(taskId, assistant.getEmail())
+                .orElse(null);
+
+        if (drawing == null) {
+            if (request.expectedVersion() != null && request.expectedVersion() != 0L) {
+                throw conflict("Drawing version is outdated");
+            }
+            drawing = new PageDrawing();
+            drawing.setTask(task);
+            drawing.setPage(taskPage(task));
+            drawing.setOwner(assistant);
+            drawing.setCreatedAt(LocalDateTime.now());
+            drawing.setStatus("DRAFT");
+        } else {
+            assertVersion(drawing, request.expectedVersion());
+            if ("FINALIZED".equals(drawing.getStatus())) {
+                drawing.setStatus("DRAFT");
+            }
+        }
+
+        drawing.setCanvasData(request.canvasData().toString());
+        drawing.setPreviewImageUrl(blankToNull(request.previewImageUrl()));
+        drawing.setUpdatedAt(LocalDateTime.now());
+
+        if (!IN_PROGRESS_STATUS.equals(task.getStatus())) {
+            task.setStatus(IN_PROGRESS_STATUS);
+            taskRepository.save(task);
+        }
+        return saveWithRevision(drawing, assistant);
+    }
+
+    @Transactional
+    public DrawingResponse finalizeDrawing(Long taskId, VersionRequest request) {
+        Task task = assignedTask(taskId);
+        assertTaskCanBeWorkedOn(task);
+        User assistant = currentUser();
+        PageDrawing drawing = taskDrawing(taskId, assistant);
+        assertVersion(drawing, request.expectedVersion());
+
+        drawing.setStatus("FINALIZED");
+        drawing.setUpdatedAt(LocalDateTime.now());
+        if (!IN_PROGRESS_STATUS.equals(task.getStatus())) {
+            task.setStatus(IN_PROGRESS_STATUS);
+            taskRepository.save(task);
+        }
+        return saveWithRevision(drawing, assistant);
+    }
+
+    @Transactional(readOnly = true)
+    public List<RevisionResponse> getRevisions(Long taskId) {
+        assignedTask(taskId);
+        PageDrawing drawing = taskDrawing(taskId, currentUser());
+        return revisionRepository.findByDrawingDrawingIdOrderByVersionNumberDesc(drawing.getDrawingId())
+                .stream()
+                .map(this::toRevisionResponse)
+                .toList();
+    }
+
+    @Transactional
+    public DrawingResponse restoreRevision(Long taskId, Long revisionId, VersionRequest request) {
+        Task task = assignedTask(taskId);
+        assertTaskCanBeWorkedOn(task);
+        User assistant = currentUser();
+        PageDrawing drawing = taskDrawing(taskId, assistant);
+        assertVersion(drawing, request.expectedVersion());
+
+        PageDrawingRevision revision = revisionRepository
+                .findByRevisionIdAndDrawingDrawingId(revisionId, drawing.getDrawingId())
+                .orElseThrow(() -> notFound("Drawing revision not found"));
+        drawing.setCanvasData(revision.getCanvasData());
+        drawing.setPreviewImageUrl(revision.getPreviewImageUrl());
+        drawing.setStatus("DRAFT");
+        drawing.setUpdatedAt(LocalDateTime.now());
+
+        if (!IN_PROGRESS_STATUS.equals(task.getStatus())) {
+            task.setStatus(IN_PROGRESS_STATUS);
+            taskRepository.save(task);
+        }
+        return saveWithRevision(drawing, assistant);
+    }
+
+    @Transactional
+    public SubmissionResponse submitTask(Long taskId, SubmitTaskRequest request) {
+        Task task = assignedTask(taskId);
+        assertTaskCanBeWorkedOn(task);
+        User assistant = currentUser();
+        PageDrawing drawing = taskDrawing(taskId, assistant);
+        assertVersion(drawing, request.expectedDrawingVersion());
+
+        String artifactUrl = blankToNull(request.artifactUrl());
+        if (artifactUrl == null) {
+            artifactUrl = blankToNull(drawing.getPreviewImageUrl());
+        }
+        if (artifactUrl == null) {
+            throw badRequest("artifactUrl or drawing previewImageUrl is required");
+        }
+
+        Submission submission = new Submission();
+        submission.setTask(task);
+        submission.setChapter(task.getChapter());
+        submission.setSubmittedBy(assistant);
+        submission.setSubmittedAt(LocalDateTime.now());
+        submission.setStatus(SUBMITTED_STATUS);
+        submission.setArtifactUrl(artifactUrl);
+        submission.setNote(blankToNull(request.note()));
+
+        task.setStatus(SUBMITTED_STATUS);
+        taskRepository.save(task);
+        return toSubmissionResponse(submissionRepository.save(submission));
+    }
+
+    @Transactional(readOnly = true)
+    public List<SubmissionResponse> getSubmissions(Long taskId) {
+        assignedTask(taskId);
+        return submissionRepository.findByTaskTaskIdOrderBySubmittedAtDesc(taskId)
+                .stream()
+                .map(this::toSubmissionResponse)
+                .toList();
+    }
+
+    private PageDrawing getOrCreateDrawing(Task task, User assistant) {
+        return drawingRepository.findByTaskTaskIdAndOwnerEmail(task.getTaskId(), assistant.getEmail())
+                .orElseGet(() -> {
+                    PageDrawing drawing = new PageDrawing();
+                    drawing.setTask(task);
+                    drawing.setPage(taskPage(task));
+                    drawing.setOwner(assistant);
+                    drawing.setCanvasData("{}");
+                    drawing.setStatus("DRAFT");
+                    drawing.setCreatedAt(LocalDateTime.now());
+                    drawing.setUpdatedAt(LocalDateTime.now());
+                    return drawingRepository.saveAndFlush(drawing);
+                });
+    }
+
+    private PageDrawing taskDrawing(Long taskId, User assistant) {
+        return drawingRepository.findByTaskTaskIdAndOwnerEmail(taskId, assistant.getEmail())
+                .orElseThrow(() -> notFound("Drawing not found"));
+    }
+
+    private Task assignedTask(Long taskId) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> notFound("Task not found"));
+        if (task.getAssignedTo() == null || !currentEmail().equals(task.getAssignedTo().getEmail())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You are not assigned to this task");
+        }
+        return task;
+    }
+
+    private ChapterPage taskPage(Task task) {
+        if (task.getPage() == null) {
+            throw badRequest("Task does not have a drawing page");
+        }
+        return task.getPage();
+    }
+
+    private void assertTaskCanBeWorkedOn(Task task) {
+        if (task.getStatus() == null || !WORKABLE_STATUSES.contains(task.getStatus())) {
+            throw conflict("Task cannot be changed in its current status");
+        }
+    }
+
+    private DrawingResponse saveWithRevision(PageDrawing drawing, User savedBy) {
+        try {
+            PageDrawing saved = drawingRepository.saveAndFlush(drawing);
+            PageDrawingRevision revision = new PageDrawingRevision();
+            revision.setDrawing(saved);
+            revision.setSavedBy(savedBy);
+            revision.setVersionNumber(saved.getVersion());
+            revision.setCanvasData(saved.getCanvasData());
+            revision.setPreviewImageUrl(saved.getPreviewImageUrl());
+            revision.setStatus(saved.getStatus());
+            revision.setCreatedAt(LocalDateTime.now());
+            revisionRepository.save(revision);
+            return toDrawingResponse(saved);
+        } catch (OptimisticLockingFailureException exception) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Drawing was changed by another session",
+                    exception);
+        }
+    }
+
+    private User currentUser() {
+        return userRepository.findByEmail(currentEmail())
+                .orElseThrow(() -> notFound("Authenticated user not found"));
+    }
+
+    private String currentEmail() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
+        }
+        return authentication.getName();
+    }
+
+    private void assertVersion(PageDrawing drawing, Long expectedVersion) {
+        if (expectedVersion == null || !expectedVersion.equals(drawing.getVersion())) {
+            throw conflict("Drawing version is stale");
+        }
+    }
+
+    private TaskResponse toTaskResponse(Task task) {
+        Chapter chapter = task.getChapter();
+        MangaSeries series = chapter == null ? null : chapter.getSeries();
+        ChapterPage page = task.getPage();
+        User assignedBy = task.getAssignedBy();
+        List<Submission> submissions = submissionRepository.findByTaskTaskIdOrderBySubmittedAtDesc(task.getTaskId());
+        SubmissionResponse latestSubmission = submissions.isEmpty() ? null : toSubmissionResponse(submissions.get(0));
+
+        return new TaskResponse(
+                task.getTaskId(),
+                series == null ? null : series.getSeriesId(),
+                series == null ? null : series.getTitle(),
+                chapter == null ? null : chapter.getChapterId(),
+                chapter == null ? null : chapter.getChapterNumber(),
+                chapter == null ? null : chapter.getTitle(),
+                page == null ? null : page.getPageId(),
+                page == null ? null : page.getPageNumber(),
+                page == null ? null : page.getImageUrl(),
+                assignedBy == null ? null : assignedBy.getUserId(),
+                assignedBy == null ? null : assignedBy.getUsername(),
+                task.getTaskType(),
+                task.getTitle(),
+                task.getDescription(),
+                task.getStatus(),
+                task.getDueDate(),
+                task.getAreaX(),
+                task.getAreaY(),
+                task.getAreaWidth(),
+                task.getAreaHeight(),
+                task.getCreatedAt(),
+                latestSubmission);
+    }
+
+    private SubmissionResponse toSubmissionResponse(Submission submission) {
+        User submitter = submission.getSubmittedBy();
+        return new SubmissionResponse(
+                submission.getSubmissionId(),
+                submission.getTask() == null ? null : submission.getTask().getTaskId(),
+                submission.getChapter() == null ? null : submission.getChapter().getChapterId(),
+                submitter == null ? null : submitter.getUserId(),
+                submitter == null ? null : submitter.getUsername(),
+                submission.getArtifactUrl(),
+                submission.getNote(),
+                submission.getStatus(),
+                submission.getReviewNote(),
+                submission.getSubmittedAt(),
+                submission.getReviewedAt());
+    }
+
+    private DrawingResponse toDrawingResponse(PageDrawing drawing) {
+        return new DrawingResponse(
+                drawing.getDrawingId(),
+                drawing.getPage().getPageId(),
+                drawing.getTask() == null ? null : drawing.getTask().getTaskId(),
+                drawing.getOwner().getUserId(),
+                drawing.getSourceSubmission() == null
+                        ? null
+                        : drawing.getSourceSubmission().getSubmissionId(),
+                parseCanvasData(drawing.getCanvasData()),
+                drawing.getPreviewImageUrl(),
+                drawing.getStatus(),
+                drawing.getVersion(),
+                drawing.getCreatedAt(),
+                drawing.getUpdatedAt());
+    }
+
+    private RevisionResponse toRevisionResponse(PageDrawingRevision revision) {
+        return new RevisionResponse(
+                revision.getRevisionId(),
+                revision.getVersionNumber(),
+                revision.getSavedBy().getUserId(),
+                parseCanvasData(revision.getCanvasData()),
+                revision.getPreviewImageUrl(),
+                revision.getStatus(),
+                revision.getCreatedAt());
+    }
+
+    private JsonNode parseCanvasData(String canvasData) {
+        try {
+            return objectMapper.readTree(canvasData);
+        } catch (JsonProcessingException exception) {
+            throw new ResponseStatusException(
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Stored canvas data is invalid",
+                    exception);
+        }
+    }
+
+    private String blankToNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
+    }
+
+    private ResponseStatusException notFound(String message) {
+        return new ResponseStatusException(HttpStatus.NOT_FOUND, message);
+    }
+
+    private ResponseStatusException badRequest(String message) {
+        return new ResponseStatusException(HttpStatus.BAD_REQUEST, message);
+    }
+
+    private ResponseStatusException conflict(String message) {
+        return new ResponseStatusException(HttpStatus.CONFLICT, message);
+    }
+}

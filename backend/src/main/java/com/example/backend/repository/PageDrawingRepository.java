@@ -8,4 +8,6 @@ import com.example.backend.model.PageDrawing;
 
 public interface PageDrawingRepository extends JpaRepository<PageDrawing, Long> {
     Optional<PageDrawing> findByPagePageIdAndTaskIsNull(Long pageId);
+
+    Optional<PageDrawing> findByTaskTaskIdAndOwnerEmail(Long taskId, String ownerEmail);
 }
