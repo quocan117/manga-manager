@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
+import { cancelSeries } from "../../services/boardService";
 
 const RankingDecisionPage = () => {
   const [seriesList, setSeriesList] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterOption, setFilterOption] = useState("all"); 
+  const [filterOption, setFilterOption] = useState("all");
 
   useEffect(() => {
     const fetchRankingForBoard = async () => {
@@ -45,13 +46,23 @@ const RankingDecisionPage = () => {
   const handleCancelSeries = async (id, title) => {
     if (
       window.confirm(
-        `XÁC NHẬN: Bạn có chắc chắn muốn ĐÌNH BẢN bộ truyện "${title}"? Tác phẩm sẽ bị gỡ khỏi nền tảng độc giả.`,
+        `XÁC NHẬN: Bạn có chắc chắn muốn ĐÌNH BẢN bộ truyện "${title}"?`,
       )
     ) {
-      setSeriesList((prevList) =>
-        prevList.map((s) => (s.id === id ? { ...s, status: "CANCELLED" } : s)),
-      );
-      alert(`Đã ra quyết định đình bản bộ truyện "${title}".`);
+      try {
+        await cancelSeries(id); 
+        setSeriesList((prevList) =>
+          prevList.map((s) =>
+            s.id === id ? { ...s, status: "CANCELLED" } : s,
+          ),
+        );
+        alert(`Đã ra quyết định đình bản bộ truyện "${title}".`);
+      } catch (error) {
+        console.error("Lỗi khi đình bản:", error);
+        alert(
+          "Không thể đình bản truyện lúc này. Có thể truyện đã bị hủy trước đó.",
+        );
+      }
     }
   };
 

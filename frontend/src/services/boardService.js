@@ -14,3 +14,11 @@ export const createMangaka = async (userData) => {
     const response = await api.post("/editorial-board/users", payload);
     return response.data;
 };
+
+export const cancelSeries = async (seriesId) => {
+    const response = await api.put(`/editorial-board/series/${seriesId}/cancel`, {
+        decisionType: "CANCEL",
+        reason: "Chỉ số tương tác (Likes) rớt xuống mức cảnh báo." 
+    });
+    return response.data;
+};

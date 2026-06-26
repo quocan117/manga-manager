@@ -1,4 +1,3 @@
-// src/EditorialBoard/components/BoardLayout.jsx
 import React from "react";
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import "../styles/EditorialBoard.css";
@@ -9,7 +8,7 @@ const BoardLayout = () => {
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
-    navigate("/login");
+    navigate("/");
   };
 
   return (
