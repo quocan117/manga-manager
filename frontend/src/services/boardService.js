@@ -22,3 +22,13 @@ export const cancelSeries = async (seriesId) => {
     });
     return response.data;
 };
+
+export const updateUserStatus = async (userId, newStatus) => {
+  const response = await api.put(`/editorial-board/users/${userId}`, { status: newStatus });
+  return response.data;
+};
+
+export const deleteMangaka = async (userId) => {
+  const response = await api.delete(`/editorial-board/users/${userId}`);
+  return response.data;
+};
