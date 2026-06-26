@@ -16,7 +16,7 @@ B3: chạy query trong backend/database<br>
 2. seed_mangaka_test_data.sql<br>
 3. normalize_guest_sessions.sql<br>
 4. seed_random_chapter_likes.sql<br>
-<h5><strong>Lưu ý: số lượng like sẽ khá nhau ở mỗi máy vì dùng %*00 + *0 </strong></h5>
+<h5><strong>Lưu ý: số lượng like sẽ khác nhau ở mỗi máy vì dùng %*00 + *0 </strong></h5>
 
 <h3>Tài khoản:</h3>
 
