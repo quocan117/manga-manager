@@ -12,7 +12,7 @@ B1: Tạo database mangadb<br>
 B2: <strong><em>Chạy project để tạo tables cho database</em></strong><br>
 B3: chạy query trong backend/database<br>
 + Chạy theo thứ tự này: <br>
-1.seed_editorial_board_test_accounts<br>
+1.seed_editorial_board_test_accounts.sql<br>
 2. seed_mangaka_test_data.sql<br>
 3. normalize_guest_sessions.sql<br>
 4. seed_random_chapter_likes.sql<br>
