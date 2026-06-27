@@ -53,7 +53,7 @@ public class AuthService {
             throw new RuntimeException("Incorrect Email or Password");
         }
 
-        if("DELETE".equalsIgnoreCase(user.getStatus()){
+        if("DELETE".equalsIgnoreCase(user.getStatus())){
             throw new RunTimeException("Account does not exist");
         }
 
