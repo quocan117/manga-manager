@@ -2,8 +2,10 @@ package com.example.backend.service;
 
 import java.time.LocalDateTime;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.example.backend.dto.LoginRequest;
 import com.example.backend.dto.LoginResponse;
@@ -14,6 +16,8 @@ import com.example.backend.security.JwtService;
 
 @Service
 public class AuthService {
+    private static final String ACTIVE_STATUS = "ACTIVE";
+
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
@@ -48,6 +52,11 @@ public class AuthService {
         if (!matched) {
             throw new RuntimeException("Invalid email or Password");
         }
+
+        if (!isActive(user)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "User account is not active");
+        }
+
         String token = jwtService.generateToken(user);
         return new LoginResponse(
                 token,
@@ -56,5 +65,9 @@ public class AuthService {
                 user.getEmail(),
                 user.getRole().getRoleName());
 
+    }
+
+    private boolean isActive(User user) {
+        return user.getStatus() != null && ACTIVE_STATUS.equalsIgnoreCase(user.getStatus());
     }
 }

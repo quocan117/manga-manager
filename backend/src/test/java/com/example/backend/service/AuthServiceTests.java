@@ -1,6 +1,9 @@
 package com.example.backend.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.Optional;
@@ -10,7 +13,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.example.backend.dto.LoginRequest;
 import com.example.backend.model.Role;
@@ -39,6 +44,7 @@ class AuthServiceTests {
         user.setUsername("Eiichiro Oda");
         user.setEmail("oda@manga.test");
         user.setPassword("encoded-password");
+        user.setStatus("ACTIVE");
         user.setRole(role);
         LoginRequest request = new LoginRequest();
         request.setEmail(user.getEmail());
@@ -55,5 +61,29 @@ class AuthServiceTests {
         assertEquals("Eiichiro Oda", response.getUsername());
         assertEquals("oda@manga.test", response.getEmail());
         assertEquals("MANGAKA", response.getRole());
+    }
+
+    @Test
+    void loginRejectsSuspendedAccount() {
+        Role role = new Role();
+        role.setRoleName("MANGAKA");
+        User user = new User();
+        user.setEmail("oda@manga.test");
+        user.setPassword("encoded-password");
+        user.setStatus("SUSPENDED");
+        user.setRole(role);
+        LoginRequest request = new LoginRequest();
+        request.setEmail(user.getEmail());
+        request.setPassword("password");
+
+        when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("password", "encoded-password")).thenReturn(true);
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.login(request));
+
+        assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
+        verify(jwtService, never()).generateToken(user);
     }
 }
