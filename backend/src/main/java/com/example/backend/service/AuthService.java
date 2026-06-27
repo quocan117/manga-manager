@@ -50,7 +50,11 @@ public class AuthService {
         boolean matched = passwordEncoder.matches(
                 request.getPassword(), user.getPassword());
         if (!matched) {
-            throw new RuntimeException("Invalid email or Password");
+            throw new RuntimeException("Incorrect Email or Password");
+        }
+
+        if("DELETE".equalsIgnoreCase(user.getStatus()){
+            throw new RunTimeException("Account does not exist");
         }
 
         if (!isActive(user)) {
