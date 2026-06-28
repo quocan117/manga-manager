@@ -53,12 +53,12 @@ public class AuthService {
             throw new RuntimeException("Incorrect Email or Password");
         }
 
-        if("DELETE".equalsIgnoreCase(user.getStatus())){
-            throw new RunTimeException("Account does not exist");
+        if("DELETED".equalsIgnoreCase(user.getStatus())){
+            throw new RuntimeException("Account does not exist");
         }
 
         if (!isActive(user)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "User account is not active");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Account is not active");
         }
 
         String token = jwtService.generateToken(user);
