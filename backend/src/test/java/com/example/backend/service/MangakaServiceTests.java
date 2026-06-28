@@ -27,6 +27,7 @@ import org.springframework.web.server.ResponseStatusException;
 import com.example.backend.dto.MangakaDtos.CreateSeriesRequest;
 import com.example.backend.dto.MangakaDtos.SubmitSeriesReviewRequest;
 import com.example.backend.model.Chapter;
+import com.example.backend.model.ChapterPage;
 import com.example.backend.model.MangaSeries;
 import com.example.backend.model.User;
 import com.example.backend.repository.ChapterPageRepository;
@@ -129,6 +130,21 @@ class MangakaServiceTests {
     }
 
     @Test
+    void submitSeriesMovesDraftToTantouReview() {
+        MangaSeries series = new MangaSeries();
+        series.setSeriesId(20L);
+        series.setAuthor(user(1L, EMAIL));
+        series.setStatus("DRAFT");
+        when(mangaSeriesRepository.findById(20L)).thenReturn(Optional.of(series));
+        when(mangaSeriesRepository.save(series)).thenReturn(series);
+
+        var response = service.submitSeries(20L, new SubmitSeriesReviewRequest("storyboard-url"));
+
+        assertEquals("TANTOU_REVIEW", series.getStatus());
+        assertEquals("TANTOU_REVIEW", response.status());
+    }
+
+    @Test
     void getsChaptersForOwnedSeries() {
         MangaSeries series = new MangaSeries();
         series.setSeriesId(20L);
@@ -148,6 +164,33 @@ class MangakaServiceTests {
         assertEquals(1, response.size());
         assertEquals(30L, response.get(0).id());
         assertEquals(1, response.get(0).chapterNumber());
+    }
+
+    @Test
+    void getsPagesForOwnedChapter() {
+        MangaSeries series = new MangaSeries();
+        series.setSeriesId(20L);
+        series.setAuthor(user(1L, EMAIL));
+        Chapter chapter = new Chapter();
+        chapter.setChapterId(30L);
+        chapter.setSeries(series);
+        ChapterPage page = new ChapterPage();
+        page.setPageId(40L);
+        page.setChapter(chapter);
+        page.setPageNumber(1);
+        page.setImageUrl("/static/covers/page-1.png");
+        page.setPageStatus("DRAFT");
+        when(chapterRepository.findById(30L)).thenReturn(Optional.of(chapter));
+        when(chapterPageRepository.findByChapterChapterIdOrderByPageNumberAsc(30L))
+                .thenReturn(List.of(page));
+
+        var response = service.getChapterPages(30L);
+
+        assertEquals(1, response.size());
+        assertEquals(40L, response.get(0).id());
+        assertEquals(30L, response.get(0).chapterId());
+        assertEquals(1, response.get(0).pageNumber());
+        assertEquals("/static/covers/page-1.png", response.get(0).imageUrl());
     }
 
     private User user(Long id, String email) {

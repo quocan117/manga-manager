@@ -10,4 +10,8 @@ public interface ChapterPageRepository extends JpaRepository<ChapterPage, Long> 
 
     List<ChapterPage> findByChapterChapterIdAndPageStatusIgnoreCaseOrderByPageNumberAsc(
             Long chapterId, String pageStatus);
+
+    List<ChapterPage> findByChapterChapterIdOrderByPageNumberAsc(Long chapterId);
+
+    List<ChapterPage> findByChapterSeriesSeriesIdOrderByPageNumberAsc(Long seriesId);
 }

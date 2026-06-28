@@ -27,6 +27,8 @@ public class ReviewComment {
     @Column(columnDefinition = "TEXT")
     private String commentText;
 
+    private String commentType;
+    private String status;
     private Float positionX;
     private Float positionY;
     private LocalDateTime createdAt;
