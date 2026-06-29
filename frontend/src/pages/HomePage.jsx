@@ -4,7 +4,6 @@ import Navbar from "../components/Navbar";
 import SeriesCard from "../components/SeriesCard";
 import SeriesModal from "../components/SeriesModal";
 import FloatingMenu from "../components/FloatingMenu";
-// import { trendingSeries } from "../data/mockData";
 import { getAllSeries } from "../services/seriesService";
 import "../styles/HomePage.css";
 

@@ -1,18 +1,21 @@
 import { useNavigate, useParams } from "react-router-dom";
-import { trendingSeries } from "../../data/mockData";
-
+import { useEffect, useState } from "react";
+import { getAllSeries } from "../../services/seriesService"; 
 export default function MangaDetailPage() {
-
     const { id } = useParams();
     const navigate = useNavigate();
+    const [manga, setManga] = useState(null);
 
-    const manga = trendingSeries.find(
-        m => m.id === Number(id)
-    );
+    useEffect(() => {
+        const fetchManga = async () => {
+            const data = await getAllSeries();
+            const found = data.find(m => m.id === Number(id));
+            setManga(found);
+        };
+        fetchManga();
+    }, [id]);
 
-    if (!manga) {
-        return <h2>Manga không tồn tại</h2>;
-    }
+    if (!manga) return <h2>Đang tải hoặc không tồn tại...</h2>;
 
     return (
         <div className="container mt-4">

@@ -1,0 +1,141 @@
+/* =========================================
+   BỐ CỤC CHUNG
+   ========================================= */
+.tantou-layout-container {
+  display: flex;
+  min-height: 100vh;
+  background-color: #f4f6f8;
+  font-family: "Inter", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* =========================================
+   SIDEBAR (Đồng bộ với Layout Mangaka/Board)
+   ========================================= */
+.tantou-sidebar {
+  width: 260px;
+  background-color: #2b3445; /* Màu nền xanh đen tối đồng bộ */
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  z-index: 1000;
+  box-shadow: 4px 0 15px rgba(0, 0, 0, 0.05);
+}
+
+.sidebar-header {
+  padding: 30px 20px;
+  text-align: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.role-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.4;
+}
+
+.role-highlight {
+  color: #2ecc71; /* Xanh lá: Đặc trưng riêng cho Tantou Editor */
+  font-size: 26px;
+  letter-spacing: 2px;
+}
+
+.sidebar-menu {
+  list-style: none;
+  padding: 20px 15px;
+  margin: 0;
+  flex-grow: 1;
+}
+
+.sidebar-menu li {
+  margin-bottom: 8px;
+}
+
+.sidebar-menu .nav-link {
+  display: flex;
+  align-items: center;
+  padding: 12px 15px;
+  color: #aeb4be;
+  text-decoration: none;
+  border-radius: 8px; /* Bo góc nhẹ */
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.sidebar-menu .nav-link i {
+  width: 24px;
+  font-size: 18px;
+  margin-right: 10px;
+}
+
+.sidebar-menu .nav-link:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+  transform: translateX(5px);
+}
+
+.sidebar-menu .nav-link.active {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+/* =========================================
+   FOOTER (ĐĂNG XUẤT)
+   ========================================= */
+.sidebar-footer {
+  padding: 20px 15px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.btn-logout {
+  width: 100%;
+  padding: 12px;
+  background-color: transparent;
+  border: 1px solid #ff4757;
+  color: #ff4757;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+}
+
+.btn-logout:hover {
+  background-color: #ff4757;
+  color: #ffffff;
+}
+
+/* =========================================
+   MAIN CONTENT
+   ========================================= */
+.tantou-main-content {
+  margin-left: 260px; /* Khớp với độ rộng sidebar */
+  flex-grow: 1;
+  width: calc(100% - 260px);
+  min-height: 100vh;
+  padding: 24px;
+  background-color: #f8f9fa;
+}
+
+.tantou-main-content > div {
+  animation: fadeIn 0.4s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

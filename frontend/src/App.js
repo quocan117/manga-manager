@@ -23,6 +23,10 @@ import DashboardAssistant from "./Assistant/components/DashboardAssistant";
 import MyTasks from "./Assistant/components/MyTasks";
 import MySubmissions from "./Assistant/components/MySubmissions";
 import DrawingPage from "./Mangaka/pages/DrawingPage";
+import TantouDashboard from "./TantouEditor/pages/TantouDashboard";
+import EditorReviewPage from "./TantouEditor/pages/EditorReviewPage";
+import ScheduleManagement from "./TantouEditor/pages/ScheduleManagement";
+import TantouLayout from "./TantouEditor/components/TantouLayout";
 
 function App() {
   useEffect(() => {
@@ -96,18 +100,24 @@ function App() {
         </Route>
 
         {/**Route Assistant */}
-        <Route
-          path="/assistant"
-          element={
-            <AssistantLayout />
-          }
-        >
+        <Route path="/assistant" element={<AssistantLayout />}>
           <Route index element={<DashboardAssistant />} />
           <Route path="tasks" element={<MyTasks />} />
           <Route path="submissions" element={<MySubmissions />} />
         </Route>
-      </Routes>
 
+        {/* Route tantou editor */}
+        <Route
+          path="/tantou"
+          element={
+              <TantouLayout />
+          }
+        >
+          <Route index element={<TantouDashboard />} />
+          <Route path="review/:id" element={<EditorReviewPage />} />
+          <Route path="schedule" element={<ScheduleManagement />} />
+        </Route>
+      </Routes>
     </>
   );
 }
