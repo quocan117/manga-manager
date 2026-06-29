@@ -2,7 +2,6 @@ import React, { useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
-import RegisterPage from "./pages/RegisterPage";
 import RankingPage from "./pages/RankingPage";
 import MangaDetailPage from "./Mangaka/pages/MangaDeatailPage";
 import CreateChapterPage from "./Mangaka/pages/CreateChapterPage";
@@ -22,6 +21,7 @@ import AssistantLayout from "./Assistant/components/AssistantLayout";
 import DashboardAssistant from "./Assistant/components/DashboardAssistant";
 import MyTasks from "./Assistant/components/MyTasks";
 import MySubmissions from "./Assistant/components/MySubmissions";
+import DrawingPage from "./Mangaka/pages/DrawingPage";
 
 function App() {
   useEffect(() => {
@@ -53,7 +53,6 @@ function App() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
         <Route path="/ranking" element={<RankingPage />} />
         <Route path="/manga/:id" element={<MangaDetailPage />} />
         <Route
@@ -61,7 +60,7 @@ function App() {
           element={<CreateChapterPage />}
         />
 
-{/**Route Mangaka */}
+        {/**Route Mangaka */}
         <Route
           path="/mangaka"
           element={
@@ -77,9 +76,10 @@ function App() {
           <Route path="ranking" element={<Ranking />} />
           <Route path="create-series" element={<CreateSeriesPage />} />
           <Route path="tasks" element={<AssistantTasks />} />
+          <Route path="pages/:pageId/drawing" element={<DrawingPage />} />
         </Route>
 
-{/**Route Editor Board */}
+        {/**Route Editor Board */}
         <Route
           path="/board"
           element={
@@ -93,7 +93,7 @@ function App() {
           <Route path="manage-mangaka" element={<ManageMangakaPage />} />
         </Route>
 
-{/**Route Assistant */}
+        {/**Route Assistant */}
         <Route
           path="/assistant"
           element={
