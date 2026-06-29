@@ -10,6 +10,7 @@ import MyManga from "./Mangaka/components/MyManga";
 import Notification from "./Mangaka/components/Notification";
 import MangakaLayout from "./Mangaka/components/MangakaLayout";
 import BoardLayout from "./EditorialBoard/components/BoardLayout";
+import ReviewSeriesPage from "./EditorialBoard/pages/ReviewSeriesPage";
 import RankingDecisionPage from "./EditorialBoard/pages/RankingDecisionPage";
 import Settings from "./Mangaka/components/Settings";
 import Ranking from "./Mangaka/components/Ranking";
@@ -90,6 +91,7 @@ function App() {
         >
           <Route index element={<Navigate to="ranking" replace />} />
           <Route path="ranking" element={<RankingDecisionPage />} />
+          <Route path="review" element={<ReviewSeriesPage />} />
           <Route path="manage-mangaka" element={<ManageMangakaPage />} />
         </Route>
 

@@ -10,4 +10,10 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             Long chapterId, String assignedByEmail);
 
     List<Task> findByAssignedToEmailOrderByCreatedAtDesc(String assignedToEmail);
+
+    List<Task> findByChapterSeriesSeriesIdOrderByDueDateAsc(Long seriesId);
+
+    List<Task> findByChapterChapterIdOrderByDueDateAsc(Long chapterId);
+
+    List<Task> findAllByOrderByDueDateAsc();
 }

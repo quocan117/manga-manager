@@ -26,6 +26,14 @@ const BoardLayout = () => {
           </li>
           <li>
             <NavLink
+              to="/board/review"
+              className={({ isActive }) => (isActive ? "active" : "")}
+            >
+              📝 Xét Duyệt Tác Phẩm
+            </NavLink>
+          </li>
+          <li>
+            <NavLink
               to="/board/manage-mangaka"
               className={({ isActive }) => (isActive ? "active" : "")}
             >

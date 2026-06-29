@@ -9,4 +9,6 @@ public interface SubmissionRepository extends JpaRepository<Submission, Long> {
     List<Submission> findByChapterChapterIdOrderBySubmittedAtDesc(Long chapterId);
 
     List<Submission> findByTaskTaskIdOrderBySubmittedAtDesc(Long taskId);
+
+    List<Submission> findByChapterSeriesSeriesIdOrderBySubmittedAtDesc(Long seriesId);
 }

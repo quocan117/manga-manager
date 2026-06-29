@@ -80,6 +80,11 @@ public class MangakaController {
         return service.createPage(request);
     }
 
+    @GetMapping("/chapters/{chapterId}/pages")
+    public List<PageResponse> getChapterPages(@PathVariable Long chapterId) {
+        return service.getChapterPages(chapterId);
+    }
+
     @GetMapping("/assistants")
     public List<AssistantResponse> getAvailableAssistants() {
         return service.getAvailableAssistants();

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { login } from "../services/authService";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 export default function LoginForm() {
     const navigate = useNavigate();
@@ -11,6 +11,7 @@ export default function LoginForm() {
     });
 
     const [loading, setLoading] = useState(false);
+    const [errorMessage, setErrorMessage] = useState("");
 
     const handleChange = (e) => {
         setForm({
@@ -53,17 +54,19 @@ export default function LoginForm() {
     // };
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setErrorMessage("");
 
         try {
-
             setLoading(true);
-
             const data = await login(form);
 
-            console.log(data);
-
             localStorage.setItem("token", data.token);
-            localStorage.setItem("user", JSON.stringify(data));
+            localStorage.setItem("user", JSON.stringify({
+                userId: data.userId,
+                username: data.username,
+                email: data.email,
+                role: data.role
+            }));
 
             alert("Đăng nhập thành công!");
 
@@ -88,12 +91,22 @@ export default function LoginForm() {
                 default:
                     navigate("/");
             }
-
         } catch (error) {
+            const backendMessage = error.response?.data?.message || error.response?.data?.error || "";
+            const lowerMessage = backendMessage.toLowerCase();
 
-            console.error(error);
-
-            alert("Sai tài khoản hoặc mật khẩu!");
+            if (lowerMessage.includes("not active")) {
+                setErrorMessage("Tài khoản đã bị khóa.");
+            } 
+            else if (lowerMessage.includes("account does not exist") || lowerMessage.includes("invalid email")) {
+                setErrorMessage("Tài khoản không tồn tại.");
+            }
+            else if (lowerMessage.includes("incorrect email or password")) {
+                setErrorMessage("Sai mật khẩu. Vui lòng thử lại.");
+            }
+            else {
+                setErrorMessage("Đăng nhập thất bại. Vui lòng thử lại sau.");
+            }
 
         } finally {
 
@@ -108,6 +121,13 @@ export default function LoginForm() {
             <h2 className="login-title">
                 Manga Manager
             </h2>
+
+            {errorMessage && (
+                <div className="alert alert-danger d-flex align-items-center p-3 mb-4" role="alert" style={{ fontSize: '14px' }}>
+                    <span className="me-2">⚠️</span>
+                    <div>{errorMessage}</div>
+                </div>
+            )}
 
             <form onSubmit={handleSubmit}>
 
@@ -148,20 +168,6 @@ export default function LoginForm() {
                     {loading ? "Đang đăng nhập..." : "Đăng nhập"}
                 </button>
 
-                <div className="text-center mt-3">
-                    <span className="text-muted">
-                        Bạn chưa có tài khoản?
-                    </span>
-
-                    {" "}
-
-                    <Link
-                        to="/register"
-                        className="text-decoration-none fw-semibold"
-                    >
-                        Đăng ký làm Mangaka
-                    </Link>
-                </div>
             </form>
         </div>
     );

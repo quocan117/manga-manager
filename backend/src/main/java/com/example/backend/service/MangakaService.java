@@ -47,6 +47,7 @@ import com.example.backend.repository.UserRepository;
 public class MangakaService {
     private static final Set<String> TASK_TYPES = Set.of("BACKGROUND", "TEXT", "EFFECTS", "OTHER");
     private static final Set<String> REVIEW_DECISIONS = Set.of("APPROVED", "REVISION_REQUESTED");
+    private static final String TANTOU_REVIEW_STATUS = "TANTOU_REVIEW";
 
     private final UserRepository userRepository;
     private final MangaSeriesRepository mangaSeriesRepository;
@@ -117,7 +118,7 @@ public class MangakaService {
         }
         series.setStoryboardUrl(request.storyboardUrl());
         series.setSubmittedAt(LocalDateTime.now());
-        series.setStatus("REVIEWING");
+        series.setStatus(TANTOU_REVIEW_STATUS);
         return toSeriesResponse(mangaSeriesRepository.save(series));
     }
 
@@ -153,6 +154,15 @@ public class MangakaService {
         page.setPageStatus("DRAFT");
         page.setCreatedAt(LocalDateTime.now());
         return toPageResponse(chapterPageRepository.save(page));
+    }
+
+    @Transactional(readOnly = true)
+    public List<PageResponse> getChapterPages(Long chapterId) {
+        ownedChapter(chapterId);
+        return chapterPageRepository.findByChapterChapterIdOrderByPageNumberAsc(chapterId)
+                .stream()
+                .map(this::toPageResponse)
+                .toList();
     }
 
     @Transactional(readOnly = true)
