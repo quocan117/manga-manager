@@ -3,6 +3,8 @@
     flex-direction: column;
     align-items: center;
     padding: 20px;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .toolbar {
@@ -25,6 +27,15 @@
 
 .canvas-wrapper {
     border: 1px solid #ccc;
-    display: inline-block;
     box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    width: 800px; 
+    height: 1200px; 
+    flex-shrink: 0; 
+    max-width: 100%; 
+    overflow: auto; 
+    background-color: #f8f9fa; 
+}
+
+.canvas-container {
+    margin: 0 auto;
 }
