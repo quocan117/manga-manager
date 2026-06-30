@@ -1,17 +1,27 @@
 package com.example.backend.service;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.example.backend.dto.MangakaDtos.AssignTaskRequest;
@@ -54,6 +64,11 @@ public class MangakaService {
     private static final String ASSISTANT_ROLE = "ASSISTANT";
     private static final String ACTIVE_STATUS = "ACTIVE";
     private static final String TANTOU_REVIEW_STATUS = "TANTOU_REVIEW";
+    private static final long MAX_PAGE_IMAGE_SIZE_BYTES = 5L * 1024 * 1024;
+    private static final Set<String> PAGE_IMAGE_CONTENT_TYPES = Set.of(
+            "image/jpeg", "image/png", "image/webp", "image/gif");
+    private static final Set<String> PAGE_IMAGE_EXTENSIONS = Set.of(
+            ".jpg", ".jpeg", ".png", ".webp", ".gif");
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
@@ -65,6 +80,9 @@ public class MangakaService {
     private final SubmissionRepository submissionRepository;
     private final SeriesRankingRepository seriesRankingRepository;
     private final NotificationRepository notificationRepository;
+
+    @Value("${manga.upload.page-image-root:}")
+    private String pageImageUploadRootOverride;
 
     public MangakaService(
             UserRepository userRepository,
@@ -166,6 +184,58 @@ public class MangakaService {
         page.setPageStatus("DRAFT");
         page.setCreatedAt(LocalDateTime.now());
         return toPageResponse(chapterPageRepository.save(page));
+    }
+
+    @Transactional
+    public List<PageResponse> uploadChapterPages(Long chapterId, List<MultipartFile> images) {
+        Chapter chapter = ownedChapter(chapterId);
+        if (images == null || images.isEmpty() || images.stream().allMatch(MultipartFile::isEmpty)) {
+            throw badRequest("At least one image file is required");
+        }
+
+        images.forEach(this::validatePageImage);
+
+        int nextPageNumber = chapterPageRepository.findByChapterChapterIdOrderByPageNumberAsc(chapterId)
+                .stream()
+                .map(ChapterPage::getPageNumber)
+                .filter(Objects::nonNull)
+                .max(Integer::compareTo)
+                .orElse(0) + 1;
+
+        Path chapterDirectory = pageImageUploadRoot().resolve("chapter-" + chapterId).normalize();
+        try {
+            Files.createDirectories(chapterDirectory);
+        } catch (IOException exception) {
+            throw new ResponseStatusException(
+                    HttpStatus.INTERNAL_SERVER_ERROR, "Could not create page image folder", exception);
+        }
+
+        List<PageResponse> responses = new ArrayList<>();
+        for (MultipartFile image : images) {
+            String fileName = pageImageFileName(chapterId, nextPageNumber, image.getOriginalFilename());
+            Path target = chapterDirectory.resolve(fileName).normalize();
+            if (!target.startsWith(chapterDirectory)) {
+                throw badRequest("Invalid image file name");
+            }
+
+            try (InputStream inputStream = image.getInputStream()) {
+                Files.copy(inputStream, target, StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException exception) {
+                throw new ResponseStatusException(
+                        HttpStatus.INTERNAL_SERVER_ERROR, "Could not save page image", exception);
+            }
+
+            ChapterPage page = new ChapterPage();
+            page.setChapter(chapter);
+            page.setPageNumber(nextPageNumber);
+            page.setImageUrl("pages/chapter-" + chapterId + "/" + fileName);
+            page.setPageStatus("DRAFT");
+            page.setCreatedAt(LocalDateTime.now());
+            responses.add(toPageResponse(chapterPageRepository.save(page)));
+            nextPageNumber++;
+        }
+
+        return responses;
     }
 
     @Transactional(readOnly = true)
@@ -441,6 +511,52 @@ public class MangakaService {
 
     private ResponseStatusException conflict(String message) {
         return new ResponseStatusException(HttpStatus.CONFLICT, message);
+    }
+
+    private void validatePageImage(MultipartFile image) {
+        if (image == null || image.isEmpty()) {
+            throw badRequest("Image file cannot be empty");
+        }
+        if (image.getSize() > MAX_PAGE_IMAGE_SIZE_BYTES) {
+            throw new ResponseStatusException(
+                    HttpStatus.PAYLOAD_TOO_LARGE, "Each page image must be 5MB or smaller");
+        }
+
+        String contentType = image.getContentType();
+        if (contentType == null || !PAGE_IMAGE_CONTENT_TYPES.contains(contentType.toLowerCase(Locale.ROOT))) {
+            throw badRequest("Only JPG, PNG, WEBP, or GIF images are allowed");
+        }
+    }
+
+    private String pageImageFileName(Long chapterId, int pageNumber, String originalFilename) {
+        String extension = fileExtension(originalFilename);
+        if (!PAGE_IMAGE_EXTENSIONS.contains(extension)) {
+            throw badRequest("Only JPG, PNG, WEBP, or GIF images are allowed");
+        }
+        return "chapter-" + chapterId + "-page-" + pageNumber + "-" + UUID.randomUUID() + extension;
+    }
+
+    private String fileExtension(String originalFilename) {
+        if (originalFilename == null || originalFilename.isBlank()) {
+            throw badRequest("Image file name is required");
+        }
+        int extensionIndex = originalFilename.lastIndexOf('.');
+        if (extensionIndex < 0 || extensionIndex == originalFilename.length() - 1) {
+            throw badRequest("Image file extension is required");
+        }
+        return originalFilename.substring(extensionIndex).toLowerCase(Locale.ROOT);
+    }
+
+    private Path pageImageUploadRoot() {
+        if (pageImageUploadRootOverride != null && !pageImageUploadRootOverride.isBlank()) {
+            return Path.of(pageImageUploadRootOverride).toAbsolutePath().normalize();
+        }
+
+        Path projectRoot = Path.of("").toAbsolutePath();
+        if (!Files.exists(projectRoot.resolve("src/main/resources"))) {
+            projectRoot = projectRoot.resolve("backend");
+        }
+        return projectRoot.resolve("src/main/resources/static/covers/pages").normalize();
     }
 
     private String blankToNull(String value) {

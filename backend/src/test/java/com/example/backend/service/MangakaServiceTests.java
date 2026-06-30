@@ -3,11 +3,15 @@ package com.example.backend.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
 
@@ -15,14 +19,17 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.example.backend.dto.MangakaDtos.CreateAssistantRequest;
@@ -199,6 +206,57 @@ class MangakaServiceTests {
         assertEquals(30L, response.get(0).chapterId());
         assertEquals(1, response.get(0).pageNumber());
         assertEquals("/static/covers/page-1.png", response.get(0).imageUrl());
+    }
+
+    @Test
+    void uploadsImagesAsChapterPagesForOwnedChapter(@TempDir Path tempDir) {
+        ReflectionTestUtils.setField(service, "pageImageUploadRootOverride", tempDir.toString());
+        MangaSeries series = new MangaSeries();
+        series.setSeriesId(20L);
+        series.setAuthor(user(1L, EMAIL));
+        Chapter chapter = new Chapter();
+        chapter.setChapterId(30L);
+        chapter.setSeries(series);
+        MockMultipartFile image = new MockMultipartFile(
+                "images", "page-1.png", "image/png", "page image".getBytes(StandardCharsets.UTF_8));
+        when(chapterRepository.findById(30L)).thenReturn(Optional.of(chapter));
+        when(chapterPageRepository.findByChapterChapterIdOrderByPageNumberAsc(30L))
+                .thenReturn(List.of());
+        when(chapterPageRepository.save(any(ChapterPage.class))).thenAnswer(invocation -> {
+            ChapterPage page = invocation.getArgument(0);
+            page.setPageId(40L);
+            return page;
+        });
+
+        var response = service.uploadChapterPages(30L, List.of(image));
+
+        assertEquals(1, response.size());
+        assertEquals(40L, response.get(0).id());
+        assertEquals(1, response.get(0).pageNumber());
+        assertTrue(response.get(0).imageUrl().startsWith("pages/chapter-30/chapter-30-page-1-"));
+        String savedFileName = Path.of(response.get(0).imageUrl()).getFileName().toString();
+        assertTrue(Files.exists(tempDir.resolve("chapter-30").resolve(savedFileName)));
+    }
+
+    @Test
+    void rejectsOversizedPageImage(@TempDir Path tempDir) {
+        ReflectionTestUtils.setField(service, "pageImageUploadRootOverride", tempDir.toString());
+        MangaSeries series = new MangaSeries();
+        series.setSeriesId(20L);
+        series.setAuthor(user(1L, EMAIL));
+        Chapter chapter = new Chapter();
+        chapter.setChapterId(30L);
+        chapter.setSeries(series);
+        byte[] content = new byte[(5 * 1024 * 1024) + 1];
+        MockMultipartFile image = new MockMultipartFile(
+                "images", "page-1.png", "image/png", content);
+        when(chapterRepository.findById(30L)).thenReturn(Optional.of(chapter));
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> service.uploadChapterPages(30L, List.of(image)));
+
+        assertSame(HttpStatus.PAYLOAD_TOO_LARGE, exception.getStatusCode());
+        verify(chapterPageRepository, never()).save(any());
     }
 
     @Test
