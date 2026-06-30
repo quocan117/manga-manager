@@ -17,7 +17,6 @@ import Ranking from "./Mangaka/components/Ranking";
 import PrivateRoute from "./Route/PrivateRoute";
 import CreateSeriesPage from "./Mangaka/pages/CreateSeriesPage";
 import AssistantTasks from "./Mangaka/components/AssistantTasks";
-import ManageMangakaPage from "./EditorialBoard/pages/ManageMangakaPage";
 import AssistantLayout from "./Assistant/components/AssistantLayout";
 import DashboardAssistant from "./Assistant/components/DashboardAssistant";
 import MyTasks from "./Assistant/components/MyTasks";
@@ -27,6 +26,8 @@ import TantouDashboard from "./TantouEditor/pages/TantouDashboard";
 import EditorReviewPage from "./TantouEditor/pages/EditorReviewPage";
 import ScheduleManagement from "./TantouEditor/pages/ScheduleManagement";
 import TantouLayout from "./TantouEditor/components/TantouLayout";
+import ChapterPages from "./Mangaka/pages/ChapterPages";
+import ManageUsersPage from "./EditorialBoard/pages/ManageUsersPage";
 
 function App() {
   useEffect(() => {
@@ -82,6 +83,7 @@ function App() {
           <Route path="create-series" element={<CreateSeriesPage />} />
           <Route path="tasks" element={<AssistantTasks />} />
           <Route path="pages/:pageId/drawing" element={<DrawingPage />} />
+          <Route path="chapters/:chapterId/pages" element={<ChapterPages />} />
         </Route>
 
         {/**Route Editor Board */}
@@ -96,7 +98,7 @@ function App() {
           <Route index element={<Navigate to="ranking" replace />} />
           <Route path="ranking" element={<RankingDecisionPage />} />
           <Route path="review" element={<ReviewSeriesPage />} />
-          <Route path="manage-mangaka" element={<ManageMangakaPage />} />
+          <Route path="manage-users" element={<ManageUsersPage />} />
         </Route>
 
         {/**Route Assistant */}
@@ -107,12 +109,7 @@ function App() {
         </Route>
 
         {/* Route tantou editor */}
-        <Route
-          path="/tantou"
-          element={
-              <TantouLayout />
-          }
-        >
+        <Route path="/tantou" element={<TantouLayout />}>
           <Route index element={<TantouDashboard />} />
           <Route path="review/:id" element={<EditorReviewPage />} />
           <Route path="schedule" element={<ScheduleManagement />} />

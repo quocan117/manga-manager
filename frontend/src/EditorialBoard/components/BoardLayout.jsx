@@ -34,10 +34,10 @@ const BoardLayout = () => {
           </li>
           <li>
             <NavLink
-              to="/board/manage-mangaka"
+              to="/board/manage-users"
               className={({ isActive }) => (isActive ? "active" : "")}
             >
-              👤 Quản lý Mangaka
+              👤 Quản lý Tài Khoản
             </NavLink>
           </li>
           <li style={{ marginTop: "auto", padding: "20px" }}>

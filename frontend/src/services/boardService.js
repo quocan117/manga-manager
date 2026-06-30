@@ -5,10 +5,12 @@ export const getUsers = async () => {
     return response.data;
 };
 
-export const createMangaka = async (userData) => {
+export const createUser = async (userData) => {
     const payload = {
-        ...userData,
-        role: "MANGAKA",
+        username: userData.username,
+        email: userData.email,
+        password: userData.password,
+        role: userData.role, 
         status: "ACTIVE"
     };
     const response = await api.post("/editorial-board/users", payload);

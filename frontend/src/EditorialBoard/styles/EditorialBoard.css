@@ -422,3 +422,17 @@
   background-color: #f4f7f6;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
+
+.role-mangaka {
+  background-color: #6c5ce7; 
+  color: white;
+  padding: 6px 12px;
+  border-radius: 4px;
+}
+
+.role-tantou {
+  background-color: #0984e3; 
+  color: white;
+  padding: 6px 12px;
+  border-radius: 4px;
+}
