@@ -28,6 +28,7 @@ import ScheduleManagement from "./TantouEditor/pages/ScheduleManagement";
 import TantouLayout from "./TantouEditor/components/TantouLayout";
 import ChapterPages from "./Mangaka/pages/ChapterPages";
 import ManageUsersPage from "./EditorialBoard/pages/ManageUsersPage";
+import ManageAssistants from "./Mangaka/pages/ManageAssistants";
 
 function App() {
   useEffect(() => {
@@ -84,6 +85,7 @@ function App() {
           <Route path="tasks" element={<AssistantTasks />} />
           <Route path="pages/:pageId/drawing" element={<DrawingPage />} />
           <Route path="chapters/:chapterId/pages" element={<ChapterPages />} />
+          <Route path="manage-assistants" element={<ManageAssistants />} />
         </Route>
 
         {/**Route Editor Board */}

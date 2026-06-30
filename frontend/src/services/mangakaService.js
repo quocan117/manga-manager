@@ -3,200 +3,152 @@ import axios from "axios";
 const API_URL = "http://localhost:8080/mangaka";
 
 const authHeader = () => ({
-    Authorization:
-        `Bearer ${localStorage.getItem("token")}`
+  Authorization: `Bearer ${localStorage.getItem("token")}`,
 });
 
 export const getMySeries = async () => {
-    const response = await axios.get(
-        `${API_URL}/my-series`,
-        {
-            headers: authHeader()
-        }
-    );
+  const response = await axios.get(`${API_URL}/my-series`, {
+    headers: authHeader(),
+  });
 
-    return response.data;
+  return response.data;
 };
 
 export const createSeries = async (data) => {
-    const response = await axios.post(
-        `${API_URL}/series`,
-        data,
-        {
-            headers: authHeader()
-        }
-    );
+  const response = await axios.post(`${API_URL}/series`, data, {
+    headers: authHeader(),
+  });
 
-    return response.data;
+  return response.data;
 };
 
-export const submitSeriesReview =
-    async (seriesId, storyboardUrl) => {
+export const submitSeriesReview = async (seriesId, storyboardUrl) => {
+  const response = await axios.post(
+    `${API_URL}/series/${seriesId}/submit`,
+    {
+      storyboardUrl,
+    },
+    {
+      headers: authHeader(),
+    },
+  );
 
-        const response = await axios.post(
-            `${API_URL}/series/${seriesId}/submit`,
-            {
-                storyboardUrl
-            },
-            {
-                headers: authHeader()
-            }
-        );
+  return response.data;
+};
 
-        return response.data;
-    };
+export const getSeriesChapters = async (seriesId) => {
+  const response = await axios.get(`${API_URL}/series/${seriesId}/chapters`, {
+    headers: authHeader(),
+  });
 
-export const getSeriesChapters =
-    async (seriesId) => {
+  return response.data;
+};
 
-        const response = await axios.get(
-            `${API_URL}/series/${seriesId}/chapters`,
-            {
-                headers: authHeader()
-            }
-        );
+export const createChapter = async (data) => {
+  const response = await axios.post(`${API_URL}/chapters`, data, {
+    headers: authHeader(),
+  });
 
-        return response.data;
-    };
+  return response.data;
+};
 
-export const createChapter =
-    async (data) => {
+export const createPage = async (data) => {
+  const response = await axios.post(`${API_URL}/pages`, data, {
+    headers: authHeader(),
+  });
 
-        const response = await axios.post(
-            `${API_URL}/chapters`,
-            data,
-            {
-                headers: authHeader()
-            }
-        );
+  return response.data;
+};
 
-        return response.data;
-    };
+export const getAssistants = async () => {
+  const response = await axios.get(`${API_URL}/assistants`, {
+    headers: authHeader(),
+  });
 
-export const createPage =
-    async (data) => {
+  return response.data;
+};
 
-        const response = await axios.post(
-            `${API_URL}/pages`,
-            data,
-            {
-                headers: authHeader()
-            }
-        );
+export const assignTask = async (data) => {
+  const response = await axios.post(`${API_URL}/tasks`, data, {
+    headers: authHeader(),
+  });
 
-        return response.data;
-    };
+  return response.data;
+};
 
-export const getAssistants =
-    async () => {
+export const getChapterTasks = async (chapterId) => {
+  const response = await axios.get(`${API_URL}/chapters/${chapterId}/tasks`, {
+    headers: authHeader(),
+  });
 
-        const response = await axios.get(
-            `${API_URL}/assistants`,
-            {
-                headers: authHeader()
-            }
-        );
+  return response.data;
+};
 
-        return response.data;
-    };
+export const getChapterSubmissions = async (chapterId) => {
+  const response = await axios.get(
+    `${API_URL}/chapters/${chapterId}/submissions`,
+    {
+      headers: authHeader(),
+    },
+  );
 
-export const assignTask =
-    async (data) => {
+  return response.data;
+};
 
-        const response = await axios.post(
-            `${API_URL}/tasks`,
-            data,
-            {
-                headers: authHeader()
-            }
-        );
+export const reviewSubmission = async (submissionId, decision, reviewNote) => {
+  const response = await axios.patch(
+    `${API_URL}/submissions/${submissionId}/review`,
+    {
+      decision,
+      reviewNote,
+    },
+    {
+      headers: authHeader(),
+    },
+  );
 
-        return response.data;
-    };
+  return response.data;
+};
 
-export const getChapterTasks =
-    async (chapterId) => {
+export const getRankings = async () => {
+  const response = await axios.get(`${API_URL}/rankings`, {
+    headers: authHeader(),
+  });
 
-        const response = await axios.get(
-            `${API_URL}/chapters/${chapterId}/tasks`,
-            {
-                headers: authHeader()
-            }
-        );
+  return response.data;
+};
 
-        return response.data;
-    };
+export const getNotifications = async () => {
+  const response = await axios.get(`${API_URL}/notifications`, {
+    headers: authHeader(),
+  });
 
-export const getChapterSubmissions =
-    async (chapterId) => {
+  return response.data;
+};
 
-        const response = await axios.get(
-            `${API_URL}/chapters/${chapterId}/submissions`,
-            {
-                headers: authHeader()
-            }
-        );
+export const markNotificationRead = async (notificationId) => {
+  const response = await axios.patch(
+    `${API_URL}/notifications/${notificationId}/read`,
+    {},
+    {
+      headers: authHeader(),
+    },
+  );
 
-        return response.data;
-    };
+  return response.data;
+};
 
-export const reviewSubmission =
-    async (
-        submissionId,
-        decision,
-        reviewNote
-    ) => {
+export const getChapterPages = async (chapterId) => {
+  const response = await axios.get(`${API_URL}/chapters/${chapterId}/pages`, {
+    headers: authHeader(),
+  });
+  return response.data;
+};
 
-        const response = await axios.patch(
-            `${API_URL}/submissions/${submissionId}/review`,
-            {
-                decision,
-                reviewNote
-            },
-            {
-                headers: authHeader()
-            }
-        );
-
-        return response.data;
-    };
-
-export const getRankings =
-    async () => {
-
-        const response = await axios.get(
-            `${API_URL}/rankings`,
-            {
-                headers: authHeader()
-            }
-        );
-
-        return response.data;
-    };
-
-export const getNotifications =
-    async () => {
-
-        const response = await axios.get(
-            `${API_URL}/notifications`,
-            {
-                headers: authHeader()
-            }
-        );
-
-        return response.data;
-    };
-
-export const markNotificationRead =
-    async (notificationId) => {
-
-        const response = await axios.patch(
-            `${API_URL}/notifications/${notificationId}/read`,
-            {},
-            {
-                headers: authHeader()
-            }
-        );
-
-        return response.data;
-    };
+// Thêm đoạn code này vào file src/services/mangakaService.js
+export const createAssistant = async (data) => {
+  const response = await axios.post(`${API_URL}/assistants`, data, {
+    headers: authHeader(),
+  });
+  return response.data;
+};
