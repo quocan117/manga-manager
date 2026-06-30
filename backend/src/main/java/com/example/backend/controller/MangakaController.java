@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.example.backend.dto.MangakaDtos.AssignTaskRequest;
 import com.example.backend.dto.MangakaDtos.AssistantResponse;
+import com.example.backend.dto.MangakaDtos.CreateAssistantRequest;
 import com.example.backend.dto.MangakaDtos.ChapterResponse;
 import com.example.backend.dto.MangakaDtos.CreateChapterRequest;
 import com.example.backend.dto.MangakaDtos.CreatePageRequest;
@@ -88,6 +89,12 @@ public class MangakaController {
     @GetMapping("/assistants")
     public List<AssistantResponse> getAvailableAssistants() {
         return service.getAvailableAssistants();
+    }
+
+    @PostMapping("/assistants")
+    @ResponseStatus(HttpStatus.CREATED)
+    public AssistantResponse createAssistant(@Valid @RequestBody CreateAssistantRequest request) {
+        return service.createAssistant(request);
     }
 
     @PostMapping("/tasks")

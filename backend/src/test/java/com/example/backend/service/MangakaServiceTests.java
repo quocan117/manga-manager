@@ -22,18 +22,22 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.example.backend.dto.MangakaDtos.CreateAssistantRequest;
 import com.example.backend.dto.MangakaDtos.CreateSeriesRequest;
 import com.example.backend.dto.MangakaDtos.SubmitSeriesReviewRequest;
 import com.example.backend.model.Chapter;
 import com.example.backend.model.ChapterPage;
 import com.example.backend.model.MangaSeries;
+import com.example.backend.model.Role;
 import com.example.backend.model.User;
 import com.example.backend.repository.ChapterPageRepository;
 import com.example.backend.repository.ChapterRepository;
 import com.example.backend.repository.MangaSeriesRepository;
 import com.example.backend.repository.NotificationRepository;
+import com.example.backend.repository.RoleRepository;
 import com.example.backend.repository.SeriesRankingRepository;
 import com.example.backend.repository.SubmissionRepository;
 import com.example.backend.repository.TaskRepository;
@@ -45,6 +49,10 @@ class MangakaServiceTests {
 
     @Mock
     private UserRepository userRepository;
+    @Mock
+    private RoleRepository roleRepository;
+    @Mock
+    private PasswordEncoder passwordEncoder;
     @Mock
     private MangaSeriesRepository mangaSeriesRepository;
     @Mock
@@ -193,11 +201,50 @@ class MangakaServiceTests {
         assertEquals("/static/covers/page-1.png", response.get(0).imageUrl());
     }
 
+    @Test
+    void createsAssistantAccountForAuthenticatedMangaka() {
+        User mangaka = user(1L, EMAIL);
+        Role assistantRole = role("ASSISTANT");
+        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(mangaka));
+        when(userRepository.existsByUsername("Assistant One")).thenReturn(false);
+        when(userRepository.existsByEmail("assistant1@manga.test")).thenReturn(false);
+        when(roleRepository.findByRoleName("ASSISTANT")).thenReturn(Optional.of(assistantRole));
+        when(passwordEncoder.encode("Assistant@123")).thenReturn("hashed-password");
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
+            User saved = invocation.getArgument(0);
+            saved.setUserId(50L);
+            return saved;
+        });
+
+        var response = service.createAssistant(new CreateAssistantRequest(
+                "Assistant One",
+                "assistant1@manga.test",
+                "Assistant@123",
+                "avatar.png"));
+
+        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(captor.capture());
+        User saved = captor.getValue();
+        assertEquals(50L, response.id());
+        assertEquals("Assistant One", response.username());
+        assertEquals("assistant1@manga.test", response.email());
+        assertEquals("hashed-password", saved.getPassword());
+        assertEquals("ACTIVE", saved.getStatus());
+        assertEquals("ASSISTANT", saved.getRole().getRoleName());
+        assertEquals(mangaka, saved.getCreatedBy());
+    }
+
     private User user(Long id, String email) {
         User user = new User();
         user.setUserId(id);
         user.setEmail(email);
         user.setUsername(email);
         return user;
+    }
+
+    private Role role(String name) {
+        Role role = new Role();
+        role.setRoleName(name);
+        return role;
     }
 }

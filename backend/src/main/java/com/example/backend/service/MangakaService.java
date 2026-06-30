@@ -9,12 +9,14 @@ import java.util.Set;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.example.backend.dto.MangakaDtos.AssignTaskRequest;
 import com.example.backend.dto.MangakaDtos.AssistantResponse;
+import com.example.backend.dto.MangakaDtos.CreateAssistantRequest;
 import com.example.backend.dto.MangakaDtos.ChapterResponse;
 import com.example.backend.dto.MangakaDtos.CreateChapterRequest;
 import com.example.backend.dto.MangakaDtos.CreatePageRequest;
@@ -31,6 +33,7 @@ import com.example.backend.model.Chapter;
 import com.example.backend.model.ChapterPage;
 import com.example.backend.model.MangaSeries;
 import com.example.backend.model.Notification;
+import com.example.backend.model.Role;
 import com.example.backend.model.Submission;
 import com.example.backend.model.Task;
 import com.example.backend.model.User;
@@ -38,6 +41,7 @@ import com.example.backend.repository.ChapterPageRepository;
 import com.example.backend.repository.ChapterRepository;
 import com.example.backend.repository.MangaSeriesRepository;
 import com.example.backend.repository.NotificationRepository;
+import com.example.backend.repository.RoleRepository;
 import com.example.backend.repository.SeriesRankingRepository;
 import com.example.backend.repository.SubmissionRepository;
 import com.example.backend.repository.TaskRepository;
@@ -47,9 +51,13 @@ import com.example.backend.repository.UserRepository;
 public class MangakaService {
     private static final Set<String> TASK_TYPES = Set.of("BACKGROUND", "TEXT", "EFFECTS", "OTHER");
     private static final Set<String> REVIEW_DECISIONS = Set.of("APPROVED", "REVISION_REQUESTED");
+    private static final String ASSISTANT_ROLE = "ASSISTANT";
+    private static final String ACTIVE_STATUS = "ACTIVE";
     private static final String TANTOU_REVIEW_STATUS = "TANTOU_REVIEW";
 
     private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
+    private final PasswordEncoder passwordEncoder;
     private final MangaSeriesRepository mangaSeriesRepository;
     private final ChapterRepository chapterRepository;
     private final ChapterPageRepository chapterPageRepository;
@@ -60,6 +68,8 @@ public class MangakaService {
 
     public MangakaService(
             UserRepository userRepository,
+            RoleRepository roleRepository,
+            PasswordEncoder passwordEncoder,
             MangaSeriesRepository mangaSeriesRepository,
             ChapterRepository chapterRepository,
             ChapterPageRepository chapterPageRepository,
@@ -68,6 +78,8 @@ public class MangakaService {
             SeriesRankingRepository seriesRankingRepository,
             NotificationRepository notificationRepository) {
         this.userRepository = userRepository;
+        this.roleRepository = roleRepository;
+        this.passwordEncoder = passwordEncoder;
         this.mangaSeriesRepository = mangaSeriesRepository;
         this.chapterRepository = chapterRepository;
         this.chapterPageRepository = chapterPageRepository;
@@ -167,11 +179,43 @@ public class MangakaService {
 
     @Transactional(readOnly = true)
     public List<AssistantResponse> getAvailableAssistants() {
-        return userRepository.findByRoleRoleNameAndStatusOrderByUsernameAsc("ASSISTANT", "ACTIVE")
+        return userRepository.findByRoleRoleNameAndStatusOrderByUsernameAsc(ASSISTANT_ROLE, ACTIVE_STATUS)
                 .stream()
                 .map(user -> new AssistantResponse(
                         user.getUserId(), user.getUsername(), user.getEmail(), user.getAvatarUrl()))
                 .toList();
+    }
+
+    @Transactional
+    public AssistantResponse createAssistant(CreateAssistantRequest request) {
+        User mangaka = currentUser();
+        String username = request.username().trim();
+        String email = request.email().trim();
+        if (userRepository.existsByUsername(username)) {
+            throw conflict("Username already exists");
+        }
+        if (userRepository.existsByEmail(email)) {
+            throw conflict("Email already exists");
+        }
+
+        Role assistantRole = roleRepository.findByRoleName(ASSISTANT_ROLE)
+                .orElseGet(() -> {
+                    Role role = new Role();
+                    role.setRoleName(ASSISTANT_ROLE);
+                    return roleRepository.save(role);
+                });
+
+        User assistant = new User();
+        assistant.setUsername(username);
+        assistant.setEmail(email);
+        assistant.setPassword(passwordEncoder.encode(request.password()));
+        assistant.setAvatarUrl(blankToNull(request.avatarUrl()));
+        assistant.setStatus(ACTIVE_STATUS);
+        assistant.setRole(assistantRole);
+        assistant.setCreatedBy(mangaka);
+        assistant.setCreatedAt(LocalDateTime.now());
+
+        return toAssistantResponse(userRepository.save(assistant));
     }
 
     @Transactional
@@ -183,8 +227,8 @@ public class MangakaService {
 
         User assistant = userRepository.findById(request.assistantId())
                 .orElseThrow(() -> notFound("Assistant not found"));
-        if (assistant.getRole() == null || !"ASSISTANT".equals(assistant.getRole().getRoleName())
-                || !"ACTIVE".equals(assistant.getStatus())) {
+        if (assistant.getRole() == null || !ASSISTANT_ROLE.equals(assistant.getRole().getRoleName())
+                || !ACTIVE_STATUS.equals(assistant.getStatus())) {
             throw badRequest("The selected user is not an active assistant");
         }
 
@@ -350,6 +394,11 @@ public class MangakaService {
                 task.getTaskType(), task.getTitle(), task.getDescription(), task.getStatus(),
                 task.getDueDate(), task.getAreaX(), task.getAreaY(),
                 task.getAreaWidth(), task.getAreaHeight());
+    }
+
+    private AssistantResponse toAssistantResponse(User user) {
+        return new AssistantResponse(
+                user.getUserId(), user.getUsername(), user.getEmail(), user.getAvatarUrl());
     }
 
     private ChapterResponse toChapterResponse(Chapter chapter) {

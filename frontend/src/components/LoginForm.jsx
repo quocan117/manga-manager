@@ -80,8 +80,8 @@ export default function LoginForm() {
                     navigate("/assistant");
                     break;
 
-                case "EDITOR":
-                    navigate("/editor");
+                case "TANTOU_EDITOR":
+                    navigate("/tantou");
                     break;
 
                 case "EDITORIAL_BOARD":

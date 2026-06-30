@@ -3,12 +3,14 @@ package com.example.backend.dto;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
 
 public final class MangakaDtos {
     private MangakaDtos() {
@@ -36,6 +38,13 @@ public final class MangakaDtos {
             @NotNull Long chapterId,
             @NotNull @Positive Integer pageNumber,
             @NotBlank String imageUrl) {
+    }
+
+    public record CreateAssistantRequest(
+            @NotBlank String username,
+            @NotBlank @Email String email,
+            @NotBlank @Size(min = 8) String password,
+            String avatarUrl) {
     }
 
     public record AssignTaskRequest(
