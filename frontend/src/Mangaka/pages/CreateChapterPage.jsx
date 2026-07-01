@@ -1,7 +1,5 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { createChapter } from "../../services/mangakaService";
-// Nhúng thêm chapterService để gọi hàm upload ảnh
 import { chapterService } from "../../services/chapterService";
 
 export default function CreateChapterPage() {
@@ -38,14 +36,14 @@ export default function CreateChapterPage() {
       setLoading(true);
 
       // BƯỚC 1: Gọi API tạo Chapter trước
-      const chapterResponse = await createChapter({
+      const chapterResponse = await chapterService.createChapter({
         seriesId: Number(id),
         chapterNumber: Number(form.chapterNumber),
         title: form.title,
       });
 
       // Lấy ID của chapter vừa được tạo ra
-      const newChapterId = chapterResponse.id || chapterResponse.data?.id;
+      const newChapterId = chapterResponse.id;
 
       // BƯỚC 2: Dùng ID đó để gọi tiếp API upload ảnh
       await chapterService.uploadChapterPages(newChapterId, selectedFiles);

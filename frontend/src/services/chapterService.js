@@ -18,9 +18,9 @@ export const likeChapter = async (chapterId, sessionToken) => {
 };
 
 export const chapterService = {
-  createChapter: async (seriesId, chapterData) => {
+  createChapter: async (chapterData) => {
     const response = await axios.post(
-      `${BASE_URL}/mangaka/series/${seriesId}/chapters`,
+      `${BASE_URL}/mangaka/chapters`,
       chapterData,
       {
         headers: authHeader(),
