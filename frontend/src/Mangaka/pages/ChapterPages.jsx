@@ -48,7 +48,7 @@ export default function ChapterPages() {
                     page.imageUrl
                       ? `http://localhost:8080/covers/${page.imageUrl}`
                       : "https://placehold.co/200x300?text=Trang+" +
-                        page.pageNumber
+                      page.pageNumber
                   }
                   className="card-img-top"
                   alt={`Page ${page.pageNumber}`}
@@ -61,7 +61,9 @@ export default function ChapterPages() {
                   <button
                     className="btn btn-primary w-100"
                     onClick={() =>
-                      navigate(`/mangaka/pages/${page.id}/drawing`)
+                      navigate(`/mangaka/pages/${page.id}/drawing`, {
+                        state: { originalImageUrl: page.imageUrl } // Thêm state này
+                      })
                     }
                   >
                     🖌️ Chỉnh sửa / Đánh dấu
