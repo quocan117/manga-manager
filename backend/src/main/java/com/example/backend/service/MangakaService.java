@@ -552,11 +552,7 @@ public class MangakaService {
             return Path.of(pageImageUploadRootOverride).toAbsolutePath().normalize();
         }
 
-        Path projectRoot = Path.of("").toAbsolutePath();
-        if (!Files.exists(projectRoot.resolve("src/main/resources"))) {
-            projectRoot = projectRoot.resolve("backend");
-        }
-        return projectRoot.resolve("src/main/resources/static/covers/pages").normalize();
+        return Path.of("uploads/pages").toAbsolutePath().normalize();
     }
 
     private String blankToNull(String value) {

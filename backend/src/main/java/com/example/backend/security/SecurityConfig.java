@@ -47,6 +47,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/guest/access").permitAll()
                         .requestMatchers(HttpMethod.POST, "/chapters/*/likes").permitAll()
                         .requestMatchers(HttpMethod.POST, "/registration-request").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/covers/**").permitAll()
                         .requestMatchers(
                                 "/auth/**",
                                 "/swagger-ui/**",
