@@ -252,7 +252,8 @@ public class MangakaService {
         return userRepository.findByRoleRoleNameAndStatusOrderByUsernameAsc(ASSISTANT_ROLE, ACTIVE_STATUS)
                 .stream()
                 .map(user -> new AssistantResponse(
-                        user.getUserId(), user.getUsername(), user.getEmail(), user.getAvatarUrl()))
+                        user.getUserId(), user.getUsername(), user.getEmail(), user.getStatus(),
+                        user.getCreatedAt(), user.getAvatarUrl()))
                 .toList();
     }
 
@@ -468,7 +469,8 @@ public class MangakaService {
 
     private AssistantResponse toAssistantResponse(User user) {
         return new AssistantResponse(
-                user.getUserId(), user.getUsername(), user.getEmail(), user.getAvatarUrl());
+                user.getUserId(), user.getUsername(), user.getEmail(), user.getStatus(),
+                user.getCreatedAt(), user.getAvatarUrl());
     }
 
     private ChapterResponse toChapterResponse(Chapter chapter) {
