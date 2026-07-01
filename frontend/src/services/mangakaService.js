@@ -44,14 +44,6 @@ export const getSeriesChapters = async (seriesId) => {
   return response.data;
 };
 
-export const createChapter = async (data) => {
-  const response = await axios.post(`${API_URL}/chapters`, data, {
-    headers: authHeader(),
-  });
-
-  return response.data;
-};
-
 export const createPage = async (data) => {
   const response = await axios.post(`${API_URL}/pages`, data, {
     headers: authHeader(),
