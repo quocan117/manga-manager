@@ -23,6 +23,10 @@ public class MangaSeries {
     @JoinColumn(name = "author_id")
     private User author;
 
+    @ManyToOne
+    @JoinColumn(name = "tantou_editor_id")
+    private User tantouEditor;
+
     @Column(columnDefinition = "NVARCHAR(255)")
     private String genre;
 

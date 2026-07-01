@@ -87,7 +87,7 @@ public class TantouEditorService {
 
     @Transactional(readOnly = true)
     public List<SeriesSummaryResponse> getSeries() {
-        return mangaSeriesRepository.findAllByOrderByCreatedAtDesc()
+        return mangaSeriesRepository.findVisibleToTantouEditorOrderByCreatedAtDesc(currentEmail())
                 .stream()
                 .map(this::toSeriesSummary)
                 .toList();
@@ -95,7 +95,8 @@ public class TantouEditorService {
 
     @Transactional(readOnly = true)
     public List<SeriesSummaryResponse> getPendingEditorialReviewSeries() {
-        return mangaSeriesRepository.findByStatusIgnoreCaseOrderBySubmittedAtDesc(TANTOU_REVIEW_STATUS)
+        return mangaSeriesRepository.findVisibleToTantouEditorByStatusOrderBySubmittedAtDesc(
+                currentEmail(), TANTOU_REVIEW_STATUS)
                 .stream()
                 .map(this::toSeriesSummary)
                 .toList();
@@ -243,7 +244,7 @@ public class TantouEditorService {
 
     @Transactional(readOnly = true)
     public List<ProgressResponse> getStudioProgress() {
-        return mangaSeriesRepository.findAllByOrderByCreatedAtDesc()
+        return mangaSeriesRepository.findVisibleToTantouEditorOrderByCreatedAtDesc(currentEmail())
                 .stream()
                 .map(this::buildProgress)
                 .toList();
@@ -434,13 +435,27 @@ public class TantouEditorService {
     }
 
     private MangaSeries series(Long seriesId) {
-        return mangaSeriesRepository.findById(seriesId)
+        MangaSeries series = mangaSeriesRepository.findById(seriesId)
                 .orElseThrow(() -> notFound("Manga series not found"));
+        assertVisibleToCurrentEditor(series);
+        return series;
     }
 
     private ChapterPage page(Long pageId) {
-        return pageRepository.findById(pageId)
+        ChapterPage page = pageRepository.findById(pageId)
                 .orElseThrow(() -> notFound("Chapter page not found"));
+        Chapter chapter = page.getChapter();
+        if (chapter != null) {
+            assertVisibleToCurrentEditor(chapter.getSeries());
+        }
+        return page;
+    }
+
+    private void assertVisibleToCurrentEditor(MangaSeries series) {
+        User assignedEditor = series == null ? null : series.getTantouEditor();
+        if (assignedEditor != null && !currentEmail().equals(assignedEditor.getEmail())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You are not assigned to this manga series");
+        }
     }
 
     private User currentUser() {

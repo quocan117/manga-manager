@@ -13,6 +13,7 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -62,8 +63,12 @@ public class MangakaService {
     private static final Set<String> TASK_TYPES = Set.of("BACKGROUND", "TEXT", "EFFECTS", "OTHER");
     private static final Set<String> REVIEW_DECISIONS = Set.of("APPROVED", "REVISION_REQUESTED");
     private static final String ASSISTANT_ROLE = "ASSISTANT";
+    private static final String TANTOU_EDITOR_ROLE = "TANTOU_EDITOR";
     private static final String ACTIVE_STATUS = "ACTIVE";
     private static final String TANTOU_REVIEW_STATUS = "TANTOU_REVIEW";
+    private static final String REVISION_REQUESTED_STATUS = "REVISION_REQUESTED";
+    private static final Set<String> TANTOU_WORKLOAD_STATUSES = Set.of(
+            "DRAFT", TANTOU_REVIEW_STATUS, REVISION_REQUESTED_STATUS);
     private static final long MAX_PAGE_IMAGE_SIZE_BYTES = 5L * 1024 * 1024;
     private static final Set<String> PAGE_IMAGE_CONTENT_TYPES = Set.of(
             "image/jpeg", "image/png", "image/webp", "image/gif");
@@ -148,6 +153,7 @@ public class MangakaService {
         }
         series.setStoryboardUrl(request.storyboardUrl());
         series.setSubmittedAt(LocalDateTime.now());
+        series.setTantouEditor(assignTantouEditor(series.getTantouEditor()));
         series.setStatus(TANTOU_REVIEW_STATUS);
         return toSeriesResponse(mangaSeriesRepository.save(series));
     }
@@ -513,6 +519,41 @@ public class MangakaService {
 
     private ResponseStatusException conflict(String message) {
         return new ResponseStatusException(HttpStatus.CONFLICT, message);
+    }
+
+    private User assignTantouEditor(User currentEditor) {
+        if (isActiveTantouEditor(currentEditor)) {
+            return currentEditor;
+        }
+
+        List<User> editors = userRepository.findByRoleRoleNameAndStatusOrderByUsernameAsc(
+                TANTOU_EDITOR_ROLE, ACTIVE_STATUS);
+        if (editors.isEmpty()) {
+            throw conflict("No active tantou editor is available for assignment");
+        }
+
+        long lowestWorkload = editors.stream()
+                .mapToLong(this::countTantouEditorWorkload)
+                .min()
+                .orElse(0L);
+
+        List<User> candidates = editors.stream()
+                .filter(editor -> countTantouEditorWorkload(editor) == lowestWorkload)
+                .toList();
+        return candidates.get(ThreadLocalRandom.current().nextInt(candidates.size()));
+    }
+
+    private boolean isActiveTantouEditor(User user) {
+        return user != null
+                && user.getStatus() != null
+                && ACTIVE_STATUS.equalsIgnoreCase(user.getStatus())
+                && user.getRole() != null
+                && TANTOU_EDITOR_ROLE.equals(user.getRole().getRoleName());
+    }
+
+    private long countTantouEditorWorkload(User editor) {
+        return mangaSeriesRepository.countByTantouEditorUserIdAndStatusIn(
+                editor.getUserId(), TANTOU_WORKLOAD_STATUSES);
     }
 
     private void validatePageImage(MultipartFile image) {

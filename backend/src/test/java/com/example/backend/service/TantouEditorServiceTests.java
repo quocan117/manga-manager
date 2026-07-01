@@ -86,7 +86,10 @@ class TantouEditorServiceTests {
     @Test
     void createsPageCommentWithEditorAndOpenStatus() {
         User editor = user(1L, EMAIL);
+        MangaSeries series = series(10L);
+        Chapter chapter = chapter(11L, series);
         ChapterPage page = page(20L, "DRAFT");
+        page.setChapter(chapter);
         when(pageRepository.findById(20L)).thenReturn(Optional.of(page));
         when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(editor));
         when(commentRepository.save(any(ReviewComment.class))).thenAnswer(invocation -> {
@@ -198,6 +201,7 @@ class TantouEditorServiceTests {
         series.setSeriesId(id);
         series.setTitle("Series");
         series.setAuthor(user(2L, "author@manga.test"));
+        series.setTantouEditor(user(1L, EMAIL));
         series.setGenre("Action, Drama");
         series.setStatus("Published");
         series.setCreatedAt(LocalDateTime.now().minusDays(10));

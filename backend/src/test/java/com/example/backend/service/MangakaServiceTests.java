@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -150,13 +151,63 @@ class MangakaServiceTests {
         series.setSeriesId(20L);
         series.setAuthor(user(1L, EMAIL));
         series.setStatus("DRAFT");
+        User editor = tantouEditor(3L, "tantou1@manga.test");
         when(mangaSeriesRepository.findById(20L)).thenReturn(Optional.of(series));
+        when(userRepository.findByRoleRoleNameAndStatusOrderByUsernameAsc("TANTOU_EDITOR", "ACTIVE"))
+                .thenReturn(List.of(editor));
+        when(mangaSeriesRepository.countByTantouEditorUserIdAndStatusIn(eq(3L), any()))
+                .thenReturn(0L);
         when(mangaSeriesRepository.save(series)).thenReturn(series);
 
         var response = service.submitSeries(20L, new SubmitSeriesReviewRequest("storyboard-url"));
 
         assertEquals("TANTOU_REVIEW", series.getStatus());
+        assertEquals(editor, series.getTantouEditor());
         assertEquals("TANTOU_REVIEW", response.status());
+    }
+
+    @Test
+    void submitSeriesAssignsLeastLoadedTantouEditor() {
+        MangaSeries series = new MangaSeries();
+        series.setSeriesId(20L);
+        series.setAuthor(user(1L, EMAIL));
+        series.setStatus("DRAFT");
+        User busyEditor = tantouEditor(3L, "busy@manga.test");
+        User availableEditor = tantouEditor(4L, "available@manga.test");
+        when(mangaSeriesRepository.findById(20L)).thenReturn(Optional.of(series));
+        when(userRepository.findByRoleRoleNameAndStatusOrderByUsernameAsc("TANTOU_EDITOR", "ACTIVE"))
+                .thenReturn(List.of(busyEditor, availableEditor));
+        when(mangaSeriesRepository.countByTantouEditorUserIdAndStatusIn(eq(3L), any()))
+                .thenReturn(2L);
+        when(mangaSeriesRepository.countByTantouEditorUserIdAndStatusIn(eq(4L), any()))
+                .thenReturn(0L);
+        when(mangaSeriesRepository.save(series)).thenReturn(series);
+
+        service.submitSeries(20L, new SubmitSeriesReviewRequest("storyboard-url"));
+
+        assertEquals(availableEditor, series.getTantouEditor());
+    }
+
+    @Test
+    void submitSeriesRandomlyAssignsAmongEquallyLoadedTantouEditors() {
+        MangaSeries series = new MangaSeries();
+        series.setSeriesId(20L);
+        series.setAuthor(user(1L, EMAIL));
+        series.setStatus("DRAFT");
+        User firstEditor = tantouEditor(3L, "first@manga.test");
+        User secondEditor = tantouEditor(4L, "second@manga.test");
+        when(mangaSeriesRepository.findById(20L)).thenReturn(Optional.of(series));
+        when(userRepository.findByRoleRoleNameAndStatusOrderByUsernameAsc("TANTOU_EDITOR", "ACTIVE"))
+                .thenReturn(List.of(firstEditor, secondEditor));
+        when(mangaSeriesRepository.countByTantouEditorUserIdAndStatusIn(eq(3L), any()))
+                .thenReturn(1L);
+        when(mangaSeriesRepository.countByTantouEditorUserIdAndStatusIn(eq(4L), any()))
+                .thenReturn(1L);
+        when(mangaSeriesRepository.save(series)).thenReturn(series);
+
+        service.submitSeries(20L, new SubmitSeriesReviewRequest("storyboard-url"));
+
+        assertTrue(List.of(firstEditor, secondEditor).contains(series.getTantouEditor()));
     }
 
     @Test
@@ -304,5 +355,12 @@ class MangakaServiceTests {
         Role role = new Role();
         role.setRoleName(name);
         return role;
+    }
+
+    private User tantouEditor(Long id, String email) {
+        User editor = user(id, email);
+        editor.setStatus("ACTIVE");
+        editor.setRole(role("TANTOU_EDITOR"));
+        return editor;
     }
 }
