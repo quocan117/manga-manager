@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { getPageDrawing, finalizeDrawing } from "../../services/drawingService";
 import CanvasMarkupTool from "../../components/CanvasMarkupTool";
 import "../styles/drawing.css";
@@ -7,9 +7,16 @@ import "../styles/drawing.css";
 export default function DrawingPage() {
   const { pageId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [drawing, setDrawing] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const originalImageUrl = location.state?.originalImageUrl
+    ? `http://localhost:8080/covers/${location.state.originalImageUrl}`
+    : null;
+
+  const currentBackgroundUrl = drawing?.previewImageUrl || originalImageUrl;
 
   useEffect(() => {
     loadDrawing();
@@ -41,12 +48,12 @@ export default function DrawingPage() {
     try {
       await finalizeDrawing(pageId, drawing?.version || 0);
       alert("Chốt bản vẽ thành công!");
-      navigate(-1); 
+      navigate(-1);
     } catch (error) {
       alert(
         "Lỗi khi chốt bản vẽ: " +
-          (error.response?.data?.message ||
-            "Phiên bản đã cũ, vui lòng tải lại trang."),
+        (error.response?.data?.message ||
+          "Phiên bản đã cũ, vui lòng tải lại trang."),
       );
     }
   };
@@ -78,7 +85,7 @@ export default function DrawingPage() {
             <div className="card-body canvas-body">
               <CanvasMarkupTool
                 pageId={pageId}
-                backgroundImageUrl={drawing?.previewImageUrl}
+                backgroundImageUrl={currentBackgroundUrl} // Đổi thành biến mới
               />
             </div>
           </div>

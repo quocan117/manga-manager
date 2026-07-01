@@ -20,15 +20,18 @@ B3: chạy query trong backend/database<br>
 
 <h3>Tài khoản:</h3>
 
-Mangaka(Hiện có đến 40 tài khoản mangaka khác nhau, dưới đây là một số tài khoản để test):
-
+Mangaka(Hiện có đến 40 tài khoản mangaka khác nhau, dưới đây là một số tài khoản để test):<br>
 oda@manga.test<br>
 gege@manga.test<br>
-gotouge@manga.test<br>
-aoyama@manga.test
+gotouge@manga.test
 
-Editorial_Board:
+Assistant:<br>
+assistant1@manga.test
 
+Editor:<br>
+editor1@manga.test
+
+Editorial_Board:<br>
 editorial1@manga.test<br>
 editorial2@manga.test<br>
 editorial3@manga.test
