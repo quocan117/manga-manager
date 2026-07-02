@@ -19,6 +19,7 @@ public final class TantouEditorDtos {
             String coverUrl,
             String description,
             String status,
+            String storyboardUrl,
             LocalDateTime createdAt,
             LocalDateTime submittedAt) {
     }
@@ -109,6 +110,7 @@ public final class TantouEditorDtos {
     public record ProgressResponse(
             Long seriesId,
             String seriesTitle,
+            String status,
             long totalChapters,
             long totalPages,
             long finalizedPages,

@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -38,4 +39,7 @@ public interface MangaSeriesRepository extends JpaRepository<MangaSeries, Long> 
     List<MangaSeries> findVisibleToTantouEditorByStatusOrderBySubmittedAtDesc(
             @Param("email") String email,
             @Param("status") String status);
+
+    // Tìm các series đang ở trạng thái chỉ định và được gán trước một mốc thời gian cụ thể
+    List<MangaSeries> findByStatusIgnoreCaseAndEditorAssignedAtBefore(String status, LocalDateTime time);
 }

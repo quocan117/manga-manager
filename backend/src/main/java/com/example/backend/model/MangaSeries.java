@@ -2,6 +2,7 @@ package com.example.backend.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+
 import java.time.LocalDateTime;
 
 @Entity
@@ -45,4 +46,15 @@ public class MangaSeries {
     private String storyboardUrl;
 
     private LocalDateTime submittedAt;
+
+    @Column(name = "editor_assigned_at")
+    private LocalDateTime editorAssignedAt;
+
+    public LocalDateTime getEditorAssignedAt() {
+        return editorAssignedAt;
+    }
+
+    public void setEditorAssignedAt(LocalDateTime editorAssignedAt) {
+        this.editorAssignedAt = editorAssignedAt;
+    }
 }
