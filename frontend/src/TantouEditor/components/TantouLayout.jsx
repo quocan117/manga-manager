@@ -14,7 +14,7 @@ export default function TantouLayout() {
   };
 
   return (
-    <div className="dashboard-layout">
+    <div className="tantou-layout-container">
       <aside className="tantou-sidebar">
         <div className="sidebar-header">
           <h2 className="role-title">
@@ -46,6 +46,16 @@ export default function TantouLayout() {
               <i className="fas fa-calendar-alt"></i> Lịch Xuất Bản
             </NavLink>
           </li>
+          <li>
+            <NavLink
+              to="/tantou/notifications"
+              className={({ isActive }) =>
+                isActive ? "nav-link active" : "nav-link"
+              }
+            >
+              <i className="fas fa-bell"></i> Thông Báo
+            </NavLink>
+          </li>
         </ul>
 
         <div className="sidebar-footer">
@@ -55,7 +65,7 @@ export default function TantouLayout() {
         </div>
       </aside>
 
-      <main className="main-content">
+      <main className="tantou-main-content">
         <Outlet />
       </main>
     </div>

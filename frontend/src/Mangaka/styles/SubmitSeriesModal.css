@@ -1,0 +1,77 @@
+.submit-series-modal {
+  width: 520px;
+}
+
+.submit-series-title {
+  margin: 0 0 6px 0;
+  color: #2d3436;
+}
+
+.submit-series-subtitle {
+  color: #636e72;
+  margin-bottom: 16px;
+}
+
+.submit-series-hint {
+  background: #eef6ff;
+  border: 1px solid #cfe4ff;
+  color: #1d4ed8;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  margin-bottom: 18px;
+  line-height: 1.5;
+}
+
+.submit-series-hint.warning {
+  background: #fff7e6;
+  border-color: #ffe1a8;
+  color: #b45309;
+}
+
+/* Series status badges used on MyManga.jsx */
+.series-status-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.series-status-badge.status-draft {
+  background: #eceff1;
+  color: #455a64;
+}
+
+.series-status-badge.status-tantou_review {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.series-status-badge.status-reviewing {
+  background: #cfe2ff;
+  color: #084298;
+}
+
+.series-status-badge.status-revision_requested {
+  background: #ffe3e3;
+  color: #b91c1c;
+}
+
+.series-status-badge.status-published {
+  background: #d1f7e0;
+  color: #146c43;
+}
+
+.series-status-badge.status-cancelled {
+  background: #f1f1f1;
+  color: #6c757d;
+}
+
+.series-assigned-editor {
+  font-size: 13px;
+  color: #636e72;
+  margin-top: 4px;
+}
