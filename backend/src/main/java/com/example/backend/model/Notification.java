@@ -23,7 +23,7 @@ public class Notification {
     private String type;
     private Long referenceId;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(columnDefinition = "NVARCHAR(MAX)")
     private String message;
 
     private Boolean isRead = false;

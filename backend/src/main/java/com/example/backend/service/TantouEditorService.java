@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.example.backend.dto.MangakaDtos.NotificationResponse;
 import com.example.backend.dto.TantouEditorDtos.BoardDecisionResponse;
 import com.example.backend.dto.TantouEditorDtos.ChapterManuscriptResponse;
 import com.example.backend.dto.TantouEditorDtos.CommentRequest;
@@ -101,7 +102,7 @@ public class TantouEditorService {
     @Transactional(readOnly = true)
     public List<SeriesSummaryResponse> getPendingEditorialReviewSeries() {
         return mangaSeriesRepository.findVisibleToTantouEditorByStatusOrderBySubmittedAtDesc(
-                currentEmail(), TANTOU_REVIEW_STATUS)
+                        currentEmail(), TANTOU_REVIEW_STATUS)
                 .stream()
                 .map(this::toSeriesSummary)
                 .toList();
@@ -276,6 +277,72 @@ public class TantouEditorService {
         return buildProgress(series(seriesId));
     }
 
+    private static final List<String> ASSIGNMENT_NOTIFICATION_TYPES =
+            Arrays.asList("NEW_ASSIGNMENT", "SYSTEM_ASSIGNMENT");
+
+    @Transactional
+    public void acceptSeries(Long seriesId) {
+        MangaSeries series = mangaSeriesRepository.findById(seriesId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy Series"));
+        String email = currentEmail();
+
+        if (!"PENDING_EDITOR".equalsIgnoreCase(series.getStatus())) {
+            dismissAssignmentNotifications(seriesId, email);
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hồ sơ không ở trạng thái chờ xác nhận.");
+        }
+        if (series.getTantouEditor() == null
+                || !series.getTantouEditor().getEmail().equalsIgnoreCase(email)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Hồ sơ này không được giao cho bạn.");
+        }
+
+        series.setStatus("TANTOU_REVIEW");
+        mangaSeriesRepository.save(series);
+        dismissAssignmentNotifications(seriesId, email);
+
+        Notification notif = new Notification();
+        notif.setUser(series.getAuthor());
+        notif.setType("SYSTEM");
+        notif.setMessage("Biên tập viên " + series.getTantouEditor().getUsername()
+                + " đã bắt đầu kiểm tra hồ sơ series '" + series.getTitle() + "'.");
+        notif.setCreatedAt(LocalDateTime.now());
+        notif.setIsRead(false);
+        notificationRepository.save(notif);
+    }
+
+    private void dismissAssignmentNotifications(Long seriesId, String editorEmail) {
+        User editor = userRepository.findByEmail(editorEmail).orElse(null);
+        if (editor == null) return;
+        List<Notification> stale = notificationRepository
+                .findByReferenceIdAndUserUserIdAndTypeInAndIsReadFalse(
+                        seriesId, editor.getUserId(), ASSIGNMENT_NOTIFICATION_TYPES);
+        stale.forEach(n -> n.setIsRead(true));
+        notificationRepository.saveAll(stale);
+    }
+
+    @Transactional(readOnly = true)
+    public List<NotificationResponse> getNotifications() {
+        return notificationRepository.findByUserEmailOrderByCreatedAtDesc(currentEmail())
+                .stream()
+                .map(this::toNotificationResponse)
+                .toList();
+    }
+
+    @Transactional
+    public NotificationResponse markNotificationRead(Long notificationId) {
+        Notification notification = notificationRepository
+                .findByNotificationIdAndUserEmail(notificationId, currentEmail())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Notification not found"));
+        notification.setIsRead(true);
+        return toNotificationResponse(notificationRepository.save(notification));
+    }
+
+    private NotificationResponse toNotificationResponse(Notification notification) {
+        return new NotificationResponse(
+                notification.getNotificationId(), notification.getType(), notification.getReferenceId(),
+                notification.getMessage(), notification.getIsRead(), notification.getCreatedAt());
+    }
+
     private ChapterManuscriptResponse toChapterManuscript(Chapter chapter) {
         List<PageManuscriptResponse> pages = pageRepository
                 .findByChapterChapterIdOrderByPageNumberAsc(chapter.getChapterId())
@@ -372,6 +439,7 @@ public class TantouEditorService {
         return new ProgressResponse(
                 seriesId,
                 series.getTitle(),
+                series.getStatus(),
                 chapters.size(),
                 pages.size(),
                 finalizedPages,
@@ -413,6 +481,7 @@ public class TantouEditorService {
                 series.getCoverImage(),
                 series.getDescription(),
                 series.getStatus(),
+                series.getStoryboardUrl(),
                 series.getCreatedAt(),
                 series.getSubmittedAt());
     }

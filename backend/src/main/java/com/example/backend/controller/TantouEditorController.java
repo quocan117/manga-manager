@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.example.backend.dto.MangakaDtos.NotificationResponse;
 import com.example.backend.dto.TantouEditorDtos.CommentRequest;
 import com.example.backend.dto.TantouEditorDtos.CommentResponse;
 import com.example.backend.dto.TantouEditorDtos.DossierResponse;
@@ -140,5 +141,21 @@ public class TantouEditorController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteSchedule(@PathVariable Long scheduleId) {
         service.deleteSchedule(scheduleId);
+    }
+
+    @PostMapping("/series/{seriesId}/accept")
+    @ResponseStatus(HttpStatus.OK)
+    public void acceptSeries(@PathVariable Long seriesId) {
+        service.acceptSeries(seriesId);
+    }
+
+    @GetMapping("/notifications")
+    public List<NotificationResponse> getNotifications() {
+        return service.getNotifications();
+    }
+
+    @PatchMapping("/notifications/{notificationId}/read")
+    public NotificationResponse markNotificationRead(@PathVariable Long notificationId) {
+        return service.markNotificationRead(notificationId);
     }
 }

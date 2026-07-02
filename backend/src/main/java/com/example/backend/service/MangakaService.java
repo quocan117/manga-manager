@@ -8,6 +8,7 @@ import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Random;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -147,20 +148,27 @@ public class MangakaService {
 
     @Transactional
     public SeriesResponse submitSeries(Long seriesId, SubmitSeriesReviewRequest request) {
-        MangaSeries series = ownedSeries(seriesId);
-        if (!Set.of("DRAFT", "REVISION_REQUESTED").contains(series.getStatus())) {
-            throw conflict("Only draft or revision-requested series can be submitted");
-        }
-        series.setStoryboardUrl(request.storyboardUrl());
-        series.setSubmittedAt(LocalDateTime.now());
-        series.setTantouEditor(assignTantouEditor(series.getTantouEditor()));
-        series.setStatus(TANTOU_REVIEW_STATUS);
-        MangaSeries saved = mangaSeriesRepository.save(series);
+        MangaSeries series = mangaSeriesRepository.findById(seriesId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy series với ID: " + seriesId));
 
-        notify(saved.getTantouEditor(), "NEW_ASSIGNMENT", saved.getSeriesId(),
-                "Bạn được giao kiểm tra hồ sơ series \"" + saved.getTitle() + "\"");
+        User assignedEditor = getEditorWithLeastWorkload(null);
 
-        return toSeriesResponse(saved);
+        series.setTantouEditor(assignedEditor);
+        series.setStatus("PENDING_EDITOR");
+        series.setEditorAssignedAt(LocalDateTime.now());
+
+        mangaSeriesRepository.save(series);
+
+        Notification notif = new Notification();
+        notif.setUser(assignedEditor);
+        notif.setType("SYSTEM_ASSIGNMENT");
+        notif.setReferenceId(series.getSeriesId());
+        notif.setMessage("Mangaka " + series.getAuthor().getUsername() + " vừa gửi hồ sơ series '" + series.getTitle() + "'. Vui lòng nhấn Nhận hồ sơ trong vòng 24h.");
+        notif.setCreatedAt(LocalDateTime.now());
+        notif.setIsRead(false);
+        notificationRepository.save(notif);
+
+        return toSeriesResponse(series);
     }
 
     private void notify(User user, String type, Long refId, String message) {
@@ -353,7 +361,7 @@ public class MangakaService {
     public List<TaskResponse> getChapterTasks(Long chapterId) {
         ownedChapter(chapterId);
         return taskRepository.findByChapterChapterIdAndAssignedByEmailOrderByCreatedAtDesc(
-                chapterId, currentEmail())
+                        chapterId, currentEmail())
                 .stream()
                 .map(this::toTaskResponse)
                 .toList();
@@ -467,9 +475,9 @@ public class MangakaService {
         List<String> genres = series.getGenre() == null || series.getGenre().isBlank()
                 ? List.of()
                 : Arrays.stream(series.getGenre().split(","))
-                        .map(String::trim)
-                        .filter(value -> !value.isBlank())
-                        .toList();
+                .map(String::trim)
+                .filter(value -> !value.isBlank())
+                .toList();
         return new SeriesResponse(
                 series.getSeriesId(), series.getTitle(), genres, series.getCoverImage(),
                 series.getDescription(), series.getStatus(), series.getStoryboardUrl(),
@@ -620,5 +628,36 @@ public class MangakaService {
             return null;
         }
         return value.trim();
+    }
+
+    public User getEditorWithLeastWorkload(Long excludeEditorId) {
+        List<User> editors = userRepository.findByRoleRoleNameAndStatusOrderByUsernameAsc("TANTOU_EDITOR", "ACTIVE");
+
+        if (excludeEditorId != null) {
+            editors.removeIf(e -> e.getUserId().equals(excludeEditorId));
+        }
+
+        if (editors.isEmpty()) {
+            throw new RuntimeException("Hiện không có biên tập viên nào khả dụng.");
+        }
+
+        // Các trạng thái được tính là "đang có việc"
+        List<String> activeStatuses = Arrays.asList("PENDING_EDITOR", "TANTOU_REVIEW", "REVIEWING");
+        int minWorkload = Integer.MAX_VALUE;
+        List<User> candidates = new ArrayList<>();
+
+        for (User editor : editors) {
+            int workload = (int) mangaSeriesRepository.countByTantouEditorUserIdAndStatusIn(editor.getUserId(), activeStatuses);
+            if (workload < minWorkload) {
+                minWorkload = workload;
+                candidates.clear();
+                candidates.add(editor);
+            } else if (workload == minWorkload) {
+                candidates.add(editor);
+            }
+        }
+
+        // Chọn ngẫu nhiên nếu có nhiều người cùng mức độ ưu tiên
+        return candidates.get(new Random().nextInt(candidates.size()));
     }
 }
