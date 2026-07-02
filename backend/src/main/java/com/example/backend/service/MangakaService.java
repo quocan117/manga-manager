@@ -155,7 +155,24 @@ public class MangakaService {
         series.setSubmittedAt(LocalDateTime.now());
         series.setTantouEditor(assignTantouEditor(series.getTantouEditor()));
         series.setStatus(TANTOU_REVIEW_STATUS);
-        return toSeriesResponse(mangaSeriesRepository.save(series));
+        MangaSeries saved = mangaSeriesRepository.save(series);
+
+        notify(saved.getTantouEditor(), "NEW_ASSIGNMENT", saved.getSeriesId(),
+                "Bạn được giao kiểm tra hồ sơ series \"" + saved.getTitle() + "\"");
+
+        return toSeriesResponse(saved);
+    }
+
+    private void notify(User user, String type, Long refId, String message) {
+        if (user == null) return;
+        Notification n = new Notification();
+        n.setUser(user);
+        n.setType(type);
+        n.setReferenceId(refId);
+        n.setMessage(message);
+        n.setIsRead(false);
+        n.setCreatedAt(LocalDateTime.now());
+        notificationRepository.save(n);
     }
 
     @Transactional

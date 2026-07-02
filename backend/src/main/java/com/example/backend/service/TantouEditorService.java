@@ -34,6 +34,7 @@ import com.example.backend.model.PublishSchedule;
 import com.example.backend.model.ReviewComment;
 import com.example.backend.model.Task;
 import com.example.backend.model.User;
+import com.example.backend.model.Notification;
 import com.example.backend.repository.BoardDecisionRepository;
 import com.example.backend.repository.ChapterPageRepository;
 import com.example.backend.repository.ChapterRepository;
@@ -43,6 +44,7 @@ import com.example.backend.repository.ReviewCommentRepository;
 import com.example.backend.repository.SubmissionRepository;
 import com.example.backend.repository.TaskRepository;
 import com.example.backend.repository.UserRepository;
+import com.example.backend.repository.NotificationRepository;
 
 @Service
 public class TantouEditorService {
@@ -63,6 +65,7 @@ public class TantouEditorService {
     private final TaskRepository taskRepository;
     private final SubmissionRepository submissionRepository;
     private final UserRepository userRepository;
+    private final NotificationRepository notificationRepository;
 
     public TantouEditorService(
             MangaSeriesRepository mangaSeriesRepository,
@@ -73,7 +76,8 @@ public class TantouEditorService {
             BoardDecisionRepository boardDecisionRepository,
             TaskRepository taskRepository,
             SubmissionRepository submissionRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            NotificationRepository notificationRepository) {
         this.mangaSeriesRepository = mangaSeriesRepository;
         this.chapterRepository = chapterRepository;
         this.pageRepository = pageRepository;
@@ -83,6 +87,7 @@ public class TantouEditorService {
         this.taskRepository = taskRepository;
         this.submissionRepository = submissionRepository;
         this.userRepository = userRepository;
+        this.notificationRepository = notificationRepository;
     }
 
     @Transactional(readOnly = true)
@@ -147,6 +152,8 @@ public class TantouEditorService {
         series.setStatus(BOARD_REVIEW_STATUS);
         mangaSeriesRepository.save(series);
         createSeriesLevelComment(series, note, "CONTENT", "RESOLVED");
+        notify(series.getAuthor(), "SUBMITTED_TO_BOARD", seriesId,
+                "Hồ sơ series \"" + series.getTitle() + "\" đã được trình lên Hội đồng Biên tập");
         return getDossier(seriesId);
     }
 
@@ -159,7 +166,21 @@ public class TantouEditorService {
         series.setStatus(REVISION_REQUESTED_STATUS);
         mangaSeriesRepository.save(series);
         createSeriesLevelComment(series, note, "CONTENT", "OPEN");
+        notify(series.getAuthor(), "REVISION_REQUESTED", seriesId,
+                "Biên tập yêu cầu chỉnh sửa hồ sơ series \"" + series.getTitle() + "\"" + (note != null ? ": " + note : ""));
         return getDossier(seriesId);
+    }
+
+    private void notify(User user, String type, Long refId, String message) {
+        if (user == null) return;
+        Notification n = new Notification();
+        n.setUser(user);
+        n.setType(type);
+        n.setReferenceId(refId);
+        n.setMessage(message);
+        n.setIsRead(false);
+        n.setCreatedAt(LocalDateTime.now());
+        notificationRepository.save(n);
     }
 
     @Transactional(readOnly = true)
