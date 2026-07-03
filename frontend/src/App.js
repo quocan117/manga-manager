@@ -63,6 +63,14 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/ranking" element={<RankingPage />} />
         <Route path="/manga/:id" element={<MangaDetailPage />} />
+        <Route
+          path="/manga/:id/create-chapter"
+          element={
+            <PrivateRoute role="MANGAKA">
+              <CreateChapterPage />
+            </PrivateRoute>
+          }
+        />
 
         {/**Route Mangaka */}
         <Route
@@ -75,10 +83,6 @@ function App() {
         >
           <Route index element={<DashboardMangaka />} />
           <Route path="manga" element={<MyManga />} />
-          <Route
-            path="/manga/:id/create-chapter"
-            element={<CreateChapterPage />}
-          />
           <Route path="notifications" element={<Notification />} />
           <Route path="settings" element={<Settings />} />
           <Route path="ranking" element={<Ranking />} />
