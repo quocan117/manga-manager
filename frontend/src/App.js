@@ -62,10 +62,6 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/ranking" element={<RankingPage />} />
         <Route path="/manga/:id" element={<MangaDetailPage />} />
-        <Route
-          path="/manga/:id/create-chapter"
-          element={<CreateChapterPage />}
-        />
 
         {/**Route Mangaka */}
         <Route
@@ -78,6 +74,10 @@ function App() {
         >
           <Route index element={<DashboardMangaka />} />
           <Route path="manga" element={<MyManga />} />
+          <Route
+            path="/manga/:id/create-chapter"
+            element={<CreateChapterPage />}
+          />
           <Route path="notifications" element={<Notification />} />
           <Route path="settings" element={<Settings />} />
           <Route path="ranking" element={<Ranking />} />
@@ -88,7 +88,7 @@ function App() {
           <Route path="manage-assistants" element={<ManageAssistants />} />
         </Route>
 
-        {/**Route Editor Board */}
+        {/**Route Editorial Board */}
         <Route
           path="/board"
           element={
@@ -104,14 +104,28 @@ function App() {
         </Route>
 
         {/**Route Assistant */}
-        <Route path="/assistant" element={<AssistantLayout />}>
+        <Route
+          path="/assistant"
+          element={
+            <PrivateRoute role="ASSISTANT">
+              <AssistantLayout />
+            </PrivateRoute>
+          }
+        >
           <Route index element={<DashboardAssistant />} />
           <Route path="tasks" element={<MyTasks />} />
           <Route path="submissions" element={<MySubmissions />} />
         </Route>
 
         {/* Route tantou editor */}
-        <Route path="/tantou" element={<TantouLayout />}>
+        <Route
+          path="/tantou"
+          element={
+            <PrivateRoute role="TANTOU_EDITOR">
+              <TantouLayout />
+            </PrivateRoute>
+          }
+        >
           <Route index element={<TantouDashboard />} />
           <Route path="review/:id" element={<EditorReviewPage />} />
           <Route path="schedule" element={<ScheduleManagement />} />
