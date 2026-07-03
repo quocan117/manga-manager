@@ -67,6 +67,7 @@ public class TantouEditorService {
     private final SubmissionRepository submissionRepository;
     private final UserRepository userRepository;
     private final NotificationRepository notificationRepository;
+    private final MangakaService mangakaService;
 
     public TantouEditorService(
             MangaSeriesRepository mangaSeriesRepository,
@@ -78,7 +79,8 @@ public class TantouEditorService {
             TaskRepository taskRepository,
             SubmissionRepository submissionRepository,
             UserRepository userRepository,
-            NotificationRepository notificationRepository) {
+            NotificationRepository notificationRepository,
+            MangakaService mangakaService) {
         this.mangaSeriesRepository = mangaSeriesRepository;
         this.chapterRepository = chapterRepository;
         this.pageRepository = pageRepository;
@@ -89,6 +91,7 @@ public class TantouEditorService {
         this.submissionRepository = submissionRepository;
         this.userRepository = userRepository;
         this.notificationRepository = notificationRepository;
+        this.mangakaService = mangakaService;
     }
 
     @Transactional(readOnly = true)
@@ -308,6 +311,54 @@ public class TantouEditorService {
         notif.setCreatedAt(LocalDateTime.now());
         notif.setIsRead(false);
         notificationRepository.save(notif);
+    }
+
+    @Transactional
+    public void rejectSeries(Long seriesId) {
+        MangaSeries series = mangaSeriesRepository.findById(seriesId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy Series"));
+        String email = currentEmail();
+
+        if (!"PENDING_EDITOR".equalsIgnoreCase(series.getStatus())) {
+            dismissAssignmentNotifications(seriesId, email);
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hồ sơ không ở trạng thái chờ xác nhận.");
+        }
+        if (series.getTantouEditor() == null
+                || !series.getTantouEditor().getEmail().equalsIgnoreCase(email)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Hồ sơ này không được giao cho bạn.");
+        }
+
+        User oldEditor = series.getTantouEditor();
+        dismissAssignmentNotifications(seriesId, email);
+
+        User newEditor = mangakaService.getEditorWithLeastWorkload(oldEditor.getUserId());
+
+        series.setTantouEditor(newEditor);
+        series.setEditorAssignedAt(LocalDateTime.now());
+        mangaSeriesRepository.save(series);
+
+        Notification toNewEditor = new Notification();
+        toNewEditor.setUser(newEditor);
+        toNewEditor.setType("SYSTEM_ASSIGNMENT");
+        toNewEditor.setReferenceId(series.getSeriesId());
+        toNewEditor.setMessage("Mangaka " + series.getAuthor().getUsername()
+                + " vừa gửi hồ sơ series '" + series.getTitle()
+                + "'. Vui lòng nhấn Nhận hồ sơ trong vòng 24h.");
+        toNewEditor.setCreatedAt(LocalDateTime.now());
+        toNewEditor.setIsRead(false);
+        notificationRepository.save(toNewEditor);
+
+        Notification toAuthor = new Notification();
+        toAuthor.setUser(series.getAuthor());
+        toAuthor.setType("SYSTEM");
+        toAuthor.setReferenceId(series.getSeriesId());
+        toAuthor.setMessage("Hồ sơ series '" + series.getTitle()
+                + "' đã được chuyển sang Biên tập viên khác (" + newEditor.getUsername()
+                + ") để tiếp tục kiểm tra.");
+        toAuthor.setCreatedAt(LocalDateTime.now());
+        toAuthor.setIsRead(false);
+        notificationRepository.save(toAuthor);
     }
 
     private void dismissAssignmentNotifications(Long seriesId, String editorEmail) {

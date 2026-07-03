@@ -149,6 +149,12 @@ public class TantouEditorController {
         service.acceptSeries(seriesId);
     }
 
+    @PostMapping("/series/{seriesId}/reject")
+    @ResponseStatus(HttpStatus.OK)
+    public void rejectSeries(@PathVariable Long seriesId) {
+        service.rejectSeries(seriesId);
+    }
+
     @GetMapping("/notifications")
     public List<NotificationResponse> getNotifications() {
         return service.getNotifications();
