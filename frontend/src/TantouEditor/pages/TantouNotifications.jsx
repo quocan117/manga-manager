@@ -4,6 +4,7 @@ import {
   getNotifications,
   markNotificationRead,
   acceptSeries,
+  rejectSeries,
 } from "../../services/tantouService";
 
 const ASSIGNMENT_NOTIFICATION_TYPES = ["NEW_ASSIGNMENT", "SYSTEM_ASSIGNMENT"];
@@ -12,6 +13,7 @@ export default function TantouNotifications() {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [acceptingId, setAcceptingId] = useState(null);
+  const [rejectingId, setRejectingId] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
   const navigate = useNavigate();
 
@@ -75,6 +77,42 @@ export default function TantouNotifications() {
     }
   };
 
+  const handleReject = async (notification, e) => {
+    e.stopPropagation();
+    const seriesId = notification.referenceId;
+    if (!seriesId) return;
+
+    const confirmed = window.confirm(
+      "Bạn có chắc muốn từ chối hồ sơ này? Hệ thống sẽ tự động chuyển cho biên tập viên đang có ít việc nhất.",
+    );
+    if (!confirmed) return;
+
+    setErrorMsg("");
+    setRejectingId(notification.id);
+    try {
+      await rejectSeries(seriesId);
+
+      if (!notification.isRead) {
+        await markNotificationRead(notification.id);
+      }
+
+      setNotifications((prev) =>
+        prev.map((n) =>
+          n.id === notification.id ? { ...n, isRead: true, rejected: true } : n,
+        ),
+      );
+    } catch (error) {
+      console.error("Lỗi từ chối hồ sơ:", error);
+      const message =
+        error?.response?.data?.message ||
+        "Không thể từ chối hồ sơ. Vui lòng thử lại.";
+      setErrorMsg(message);
+      fetchNotifications();
+    } finally {
+      setRejectingId(null);
+    }
+  };
+
   if (loading) return <div className="p-4">Đang tải thông báo...</div>;
 
   return (
@@ -95,6 +133,7 @@ export default function TantouNotifications() {
         const isAssignment = ASSIGNMENT_NOTIFICATION_TYPES.includes(n.type);
         const canAccept = isAssignment && !n.isRead && !n.accepted;
         const isAccepting = acceptingId === n.id;
+        const isRejecting = rejectingId === n.id;
 
         return (
           <div
@@ -111,14 +150,25 @@ export default function TantouNotifications() {
 
               <div className="d-flex align-items-center gap-2">
                 {canAccept && (
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-success"
-                    disabled={isAccepting}
-                    onClick={(e) => handleAccept(n, e)}
-                  >
-                    {isAccepting ? "Đang nhận..." : "Nhận hồ sơ series"}
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-success"
+                      disabled={isAccepting}
+                      onClick={(e) => handleAccept(n, e)}
+                    >
+                      {isAccepting ? "Đang nhận..." : "Nhận hồ sơ series"}
+                    </button>
+                    
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-outline-danger"
+                      disabled={isAccepting || isRejecting}
+                      onClick={(e) => handleReject(n, e)}
+                    >
+                      {isRejecting ? "Đang từ chối..." : "Từ chối"}
+                    </button>
+                  </>
                 )}
                 <small className="text-muted">
                   {new Date(n.createdAt).toLocaleString()}

@@ -6,7 +6,6 @@ export default function CreateChapterPage() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  // Gộp chung state thông tin chapter và state quản lý file
   const [form, setForm] = useState({
     chapterNumber: "",
     title: "",
@@ -26,7 +25,6 @@ export default function CreateChapterPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validate bắt buộc phải có ảnh
     if (!selectedFiles || selectedFiles.length === 0) {
       alert("Vui lòng chọn ít nhất 1 trang truyện!");
       return;
@@ -35,17 +33,13 @@ export default function CreateChapterPage() {
     try {
       setLoading(true);
 
-      // BƯỚC 1: Gọi API tạo Chapter trước
       const chapterResponse = await chapterService.createChapter({
         seriesId: Number(id),
         chapterNumber: Number(form.chapterNumber),
         title: form.title,
       });
 
-      // Lấy ID của chapter vừa được tạo ra
       const newChapterId = chapterResponse.id;
-
-      // BƯỚC 2: Dùng ID đó để gọi tiếp API upload ảnh
       await chapterService.uploadChapterPages(newChapterId, selectedFiles);
 
       alert("Tạo chapter và tải ảnh thành công!");
@@ -67,7 +61,6 @@ export default function CreateChapterPage() {
           <h3 className="mb-4">Create Chapter & Upload Pages</h3>
 
           <form onSubmit={handleSubmit}>
-            {/* Input Chapter Number */}
             <div className="mb-3">
               <label>Chapter Number</label>
               <input
@@ -80,7 +73,6 @@ export default function CreateChapterPage() {
               />
             </div>
 
-            {/* Input Title */}
             <div className="mb-3">
               <label>Title</label>
               <input
@@ -93,7 +85,6 @@ export default function CreateChapterPage() {
               />
             </div>
 
-            {/* Khu vực Upload Ảnh được gộp vào */}
             <div className="mb-4 p-3 border rounded bg-light">
               <label className="fw-bold mb-2">Tải lên các trang truyện</label>
               <input
@@ -105,7 +96,6 @@ export default function CreateChapterPage() {
                 disabled={loading}
               />
 
-              {/* Hiển thị tóm tắt số lượng ảnh đã chọn */}
               {selectedFiles.length > 0 && (
                 <div className="text-muted small">
                   <p className="mb-1 font-semibold">
@@ -126,7 +116,6 @@ export default function CreateChapterPage() {
               )}
             </div>
 
-            {/* Nút Submit */}
             <div className="d-flex gap-2">
               <button
                 type="submit"

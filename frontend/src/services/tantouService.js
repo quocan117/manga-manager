@@ -49,11 +49,16 @@ export const getNotifications = async () => {
 };
 
 export const markNotificationRead = async (notificationId) => {
-  const response = await api.patch(`/notifications/${notificationId}/read`);
+  const response = await api.patch(`/tantou-editor/notifications/${notificationId}/read`);
   return response.data;
 };
 
 export const acceptSeries = async (seriesId) => {
   const response = await api.post(`/tantou-editor/series/${seriesId}/accept`);
+  return response.data;
+};
+
+export const rejectSeries = async (seriesId) => {
+  const response = await api.post(`/tantou-editor/series/${seriesId}/reject`);
   return response.data;
 };

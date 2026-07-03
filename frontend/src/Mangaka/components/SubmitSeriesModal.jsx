@@ -1,21 +1,8 @@
 import { useState } from "react";
 import { submitSeriesReview } from "../../services/mangakaService";
-import "../../styles/SeriesModal.css"; // reuse .custom-modal-overlay / .custom-modal-content
+import "../../styles/SeriesModal.css";
 import "../styles/SubmitSeriesModal.css";
 
-/**
- * Modal cho phép Mangaka gửi hồ sơ series (bản thảo, chưa có chapter)
- * cho biên tập viên kiểm tra.
- *
- * Gọi API: POST /mangaka/series/{seriesId}/submit  (body: { storyboardUrl })
- * - Chỉ series đang ở trạng thái DRAFT hoặc REVISION_REQUESTED mới gửi được.
- * - Backend tự động chọn biên tập đang có ít series đang xử lý nhất để tiếp nhận.
- *
- * Props:
- *  - series: object series hiện tại (id, title, status, storyboardUrl...)
- *  - onClose: () => void
- *  - onSubmitted: (updatedSeries) => void  // gọi lại khi gửi thành công
- */
 export default function SubmitSeriesModal({ series, onClose, onSubmitted }) {
   const [storyboardUrl, setStoryboardUrl] = useState(series?.storyboardUrl || "");
   const [submitting, setSubmitting] = useState(false);

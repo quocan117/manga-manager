@@ -32,7 +32,6 @@ export default function MyManga() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Series đang được chọn để gửi cho biên tập (mở modal khi != null)
   const [submittingSeries, setSubmittingSeries] = useState(null);
 
   const navigate = useNavigate();
@@ -83,8 +82,6 @@ export default function MyManga() {
     }
   };
 
-  // Khi mangaka gửi hồ sơ thành công, cập nhật lại item trong danh sách
-  // (thay vì phải load lại toàn bộ trang) để thấy ngay status mới + biên tập được gán.
   const handleSeriesSubmitted = (updatedSeries) => {
     setSeries((prev) =>
       prev.map((item) => (item.id === updatedSeries.id ? updatedSeries : item)),
@@ -102,8 +99,6 @@ export default function MyManga() {
 
   return (
     <div>
-      {/* Header */}
-
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2>My Series</h2>
 
@@ -114,8 +109,6 @@ export default function MyManga() {
           + Create Series
         </button>
       </div>
-
-      {/* Error */}
 
       {error && (
         <div className="alert alert-danger">

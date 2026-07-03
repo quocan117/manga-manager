@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { getAssistants, createAssistant } from "../../services/mangakaService";
-import "../../EditorialBoard/styles/EditorialBoard.css"; // Dùng chung CSS cho đồng bộ
+import "../../EditorialBoard/styles/EditorialBoard.css"; 
 
 export default function ManageAssistants() {
   const [assistants, setAssistants] = useState([]);
@@ -44,7 +44,7 @@ export default function ManageAssistants() {
 
       alert(`Tạo tài khoản trợ lý thành công!`);
       setForm({ username: "", email: "", password: "" });
-      fetchAssistants(); // Tải lại danh sách sau khi tạo
+      fetchAssistants(); 
     } catch (error) {
       console.error(error);
       if (error.response && error.response.status === 409) {
@@ -61,7 +61,6 @@ export default function ManageAssistants() {
     <div className="tab-content" style={{ padding: "20px" }}>
       <h2 className="mb-4">👤 Quản Lý Tài Khoản Trợ Lý</h2>
 
-      {/* Giao diện Form giống hệt bên Hội đồng */}
       <div className="card shadow mb-5" style={{ maxWidth: "600px" }}>
         <div className="card-header bg-primary text-white">
           Khởi Tạo Tài Khoản Trợ Lý Mới

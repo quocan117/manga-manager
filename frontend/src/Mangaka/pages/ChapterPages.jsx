@@ -70,7 +70,7 @@ export default function ChapterPages() {
                     className="btn btn-primary w-100"
                     onClick={() =>
                       navigate(`/mangaka/pages/${page.id}/drawing`, {
-                        state: { originalImageUrl: page.imageUrl }, // Thêm state này
+                        state: { originalImageUrl: page.imageUrl }, 
                       })
                     }
                   >

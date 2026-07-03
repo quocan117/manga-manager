@@ -20,38 +20,6 @@ export default function LoginForm() {
         });
     };
 
-    /**Chạy và gọi API thì dổi sang cái này, sửa API ở bên authService.js*/
-    // const handleSubmit = async (e) => {
-    //     e.preventDefault();
-
-    //     try {
-    //         setLoading(true);
-
-    //         const data = await login(form);
-
-    //         console.log("Response:", data);
-
-    //         alert("Đăng nhập thành công");
-    //     } catch (error) {
-    //         console.error(error);
-
-    //         alert("Sai tài khoản hoặc mật khẩu");
-    //     } finally {
-    //         setLoading(false);
-    //     }
-    // };
-
-    /**Handle Test */
-    // const handleSubmit = (e) => {
-    //     e.preventDefault();
-    //     if (form.username === "mangaka" && form.password === "123456") {
-    //         alert("Đăng nhập thành công!");
-    //         navigate("/mangaka");
-    //     }
-    //     else {
-    //         alert("Sai tài khoản hoặc mật khẩu!");
-    //     }
-    // };
     const handleSubmit = async (e) => {
         e.preventDefault();
         setErrorMessage("");

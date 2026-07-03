@@ -1,6 +1,5 @@
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import "../styles/MangakaLayout.css";
-import ThemeProvider from "../../components/ThemeProvider";
 
 export default function MangakaLayout() {
   const navigate = useNavigate();
@@ -22,18 +21,10 @@ export default function MangakaLayout() {
   };
 
   return (
-    <div className="container-fluid">
-      <ThemeProvider />
       <div className="row">
-        {/* Sidebar */}
 
         <div className="col-md-2 sidebar">
-          <div className="sidebar-header">
-            <h3 className="sidebar-title">Manga Manager</h3>
-
-            <small>Mangaka Portal</small>
-          </div>
-
+          <h3 className="sidebar-title">Manga Manager</h3>
           <ul className="nav flex-column mt-4">
             <li>
               <NavLink
@@ -102,17 +93,6 @@ export default function MangakaLayout() {
               </NavLink>
             </li>
 
-            <li>
-              <NavLink
-                to="/mangaka/settings"
-                className={({ isActive }) =>
-                  `sidebar-link ${isActive ? "active-link" : ""}`
-                }
-              >
-                ⚙️ Settings
-              </NavLink>
-            </li>
-
             <li className="mt-4">
               <button className="logout-btn" onClick={handleLogout}>
                 🚪 Logout
@@ -120,8 +100,6 @@ export default function MangakaLayout() {
             </li>
           </ul>
         </div>
-
-        {/* Content */}
 
         <div className="col-md-10 p-4">
           <div className="card shadow-sm border-0 mb-4">
@@ -151,6 +129,5 @@ export default function MangakaLayout() {
           <Outlet />
         </div>
       </div>
-    </div>
   );
 }

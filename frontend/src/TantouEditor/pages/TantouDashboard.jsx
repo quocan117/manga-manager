@@ -5,6 +5,7 @@ import {
   getNotifications,
   acceptSeries,
   markNotificationRead,
+  rejectSeries,
 } from "../../services/tantouService";
 import { useNavigate } from "react-router-dom";
 
@@ -37,6 +38,7 @@ export default function TantouDashboard() {
   const [pendingSeries, setPendingSeries] = useState([]);
   const [pendingAssignments, setPendingAssignments] = useState([]);
   const [acceptingId, setAcceptingId] = useState(null);
+  const [rejectingId, setRejectingId] = useState(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -90,6 +92,35 @@ export default function TantouDashboard() {
     }
   };
 
+  const handleReject = async (notification) => {
+    const seriesId = notification.referenceId;
+    if (!seriesId) return;
+
+    const confirmed = window.confirm(
+      "Bạn có chắc muốn từ chối hồ sơ này? Hệ thống sẽ tự động chuyển cho biên tập viên đang có ít việc nhất.",
+    );
+    if (!confirmed) return;
+
+    setRejectingId(notification.id);
+    try {
+      await rejectSeries(seriesId);
+      await markNotificationRead(notification.id);
+      setPendingAssignments((prev) =>
+        prev.filter((n) => n.id !== notification.id),
+      );
+      fetchDashboardData();
+    } catch (error) {
+      console.error("Lỗi từ chối hồ sơ:", error);
+      alert(
+        error?.response?.data?.message ||
+          "Không thể từ chối hồ sơ. Vui lòng thử lại.",
+      );
+      fetchDashboardData();
+    } finally {
+      setRejectingId(null);
+    }
+  };
+
   if (loading) return <div className="p-4">Đang tải báo cáo Studio...</div>;
 
   return (
@@ -133,6 +164,15 @@ export default function TantouDashboard() {
                     >
                       {isAccepting ? "Đang nhận..." : "Nhận hồ sơ series"}
                     </button>
+                    
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-outline-danger ms-2"
+                      disabled={isAccepting || rejectingId === n.id}
+                      onClick={() => handleReject(n)}
+                    >
+                      {rejectingId === n.id ? "Đang từ chối..." : "Từ chối"}
+                    </button>
                   </li>
                 );
               })}
@@ -158,7 +198,9 @@ export default function TantouDashboard() {
               {progress.map((p) => (
                 <tr
                   key={p.seriesId}
-                  className={p.status === "PENDING_EDITOR" ? "table-warning" : ""}
+                  className={
+                    p.status === "PENDING_EDITOR" ? "table-warning" : ""
+                  }
                 >
                   <td className="fw-bold">
                     {p.seriesTitle}

@@ -3,7 +3,6 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
 import RankingPage from "./pages/RankingPage";
-import MangaDetailPage from "./Mangaka/pages/MangaDeatailPage";
 import CreateChapterPage from "./Mangaka/pages/CreateChapterPage";
 import DashboardMangaka from "./Mangaka/components/DashboardMangaka";
 import MyManga from "./Mangaka/components/MyManga";
@@ -12,7 +11,6 @@ import MangakaLayout from "./Mangaka/components/MangakaLayout";
 import BoardLayout from "./EditorialBoard/components/BoardLayout";
 import ReviewSeriesPage from "./EditorialBoard/pages/ReviewSeriesPage";
 import RankingDecisionPage from "./EditorialBoard/pages/RankingDecisionPage";
-import Settings from "./Mangaka/components/Settings";
 import Ranking from "./Mangaka/components/Ranking";
 import PrivateRoute from "./Route/PrivateRoute";
 import CreateSeriesPage from "./Mangaka/pages/CreateSeriesPage";
@@ -62,7 +60,6 @@ function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/ranking" element={<RankingPage />} />
-        <Route path="/manga/:id" element={<MangaDetailPage />} />
         <Route
           path="/manga/:id/create-chapter"
           element={
@@ -84,7 +81,6 @@ function App() {
           <Route index element={<DashboardMangaka />} />
           <Route path="manga" element={<MyManga />} />
           <Route path="notifications" element={<Notification />} />
-          <Route path="settings" element={<Settings />} />
           <Route path="ranking" element={<Ranking />} />
           <Route path="create-series" element={<CreateSeriesPage />} />
           <Route path="tasks" element={<AssistantTasks />} />
