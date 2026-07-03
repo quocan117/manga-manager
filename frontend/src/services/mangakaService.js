@@ -137,9 +137,15 @@ export const getChapterPages = async (chapterId) => {
   return response.data;
 };
 
-// Thêm đoạn code này vào file src/services/mangakaService.js
 export const createAssistant = async (data) => {
   const response = await axios.post(`${API_URL}/assistants`, data, {
+    headers: authHeader(),
+  });
+  return response.data;
+};
+
+export const getChapterById = async (chapterId) => {
+  const response = await axios.get(`${API_URL}/chapters/${chapterId}`, {
     headers: authHeader(),
   });
   return response.data;

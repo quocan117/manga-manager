@@ -1,25 +1,30 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getChapterPages } from "../../services/mangakaService";
+import { getChapterPages, getChapterById } from "../../services/mangakaService";
 
 export default function ChapterPages() {
   const { chapterId } = useParams();
   const navigate = useNavigate();
   const [pages, setPages] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [chapter, setChapter] = useState(null);
 
   useEffect(() => {
-    const fetchPages = async () => {
+    const fetchData = async () => {
       try {
-        const data = await getChapterPages(chapterId);
-        setPages(data || []);
+        const [chapterData, pagesData] = await Promise.all([
+          getChapterById(chapterId),
+          getChapterPages(chapterId),
+        ]);
+        setChapter(chapterData);
+        setPages(pagesData || []);
       } catch (error) {
-        console.error("Lỗi khi tải trang:", error);
+        console.error("Lỗi khi tải dữ liệu chapter:", error);
       } finally {
         setLoading(false);
       }
     };
-    fetchPages();
+    fetchData();
   }, [chapterId]);
 
   if (loading)
@@ -28,7 +33,10 @@ export default function ChapterPages() {
   return (
     <div className="container mt-4">
       <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2>Quản lý các trang - Chapter {chapterId}</h2>
+        <h2>
+          Quản lý các trang - Chapter {chapter?.chapterNumber ?? "?"}
+          {chapter?.title ? `: ${chapter.title}` : ""}
+        </h2>
         <button className="btn btn-secondary" onClick={() => navigate(-1)}>
           Quay lại
         </button>
@@ -48,7 +56,7 @@ export default function ChapterPages() {
                     page.imageUrl
                       ? `http://localhost:8080/covers/${page.imageUrl}`
                       : "https://placehold.co/200x300?text=Trang+" +
-                      page.pageNumber
+                        page.pageNumber
                   }
                   className="card-img-top"
                   alt={`Page ${page.pageNumber}`}
@@ -62,7 +70,7 @@ export default function ChapterPages() {
                     className="btn btn-primary w-100"
                     onClick={() =>
                       navigate(`/mangaka/pages/${page.id}/drawing`, {
-                        state: { originalImageUrl: page.imageUrl } // Thêm state này
+                        state: { originalImageUrl: page.imageUrl }, // Thêm state này
                       })
                     }
                   >
