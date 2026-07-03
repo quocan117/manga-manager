@@ -161,9 +161,9 @@ class MangakaServiceTests {
 
         var response = service.submitSeries(20L, new SubmitSeriesReviewRequest("storyboard-url"));
 
-        assertEquals("TANTOU_REVIEW", series.getStatus());
+        assertEquals("PENDING_EDITOR", series.getStatus());
         assertEquals(editor, series.getTantouEditor());
-        assertEquals("TANTOU_REVIEW", response.status());
+        assertEquals("PENDING_EDITOR", response.status());
     }
 
     @Test

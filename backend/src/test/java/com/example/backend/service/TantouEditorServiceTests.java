@@ -31,6 +31,7 @@ import com.example.backend.repository.BoardDecisionRepository;
 import com.example.backend.repository.ChapterPageRepository;
 import com.example.backend.repository.ChapterRepository;
 import com.example.backend.repository.MangaSeriesRepository;
+import com.example.backend.repository.NotificationRepository;
 import com.example.backend.repository.PublishScheduleRepository;
 import com.example.backend.repository.ReviewCommentRepository;
 import com.example.backend.repository.SubmissionRepository;
@@ -59,6 +60,8 @@ class TantouEditorServiceTests {
     private SubmissionRepository submissionRepository;
     @Mock
     private UserRepository userRepository;
+    @Mock
+    private NotificationRepository notificationRepository;
 
     private TantouEditorService service;
 
@@ -73,7 +76,8 @@ class TantouEditorServiceTests {
                 boardDecisionRepository,
                 taskRepository,
                 submissionRepository,
-                userRepository);
+                userRepository,
+                notificationRepository);
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(EMAIL, null, List.of()));
     }

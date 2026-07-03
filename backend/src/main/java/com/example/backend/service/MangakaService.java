@@ -163,7 +163,8 @@ public class MangakaService {
         notif.setUser(assignedEditor);
         notif.setType("SYSTEM_ASSIGNMENT");
         notif.setReferenceId(series.getSeriesId());
-        notif.setMessage("Mangaka " + series.getAuthor().getUsername() + " vừa gửi hồ sơ series '" + series.getTitle() + "'. Vui lòng nhấn Nhận hồ sơ trong vòng 24h.");
+        notif.setMessage("Mangaka " + series.getAuthor().getUsername() + " vừa gửi hồ sơ series '" + series.getTitle()
+                + "'. Vui lòng nhấn Nhận hồ sơ trong vòng 24h.");
         notif.setCreatedAt(LocalDateTime.now());
         notif.setIsRead(false);
         notificationRepository.save(notif);
@@ -172,7 +173,8 @@ public class MangakaService {
     }
 
     private void notify(User user, String type, Long refId, String message) {
-        if (user == null) return;
+        if (user == null)
+            return;
         Notification n = new Notification();
         n.setUser(user);
         n.setType(type);
@@ -361,7 +363,7 @@ public class MangakaService {
     public List<TaskResponse> getChapterTasks(Long chapterId) {
         ownedChapter(chapterId);
         return taskRepository.findByChapterChapterIdAndAssignedByEmailOrderByCreatedAtDesc(
-                        chapterId, currentEmail())
+                chapterId, currentEmail())
                 .stream()
                 .map(this::toTaskResponse)
                 .toList();
@@ -475,9 +477,9 @@ public class MangakaService {
         List<String> genres = series.getGenre() == null || series.getGenre().isBlank()
                 ? List.of()
                 : Arrays.stream(series.getGenre().split(","))
-                .map(String::trim)
-                .filter(value -> !value.isBlank())
-                .toList();
+                        .map(String::trim)
+                        .filter(value -> !value.isBlank())
+                        .toList();
         return new SeriesResponse(
                 series.getSeriesId(), series.getTitle(), genres, series.getCoverImage(),
                 series.getDescription(), series.getStatus(), series.getStoryboardUrl(),
@@ -647,7 +649,8 @@ public class MangakaService {
         List<User> candidates = new ArrayList<>();
 
         for (User editor : editors) {
-            int workload = (int) mangaSeriesRepository.countByTantouEditorUserIdAndStatusIn(editor.getUserId(), activeStatuses);
+            int workload = (int) mangaSeriesRepository.countByTantouEditorUserIdAndStatusIn(editor.getUserId(),
+                    activeStatuses);
             if (workload < minWorkload) {
                 minWorkload = workload;
                 candidates.clear();

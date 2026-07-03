@@ -28,6 +28,7 @@ import com.example.backend.model.Role;
 import com.example.backend.model.User;
 import com.example.backend.repository.BoardDecisionRepository;
 import com.example.backend.repository.MangaSeriesRepository;
+import com.example.backend.repository.NotificationRepository;
 import com.example.backend.repository.RegistrationRequestRepository;
 import com.example.backend.repository.RoleRepository;
 import com.example.backend.repository.UserRepository;
@@ -48,6 +49,8 @@ class EditorialBoardServiceTests {
     private MangaSeriesRepository mangaSeriesRepository;
     @Mock
     private BoardDecisionRepository boardDecisionRepository;
+    @Mock
+    private NotificationRepository notificationRepository;
 
     @InjectMocks
     private EditorialBoardService service;
