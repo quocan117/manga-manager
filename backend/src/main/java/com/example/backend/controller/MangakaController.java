@@ -97,6 +97,11 @@ public class MangakaController {
         return service.getChapterPages(chapterId);
     }
 
+    @GetMapping("/chapters/{chapterId}")
+    public ChapterResponse getChapter(@PathVariable Long chapterId) {
+        return service.getChapter(chapterId);
+    }
+
     @GetMapping("/assistants")
     public List<AssistantResponse> getAvailableAssistants() {
         return service.getAvailableAssistants();

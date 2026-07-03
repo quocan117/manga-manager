@@ -281,6 +281,12 @@ public class MangakaService {
     }
 
     @Transactional(readOnly = true)
+    public ChapterResponse getChapter(Long chapterId) {
+        Chapter chapter = ownedChapter(chapterId);
+        return toChapterResponse(chapter);
+    }
+
+    @Transactional(readOnly = true)
     public List<AssistantResponse> getAvailableAssistants() {
         return userRepository.findByRoleRoleNameAndStatusOrderByUsernameAsc(ASSISTANT_ROLE, ACTIVE_STATUS)
                 .stream()
