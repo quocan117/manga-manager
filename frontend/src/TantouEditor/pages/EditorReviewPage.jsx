@@ -63,18 +63,9 @@ export default function EditorReviewPage() {
         <div className="col-md-4">
           <div className="card shadow-sm border-0 mb-4">
             <div className="card-header bg-white fw-bold">
-              Tổng quan số liệu (Dossier)
+              Tổng quan số liệu 
             </div>
             <div className="card-body">
-              <p>
-                <strong>Tiến độ vẽ:</strong> {dossier.progress.completionRate}%
-              </p>
-              <p>
-                <strong>Số comment chưa giải quyết:</strong>{" "}
-                <span className="text-danger">
-                  {dossier.progress.openComments}
-                </span>
-              </p>
               <p className="text-muted fst-italic">
                 Số liệu này sẽ được dùng để bảo vệ tiềm năng của Series trước
                 Hội đồng Biên tập.
@@ -113,17 +104,40 @@ export default function EditorReviewPage() {
         <div className="col-md-8">
           <div className="card shadow-sm border-0 h-100">
             <div className="card-header bg-white fw-bold">
-              Xem trước Bản thảo sơ bộ (Manuscript)
+              Bản thảo do Mangaka gửi
             </div>
-            <div className="card-body text-center bg-dark rounded-bottom d-flex flex-column justify-content-center align-items-center text-white">
-              <i className="fas fa-image fa-3x mb-3 text-secondary"></i>
-              <p>
-                Giao diện đánh dấu tọa độ X, Y trực tiếp lên trang truyện sẽ
-                được hiển thị tại đây.
-              </p>
-              <button className="btn btn-primary mt-2">
-                Mở chế độ đánh dấu (Markup Mode)
-              </button>
+            <div className="card-body">
+              {dossier.series.storyboardUrl ? (
+                <>
+                  <p className="text-muted mb-2">
+                    Mangaka đã gửi kèm đường dẫn bản thảo để bạn tham khảo trước
+                    khi quyết định:
+                  </p>
+                  <a
+                    href={dossier.series.storyboardUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-outline-primary d-inline-flex align-items-center gap-2"
+                  >
+                    🔗 Mở link bản thảo
+                  </a>
+                  <p className="text-break text-muted small mt-2 mb-0">
+                    {dossier.series.storyboardUrl}
+                  </p>
+                </>
+              ) : (
+                <p className="text-muted mb-0">
+                  Mangaka chưa gửi kèm link bản thảo nào.
+                </p>
+              )}
+
+              <hr className="my-3" />
+              <div className="text-muted small fst-italic">
+                Chế độ đánh dấu tọa độ (Markup Mode) trên từng trang truyện sẽ
+                khả dụng ở bước duyệt Chapter (sau khi Mangaka tạo chapter với
+                các trang ảnh thật), không áp dụng ở bước duyệt hồ sơ series
+                này.
+              </div>
             </div>
           </div>
         </div>

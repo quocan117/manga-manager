@@ -29,6 +29,7 @@ import TantouLayout from "./TantouEditor/components/TantouLayout";
 import ChapterPages from "./Mangaka/pages/ChapterPages";
 import ManageUsersPage from "./EditorialBoard/pages/ManageUsersPage";
 import ManageAssistants from "./Mangaka/pages/ManageAssistants";
+import TantouNotifications from "./TantouEditor/pages/TantouNotifications";
 
 function App() {
   useEffect(() => {
@@ -129,6 +130,7 @@ function App() {
           <Route index element={<TantouDashboard />} />
           <Route path="review/:id" element={<EditorReviewPage />} />
           <Route path="schedule" element={<ScheduleManagement />} />
+          <Route path="notifications" element={<TantouNotifications />} />
         </Route>
       </Routes>
     </>

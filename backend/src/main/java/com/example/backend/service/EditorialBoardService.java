@@ -12,11 +12,13 @@ import com.example.backend.model.MangaSeries;
 import com.example.backend.model.RegistrationRequest;
 import com.example.backend.model.Role;
 import com.example.backend.model.User;
+import com.example.backend.model.Notification;
 import com.example.backend.repository.BoardDecisionRepository;
 import com.example.backend.repository.MangaSeriesRepository;
 import com.example.backend.repository.RegistrationRequestRepository;
 import com.example.backend.repository.RoleRepository;
 import com.example.backend.repository.UserRepository;
+import com.example.backend.repository.NotificationRepository;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.http.HttpStatus;
@@ -53,6 +55,7 @@ public class EditorialBoardService {
     private final PasswordEncoder passwordEncoder;
     private final MangaSeriesRepository mangaSeriesRepository;
     private final BoardDecisionRepository boardDecisionRepository;
+    private final NotificationRepository notificationRepository;
 
     public EditorialBoardService(
             RegistrationRequestRepository requestRepository,
@@ -60,13 +63,15 @@ public class EditorialBoardService {
             RoleRepository roleRepository,
             PasswordEncoder passwordEncoder,
             MangaSeriesRepository mangaSeriesRepository,
-            BoardDecisionRepository boardDecisionRepository) {
+            BoardDecisionRepository boardDecisionRepository,
+            NotificationRepository notificationRepository) {
         this.requestRepository = requestRepository;
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
         this.mangaSeriesRepository = mangaSeriesRepository;
         this.boardDecisionRepository = boardDecisionRepository;
+        this.notificationRepository = notificationRepository;
     }
 
     public List<RegistrationRequest> getAllRequests() {
@@ -352,10 +357,31 @@ public class EditorialBoardService {
         if (approveVotes >= requiredVotes) {
             series.setStatus(PUBLISHED_SERIES_STATUS);
             mangaSeriesRepository.save(series);
+            notifyBoardResult(series, "SERIES_APPROVED",
+                    "Series \"" + series.getTitle() + "\" đã được Hội đồng Biên tập duyệt");
         } else if (rejectVotes >= requiredVotes) {
             series.setStatus(REVISION_REQUESTED_STATUS);
             mangaSeriesRepository.save(series);
+            notifyBoardResult(series, "SERIES_REJECTED",
+                    "Series \"" + series.getTitle() + "\" bị Hội đồng Biên tập từ chối, cần chỉnh sửa");
         }
+    }
+
+    private void notifyBoardResult(MangaSeries series, String type, String message) {
+        notify(series.getAuthor(), type, series.getSeriesId(), message);
+        notify(series.getTantouEditor(), type, series.getSeriesId(), message);
+    }
+
+    private void notify(User user, String type, Long refId, String message) {
+        if (user == null) return;
+        Notification n = new Notification();
+        n.setUser(user);
+        n.setType(type);
+        n.setReferenceId(refId);
+        n.setMessage(message);
+        n.setIsRead(false);
+        n.setCreatedAt(LocalDateTime.now());
+        notificationRepository.save(n);
     }
 
     private long requiredVotes() {
