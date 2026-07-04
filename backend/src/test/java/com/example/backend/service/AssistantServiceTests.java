@@ -7,6 +7,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import org.mockito.ArgumentCaptor;
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -151,13 +153,20 @@ class AssistantServiceTests {
             return submission;
         });
 
-        var response = service.submitTask(10L, new SubmitTaskRequest(null, "Done", 3L));
+        var response = service.submitTask(10L, new SubmitTaskRequest(null, "source-final.psd", "Done", 3L));
 
         assertEquals(30L, response.id());
         assertEquals("SUBMITTED", response.status());
         assertEquals("preview.png", response.artifactUrl());
+        assertEquals("source-final.psd", response.originalFileUrl());
         assertEquals("SUBMITTED", task.getStatus());
         verify(taskRepository).save(task);
+        ArgumentCaptor<Notification> notificationCaptor = ArgumentCaptor.forClass(Notification.class);
+        verify(notificationRepository).save(notificationCaptor.capture());
+        Notification notification = notificationCaptor.getValue();
+        assertEquals(task.getAssignedBy(), notification.getUser());
+        assertEquals("TASK_SUBMITTED", notification.getType());
+        assertEquals(10L, notification.getReferenceId());
     }
 
     @Test

@@ -18,8 +18,11 @@ public class Task {
 
     private String title;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(columnDefinition = "NVARCHAR(MAX)")
     private String description;
+
+    @Column(columnDefinition = "NVARCHAR(MAX)")
+    private String originalFileUrl;
 
     @ManyToOne
     @JoinColumn(name = "assigned_to")

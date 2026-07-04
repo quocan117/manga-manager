@@ -31,11 +31,14 @@ public class Submission {
     private LocalDateTime submittedAt;
     private String status;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(columnDefinition = "NVARCHAR(MAX)")
     private String note;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(columnDefinition = "NVARCHAR(MAX)")
     private String artifactUrl;
+
+    @Column(columnDefinition = "NVARCHAR(MAX)")
+    private String originalFileUrl;
 
     @ManyToOne
     @JoinColumn(name = "reviewed_by")

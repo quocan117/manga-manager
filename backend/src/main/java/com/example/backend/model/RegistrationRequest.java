@@ -22,10 +22,10 @@ public class RegistrationRequest {
     @Column(unique = true)
     private String email;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(columnDefinition = "NVARCHAR(MAX)")
     private String portfolioUrl;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(columnDefinition = "NVARCHAR(MAX)")
     private String introduction;
 
     private String phoneNumber;
@@ -43,7 +43,7 @@ public class RegistrationRequest {
 
     private LocalDateTime reviewedAt;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(columnDefinition = "NVARCHAR(MAX)")
     private String reviewNote;
 
     @ManyToOne

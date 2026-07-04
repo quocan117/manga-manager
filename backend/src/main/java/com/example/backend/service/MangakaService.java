@@ -380,6 +380,7 @@ public class MangakaService {
         Task task = new Task();
         task.setTitle(request.title().trim());
         task.setDescription(request.description());
+        task.setOriginalFileUrl(blankToNull(request.originalFileUrl()));
         task.setAssignedTo(assistant);
         task.setAssignedBy(mangaka);
         task.setChapter(page.getChapter());
@@ -392,7 +393,14 @@ public class MangakaService {
         task.setDueDate(request.dueDate());
         task.setStatus("ASSIGNED");
         task.setCreatedAt(LocalDateTime.now());
-        return toTaskResponse(taskRepository.save(task));
+        Task savedTask = taskRepository.save(task);
+        notify(
+                assistant,
+                "TASK_ASSIGNED",
+                savedTask.getTaskId(),
+                "Bạn được giao nhiệm vụ \"" + savedTask.getTitle()
+                        + "\" ở trang " + page.getPageNumber() + ".");
+        return toTaskResponse(savedTask);
     }
 
     @Transactional(readOnly = true)
@@ -437,7 +445,13 @@ public class MangakaService {
             submission.getTask().setStatus(decision);
             taskRepository.save(submission.getTask());
         }
-        return toSubmissionResponse(submissionRepository.save(submission));
+        Submission savedSubmission = submissionRepository.save(submission);
+        notify(
+                submission.getSubmittedBy(),
+                "APPROVED".equals(decision) ? "TASK_APPROVED" : "TASK_REVISION_REQUESTED",
+                submission.getTask() == null ? submission.getSubmissionId() : submission.getTask().getTaskId(),
+                "Bài nộp của bạn đã được duyệt với kết quả " + decision + ".");
+        return toSubmissionResponse(savedSubmission);
     }
 
     @Transactional(readOnly = true)
@@ -531,7 +545,7 @@ public class MangakaService {
                 page == null ? null : page.getPageNumber(),
                 assistant == null ? null : assistant.getUserId(),
                 assistant == null ? null : assistant.getUsername(),
-                task.getTaskType(), task.getTitle(), task.getDescription(), task.getStatus(),
+                task.getTaskType(), task.getTitle(), task.getDescription(), task.getOriginalFileUrl(), task.getStatus(),
                 task.getDueDate(), task.getAreaX(), task.getAreaY(),
                 task.getAreaWidth(), task.getAreaHeight());
     }
@@ -562,7 +576,7 @@ public class MangakaService {
                 submission.getChapter().getChapterId(),
                 submitter == null ? null : submitter.getUserId(),
                 submitter == null ? null : submitter.getUsername(),
-                submission.getArtifactUrl(), submission.getNote(), submission.getStatus(),
+                submission.getArtifactUrl(), submission.getOriginalFileUrl(), submission.getNote(), submission.getStatus(),
                 submission.getReviewNote(), submission.getSubmittedAt(), submission.getReviewedAt());
     }
 

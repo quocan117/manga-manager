@@ -208,6 +208,10 @@ public class AssistantService {
         if (artifactUrl == null) {
             throw badRequest("artifactUrl or drawing previewImageUrl is required");
         }
+        String originalFileUrl = blankToNull(request.originalFileUrl());
+        if (originalFileUrl == null) {
+            throw badRequest("originalFileUrl is required");
+        }
 
         Submission submission = new Submission();
         submission.setTask(task);
@@ -216,11 +220,18 @@ public class AssistantService {
         submission.setSubmittedAt(LocalDateTime.now());
         submission.setStatus(SUBMITTED_STATUS);
         submission.setArtifactUrl(artifactUrl);
+        submission.setOriginalFileUrl(originalFileUrl);
         submission.setNote(blankToNull(request.note()));
 
         task.setStatus(SUBMITTED_STATUS);
         taskRepository.save(task);
-        return toSubmissionResponse(submissionRepository.save(submission));
+        Submission savedSubmission = submissionRepository.save(submission);
+        notify(
+                task.getAssignedBy(),
+                "TASK_SUBMITTED",
+                task.getTaskId(),
+                "Trợ lý " + assistant.getUsername() + " đã nộp bài, kèm file gốc và ảnh chỉnh sửa.");
+        return toSubmissionResponse(savedSubmission);
     }
 
     @Transactional(readOnly = true)
@@ -247,6 +258,20 @@ public class AssistantService {
                 .orElseThrow(() -> notFound("Notification not found"));
         notification.setIsRead(true);
         return toNotificationResponse(notificationRepository.save(notification));
+    }
+
+    private void notify(User user, String type, Long refId, String message) {
+        if (user == null) {
+            return;
+        }
+        Notification notification = new Notification();
+        notification.setUser(user);
+        notification.setType(type);
+        notification.setReferenceId(refId);
+        notification.setMessage(message);
+        notification.setIsRead(false);
+        notification.setCreatedAt(LocalDateTime.now());
+        notificationRepository.save(notification);
     }
 
     private PageDrawing getOrCreateDrawing(Task task, User assistant) {
@@ -349,6 +374,7 @@ public class AssistantService {
                 page == null ? null : page.getPageId(),
                 page == null ? null : page.getPageNumber(),
                 page == null ? null : page.getImageUrl(),
+                task.getOriginalFileUrl(),
                 assignedBy == null ? null : assignedBy.getUserId(),
                 assignedBy == null ? null : assignedBy.getUsername(),
                 task.getTaskType(),
@@ -373,6 +399,7 @@ public class AssistantService {
                 submitter == null ? null : submitter.getUserId(),
                 submitter == null ? null : submitter.getUsername(),
                 submission.getArtifactUrl(),
+                submission.getOriginalFileUrl(),
                 submission.getNote(),
                 submission.getStatus(),
                 submission.getReviewNote(),

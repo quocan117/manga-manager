@@ -28,7 +28,7 @@ public class ReaderFeedbackImport {
     private Integer voteCount;
     private Float avgScore;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(columnDefinition = "NVARCHAR(MAX)")
     private String sourceNote;
 
     private LocalDateTime importedAt;

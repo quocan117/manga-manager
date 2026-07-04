@@ -2,6 +2,7 @@ package com.example.backend.dto;
 
 import java.time.LocalDateTime;
 
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 public class AssistantDtos {
@@ -18,6 +19,7 @@ public class AssistantDtos {
             Long pageId,
             Integer pageNumber,
             String pageImageUrl,
+            String originalFileUrl,
             Long assignedById,
             String assignedByName,
             String taskType,
@@ -35,6 +37,7 @@ public class AssistantDtos {
 
     public record SubmitTaskRequest(
             String artifactUrl,
+            @NotBlank String originalFileUrl,
             String note,
             @NotNull Long expectedDrawingVersion) {
     }
@@ -46,6 +49,7 @@ public class AssistantDtos {
             Long submittedById,
             String submittedByName,
             String artifactUrl,
+            String originalFileUrl,
             String note,
             String status,
             String reviewNote,

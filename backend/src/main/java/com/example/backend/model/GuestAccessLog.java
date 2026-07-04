@@ -25,7 +25,7 @@ public class GuestAccessLog {
     private String sessionToken;
     private String ipAddress;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(columnDefinition = "NVARCHAR(MAX)")
     private String userAgent;
 
     private LocalDateTime createdAt;

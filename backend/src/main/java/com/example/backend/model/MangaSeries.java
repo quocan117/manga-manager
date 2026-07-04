@@ -42,7 +42,7 @@ public class MangaSeries {
     private LocalDateTime createdAt;
     private String artStyle;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(columnDefinition = "NVARCHAR(MAX)")
     private String storyboardUrl;
 
     private LocalDateTime submittedAt;

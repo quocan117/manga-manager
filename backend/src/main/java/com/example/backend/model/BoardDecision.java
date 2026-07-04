@@ -31,7 +31,7 @@ public class BoardDecision {
 
     private String decisionType;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(columnDefinition = "NVARCHAR(MAX)")
     private String reason;
 
     private LocalDateTime decisionDate;

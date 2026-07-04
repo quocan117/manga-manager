@@ -24,7 +24,7 @@ public class ReviewComment {
     @JoinColumn(name = "editor_id")
     private User editor;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(columnDefinition = "NVARCHAR(MAX)")
     private String commentText;
 
     private String commentType;

@@ -10,6 +10,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.LocalDateTime;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -33,13 +34,18 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.example.backend.dto.MangakaDtos.AssignTaskRequest;
 import com.example.backend.dto.MangakaDtos.CreateAssistantRequest;
 import com.example.backend.dto.MangakaDtos.CreateSeriesRequest;
+import com.example.backend.dto.MangakaDtos.ReviewSubmissionRequest;
 import com.example.backend.dto.MangakaDtos.SubmitSeriesReviewRequest;
 import com.example.backend.model.Chapter;
 import com.example.backend.model.ChapterPage;
 import com.example.backend.model.MangaSeries;
+import com.example.backend.model.Notification;
 import com.example.backend.model.Role;
+import com.example.backend.model.Submission;
+import com.example.backend.model.Task;
 import com.example.backend.model.User;
 import com.example.backend.repository.ChapterPageRepository;
 import com.example.backend.repository.ChapterRepository;
@@ -342,6 +348,96 @@ class MangakaServiceTests {
 
         assertSame(HttpStatus.PAYLOAD_TOO_LARGE, exception.getStatusCode());
         verify(chapterPageRepository, never()).save(any());
+    }
+
+    @Test
+    void assignTaskStoresOriginalFileAndNotifiesAssistant() {
+        User mangaka = user(1L, EMAIL);
+        User assistant = user(2L, "assistant@manga.test");
+        assistant.setStatus("ACTIVE");
+        assistant.setRole(role("ASSISTANT"));
+        MangaSeries series = new MangaSeries();
+        series.setSeriesId(20L);
+        series.setAuthor(mangaka);
+        Chapter chapter = new Chapter();
+        chapter.setChapterId(30L);
+        chapter.setSeries(series);
+        ChapterPage page = new ChapterPage();
+        page.setPageId(40L);
+        page.setPageNumber(2);
+        page.setChapter(chapter);
+
+        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(mangaka));
+        when(chapterPageRepository.findById(40L)).thenReturn(Optional.of(page));
+        when(userRepository.findById(2L)).thenReturn(Optional.of(assistant));
+        when(taskRepository.save(any(Task.class))).thenAnswer(invocation -> {
+            Task saved = invocation.getArgument(0);
+            saved.setTaskId(60L);
+            return saved;
+        });
+
+        var response = service.assignTask(new AssignTaskRequest(
+                40L,
+                2L,
+                "BACKGROUND",
+                "Draw background",
+                "City background",
+                "source/page-2.psd",
+                LocalDateTime.now().plusDays(2),
+                0f,
+                0f,
+                100f,
+                100f));
+
+        ArgumentCaptor<Task> taskCaptor = ArgumentCaptor.forClass(Task.class);
+        verify(taskRepository).save(taskCaptor.capture());
+        assertEquals("source/page-2.psd", taskCaptor.getValue().getOriginalFileUrl());
+        assertEquals("source/page-2.psd", response.originalFileUrl());
+
+        ArgumentCaptor<Notification> notificationCaptor = ArgumentCaptor.forClass(Notification.class);
+        verify(notificationRepository).save(notificationCaptor.capture());
+        Notification notification = notificationCaptor.getValue();
+        assertEquals(assistant, notification.getUser());
+        assertEquals("TASK_ASSIGNED", notification.getType());
+        assertEquals(60L, notification.getReferenceId());
+    }
+
+    @Test
+    void reviewSubmissionNotifiesAssistantWithDecision() {
+        User mangaka = user(1L, EMAIL);
+        User assistant = user(2L, "assistant@manga.test");
+        MangaSeries series = new MangaSeries();
+        series.setSeriesId(20L);
+        series.setAuthor(mangaka);
+        Chapter chapter = new Chapter();
+        chapter.setChapterId(30L);
+        chapter.setSeries(series);
+        Task task = new Task();
+        task.setTaskId(60L);
+        task.setStatus("SUBMITTED");
+        Submission submission = new Submission();
+        submission.setSubmissionId(70L);
+        submission.setTask(task);
+        submission.setChapter(chapter);
+        submission.setSubmittedBy(assistant);
+        submission.setStatus("SUBMITTED");
+
+        when(submissionRepository.findById(70L)).thenReturn(Optional.of(submission));
+        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(mangaka));
+        when(submissionRepository.save(submission)).thenReturn(submission);
+
+        var response = service.reviewSubmission(70L, new ReviewSubmissionRequest("APPROVED", "Good"));
+
+        assertEquals("APPROVED", response.status());
+        assertEquals("APPROVED", task.getStatus());
+        verify(taskRepository).save(task);
+
+        ArgumentCaptor<Notification> notificationCaptor = ArgumentCaptor.forClass(Notification.class);
+        verify(notificationRepository).save(notificationCaptor.capture());
+        Notification notification = notificationCaptor.getValue();
+        assertEquals(assistant, notification.getUser());
+        assertEquals("TASK_APPROVED", notification.getType());
+        assertEquals(60L, notification.getReferenceId());
     }
 
     @Test

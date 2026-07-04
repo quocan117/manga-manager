@@ -35,7 +35,7 @@ public class Payment {
 
     private String status;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(columnDefinition = "NVARCHAR(MAX)")
     private String description;
     
     private LocalDateTime createdAt;
