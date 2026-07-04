@@ -6,6 +6,16 @@ const authHeader = () => ({
   Authorization: `Bearer ${localStorage.getItem("token")}`,
 });
 
+const getAuthHeaders = () => {
+  const token = localStorage.getItem("token");
+  return {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  };
+};
+
 export const getMySeries = async () => {
   const response = await axios.get(`${API_URL}/my-series`, {
     headers: authHeader(),
@@ -53,10 +63,7 @@ export const createPage = async (data) => {
 };
 
 export const getAssistants = async () => {
-  const response = await axios.get(`${API_URL}/assistants`, {
-    headers: authHeader(),
-  });
-
+  const response = await axios.get(`${API_URL}/assistants`, getAuthHeaders());
   return response.data;
 };
 
@@ -137,10 +144,8 @@ export const getChapterPages = async (chapterId) => {
   return response.data;
 };
 
-export const createAssistant = async (data) => {
-  const response = await axios.post(`${API_URL}/assistants`, data, {
-    headers: authHeader(),
-  });
+export const createAssistant = async (assistantData) => {
+  const response = await axios.post(`${API_URL}/assistants`, assistantData, getAuthHeaders());
   return response.data;
 };
 

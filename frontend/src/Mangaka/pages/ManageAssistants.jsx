@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { getAssistants, createAssistant } from "../../services/mangakaService";
-import "../../EditorialBoard/styles/EditorialBoard.css"; 
+import "../../EditorialBoard/styles/EditorialBoard.css";
 
 export default function ManageAssistants() {
   const [assistants, setAssistants] = useState([]);
@@ -42,9 +42,9 @@ export default function ManageAssistants() {
       setLoading(true);
       await createAssistant(form);
 
-      alert(`Tạo tài khoản trợ lý thành công!`);
+      alert("Tạo tài khoản trợ lý thành công!");
       setForm({ username: "", email: "", password: "" });
-      fetchAssistants(); 
+      fetchAssistants();
     } catch (error) {
       console.error(error);
       if (error.response && error.response.status === 409) {
@@ -59,7 +59,7 @@ export default function ManageAssistants() {
 
   return (
     <div className="tab-content" style={{ padding: "20px" }}>
-      <h2 className="mb-4">👤 Quản Lý Tài Khoản Trợ Lý</h2>
+      <h2 className="mb-4">👤 Quản Lý & Cấp Tài Khoản Trợ Lý</h2>
 
       <div className="card shadow mb-5" style={{ maxWidth: "600px" }}>
         <div className="card-header bg-primary text-white">
@@ -88,6 +88,17 @@ export default function ManageAssistants() {
                 onChange={handleChange}
                 required
               />
+            </div>
+
+            <div className="mb-3">
+              <label className="form-label">Loại tài khoản</label>
+              <select className="form-select" value="ASSISTANT" disabled>
+                <option value="ASSISTANT">Trợ lý</option>
+              </select>
+              <div className="form-text">
+                Tài khoản trợ lý sẽ luôn thuộc quyền quản lý của bạn (Mangaka
+                hiện tại).
+              </div>
             </div>
 
             <div className="mb-4">
@@ -121,42 +132,48 @@ export default function ManageAssistants() {
           <table className="table table-hover mb-0">
             <thead className="table-light">
               <tr>
-                <th>ID</th>
+                <th>STT</th>
                 <th>Username</th>
                 <th>Email</th>
+                <th>Vai trò</th>
+                <th>Trạng thái</th>
+                <th>Ngày tham gia</th>
               </tr>
             </thead>
             <tbody>
               {assistants.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="text-center py-4 text-muted">
+                  <td colSpan="7" className="text-center py-4 text-muted">
                     Bạn chưa có trợ lý nào.
                   </td>
                 </tr>
               ) : (
-                assistants.map((ast) => (
-                  <tr key={ast.id}>
-                    <td>#{ast.id}</td>
-                    <td>
-                      <img
-                        src={
-                          ast.avatarUrl ||
-                          "https://placehold.co/40x40?text=No+Avatar"
-                        }
-                        alt="avatar"
-                        style={{
-                          width: "40px",
-                          height: "40px",
-                          borderRadius: "50%",
-                        }}
-                      />
-                    </td>
+                assistants.map((ast, index) => (
+                  <tr key={ast.id || index}>
+                    <td>#{index + 1}</td>
                     <td>
                       <strong>{ast.username}</strong>
                     </td>
                     <td>{ast.email}</td>
                     <td>
-                      <span className="badge bg-info text-dark">Trợ lý</span>
+                      <span className="badge role-assistant">Trợ Lý</span>
+                    </td>
+                    <td>
+                      <span
+                        className={`badge ${ast.status === "ACTIVE"
+                            ? "bg-success"
+                            : ast.status === "DELETED"
+                              ? "bg-danger"
+                              : "bg-warning"
+                          }`}
+                      >
+                        {ast.status}
+                      </span>
+                    </td>
+                    <td>
+                      {ast.createdAt
+                        ? new Date(ast.createdAt).toLocaleDateString()
+                        : "—"}
                     </td>
                   </tr>
                 ))

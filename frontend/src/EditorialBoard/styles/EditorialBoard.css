@@ -436,3 +436,10 @@
   padding: 6px 12px;
   border-radius: 4px;
 }
+
+.role-assistant {
+  background-color: #00b894;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 4px;
+}
