@@ -29,6 +29,7 @@ import ManageUsersPage from "./EditorialBoard/pages/ManageUsersPage";
 import ManageAssistants from "./Mangaka/pages/ManageAssistants";
 import TantouNotifications from "./TantouEditor/pages/TantouNotifications";
 import AssistantNotification from "./Assistant/components/Notification";
+import TaskDetailPage from "./Assistant/pages/TaskDetailPage";
 
 function App() {
   useEffect(() => {
@@ -117,6 +118,7 @@ function App() {
           <Route index element={<DashboardAssistant />} />
           <Route path="tasks" element={<MyTasks />} />
           <Route path="submissions" element={<MySubmissions />} />
+          <Route path="tasks/:taskId" element={<TaskDetailPage />} />
           <Route path="notifications" element={<AssistantNotification />} />
         </Route>
 

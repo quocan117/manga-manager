@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useOutletContext } from "react-router-dom";
 import {
   getNotifications,
   markNotificationRead,
@@ -7,6 +8,7 @@ import {
 export default function Notification() {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { refreshUnreadCount } = useOutletContext() || {};
 
   useEffect(() => {
     fetchNotifications();
@@ -32,6 +34,7 @@ export default function Notification() {
           n.id === notification.id ? { ...n, isRead: true } : n,
         ),
       );
+      refreshUnreadCount?.();
     } catch (error) {
       console.error("Lỗi khi đánh dấu đã đọc:", error);
     }

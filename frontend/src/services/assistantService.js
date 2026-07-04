@@ -68,20 +68,6 @@ export const getTaskSubmissions = async (taskId) => {
   return response.data;
 };
 
-export const submitTask = async (
-  taskId,
-  artifactUrl,
-  note,
-  expectedDrawingVersion,
-) => {
-  const response = await api.post(`/assistant/tasks/${taskId}/submissions`, {
-    artifactUrl,
-    note,
-    expectedDrawingVersion,
-  });
-  return response.data;
-};
-
 export const getNotifications = async () => {
   const response = await api.get("/assistant/notifications");
   return response.data;
@@ -91,5 +77,21 @@ export const markNotificationRead = async (notificationId) => {
   const response = await api.patch(
     `/assistant/notifications/${notificationId}/read`,
   );
+  return response.data;
+};
+
+export const submitTask = async (
+  taskId,
+  artifactUrl,
+  note,
+  expectedDrawingVersion,
+  originalFileUrl, 
+) => {
+  const response = await api.post(`/assistant/tasks/${taskId}/submissions`, {
+    artifactUrl,
+    note,
+    expectedDrawingVersion,
+    originalFileUrl,
+  });
   return response.data;
 };

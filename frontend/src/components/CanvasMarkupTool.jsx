@@ -3,11 +3,26 @@ import * as fabric from "fabric";
 import { savePageDrawing, getPageDrawing } from "../services/drawingService";
 import "../styles/CanvasMarkup.css";
 
-const CanvasMarkupTool = ({ pageId, backgroundImageUrl }) => {
+const CanvasMarkupTool = ({
+  pageId,
+  backgroundImageUrl,
+  loadDrawing,
+  persistDrawing,
+  onVersionChange,
+  onStatusChange,
+  readOnly = false, 
+  hideControls = false,
+}) => {
+  const fetchDrawing = loadDrawing || (() => getPageDrawing(pageId));
+  const persist =
+    persistDrawing ||
+    ((canvasJSON, previewImageUrl, expectedVersion) =>
+      savePageDrawing(pageId, canvasJSON, previewImageUrl, expectedVersion));
   const canvasRef = useRef(null);
   const [canvas, setCanvas] = useState(null);
   const [isDrawingMode, setIsDrawingMode] = useState(false);
   const [currentVersion, setCurrentVersion] = useState(0);
+  const [drawingStatus, setDrawingStatus] = useState(null);
 
   // ---- Undo/Redo state ----
   const historyRef = useRef([]);
@@ -17,6 +32,9 @@ const CanvasMarkupTool = ({ pageId, backgroundImageUrl }) => {
   const [canRedo, setCanRedo] = useState(false);
 
   const MAX_HISTORY = 30;
+
+  const isLocked = readOnly || drawingStatus === "FINALIZED";
+  const shouldHideControls = isLocked && hideControls; 
 
   const pushHistory = useCallback((fabricCanvas) => {
     if (isRestoringRef.current) return;
@@ -55,13 +73,16 @@ const CanvasMarkupTool = ({ pageId, backgroundImageUrl }) => {
   }, []);
 
   const handleUndo = () =>
-    canvas && restoreFromHistory(canvas, historyIndexRef.current - 1);
+    canvas &&
+    !isLocked &&
+    restoreFromHistory(canvas, historyIndexRef.current - 1);
   const handleRedo = () =>
-    canvas && restoreFromHistory(canvas, historyIndexRef.current + 1);
+    canvas &&
+    !isLocked &&
+    restoreFromHistory(canvas, historyIndexRef.current + 1);
 
-  // ---- Xóa nét đã chọn ----
   const handleDeleteSelected = () => {
-    if (!canvas) return;
+    if (!canvas || isLocked) return;
     const activeObjects = canvas.getActiveObjects();
     if (activeObjects.length === 0) {
       alert(
@@ -79,9 +100,8 @@ const CanvasMarkupTool = ({ pageId, backgroundImageUrl }) => {
     pushHistory(canvas);
   };
 
-  // ---- Xóa toàn bộ nét vẽ ----
   const handleClearAll = () => {
-    if (!canvas) return;
+    if (!canvas || isLocked) return;
     if (!window.confirm("Xóa toàn bộ nét đánh dấu mới trên trang này?")) return;
 
     isRestoringRef.current = true;
@@ -132,7 +152,7 @@ const CanvasMarkupTool = ({ pageId, backgroundImageUrl }) => {
     const setupCanvasData = async () => {
       isRestoringRef.current = true;
       try {
-        const data = await getPageDrawing(pageId);
+        const data = await fetchDrawing();
         if (data && data.canvasData) {
           await initCanvas.loadFromJSON(data.canvasData);
 
@@ -144,11 +164,16 @@ const CanvasMarkupTool = ({ pageId, backgroundImageUrl }) => {
             });
           });
           setCurrentVersion(data.version);
+          onVersionChange?.(data.version);
+          setDrawingStatus(data.status ?? null);
+          onStatusChange?.(data.status ?? null);
         }
       } catch (error) {
         console.log("Chưa có dữ liệu markup cũ hoặc lỗi mạng.");
       }
       await loadBackground();
+      initCanvas.isDrawingMode = false;
+      initCanvas.selection = !readOnly;
       initCanvas.renderAll();
       isRestoringRef.current = false;
       pushHistory(initCanvas);
@@ -162,6 +187,7 @@ const CanvasMarkupTool = ({ pageId, backgroundImageUrl }) => {
     initCanvas.on("object:modified", handleChange);
 
     const handleKeyDown = (e) => {
+      if (isLocked) return;
       const tag = document.activeElement?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA") return;
 
@@ -188,9 +214,17 @@ const CanvasMarkupTool = ({ pageId, backgroundImageUrl }) => {
       window.removeEventListener("keydown", handleKeyDown);
       initCanvas.dispose();
     };
-  }, [pageId, backgroundImageUrl, pushHistory, restoreFromHistory]);
+  }, [
+    pageId,
+    backgroundImageUrl,
+    pushHistory,
+    restoreFromHistory,
+    readOnly,
+    isLocked,
+  ]);
 
   const toggleDrawingMode = () => {
+    if (isLocked) return;
     if (canvas) {
       canvas.isDrawingMode = !isDrawingMode;
       canvas.selection = isDrawingMode;
@@ -199,19 +233,21 @@ const CanvasMarkupTool = ({ pageId, backgroundImageUrl }) => {
   };
 
   const handleSave = async () => {
-    if (!canvas) return;
+    if (!canvas || isLocked) return;
     const canvasJSON = canvas.toJSON();
-    delete canvasJSON.backgroundImage; 
+    delete canvasJSON.backgroundImage;
     const previewImageUrl = canvas.toDataURL({ format: "png" });
 
     try {
-      const response = await savePageDrawing(
-        pageId,
+      const response = await persist(
         canvasJSON,
         previewImageUrl,
         currentVersion,
       );
       setCurrentVersion(response.version);
+      onVersionChange?.(response.version);
+      setDrawingStatus(response.status ?? null);
+      onStatusChange?.(response.status ?? null);
       alert("Lưu markup thành công!");
     } catch (error) {
       alert("Lưu thất bại! " + (error.response?.data?.message || ""));
@@ -220,30 +256,50 @@ const CanvasMarkupTool = ({ pageId, backgroundImageUrl }) => {
 
   return (
     <div className="canvas-markup-container">
-      <div className="toolbar">
-        <button
-          onClick={toggleDrawingMode}
-          className={`btn-mode ${isDrawingMode ? "btn-mode-drawing" : "btn-mode-normal"}`}
-        >
-          {isDrawingMode ? "Dừng vẽ" : "Bật chế độ vẽ"}
-        </button>
 
-        <button onClick={handleDeleteSelected} className="btn-delete">
-          Xóa nét đã chọn
-        </button>
-        <button onClick={handleClearAll} className="btn-clear">
-          Xóa tất cả
-        </button>
-        <button onClick={handleUndo} disabled={!canUndo} className="btn-undo">
-          ↩ Undo
-        </button>
-        <button onClick={handleRedo} disabled={!canRedo} className="btn-redo">
-          ↪ Redo
-        </button>
-        <button onClick={handleSave} className="btn-save">
-          Lưu đánh dấu
-        </button>
-      </div>
+      {!shouldHideControls && (
+        <div className="toolbar">
+          <button
+            onClick={toggleDrawingMode}
+            disabled={isLocked}
+            className={`btn-mode ${isDrawingMode ? "btn-mode-drawing" : "btn-mode-normal"}`}
+          >
+            {isDrawingMode ? "Dừng vẽ" : "Bật chế độ vẽ"}
+          </button>
+
+          <button
+            onClick={handleDeleteSelected}
+            disabled={isLocked}
+            className="btn-delete"
+          >
+            Xóa nét đã chọn
+          </button>
+          <button
+            onClick={handleClearAll}
+            disabled={isLocked}
+            className="btn-clear"
+          >
+            Xóa tất cả
+          </button>
+          <button
+            onClick={handleUndo}
+            disabled={!canUndo || isLocked}
+            className="btn-undo"
+          >
+            ↩ Undo
+          </button>
+          <button
+            onClick={handleRedo}
+            disabled={!canRedo || isLocked}
+            className="btn-redo"
+          >
+            ↪ Redo
+          </button>
+          <button onClick={handleSave} disabled={isLocked} className="btn-save">
+            Lưu đánh dấu
+          </button>
+        </div>
+      )}
 
       <div className="canvas-wrapper">
         <canvas ref={canvasRef} />

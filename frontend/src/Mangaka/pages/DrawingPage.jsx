@@ -15,7 +15,7 @@ export default function DrawingPage() {
 
   const originalImageUrl = resolveImageUrl(location.state?.originalImageUrl);
 
-  const currentBackgroundUrl = drawing?.previewImageUrl || originalImageUrl;
+  const isFinalized = drawing?.status === "FINALIZED"; 
 
   useEffect(() => {
     loadDrawing();
@@ -45,7 +45,8 @@ export default function DrawingPage() {
       return;
 
     try {
-      await finalizeDrawing(pageId, drawing?.version || 0);
+      const data = await finalizeDrawing(pageId, drawing?.version || 0);
+      setDrawing(data); 
       alert("Chốt bản vẽ thành công!");
       navigate(-1);
     } catch (error) {
@@ -79,12 +80,15 @@ export default function DrawingPage() {
         <div className="col-md-9">
           <div className="card shadow canvas-card">
             <div className="card-header bg-dark text-white fw-bold">
-              Khu vực thao tác (Canvas)
+              Khu vực thao tác
             </div>
             <div className="card-body canvas-body">
               <CanvasMarkupTool
                 pageId={pageId}
-                backgroundImageUrl={currentBackgroundUrl} // Đổi thành biến mới
+                backgroundImageUrl={originalImageUrl}
+                readOnly={isFinalized} 
+                onStatusChange={(status) =>
+                  setDrawing((prev) => (prev ? { ...prev, status } : prev))}
               />
             </div>
           </div>
@@ -99,7 +103,7 @@ export default function DrawingPage() {
               <div className="info-item mb-2">
                 <strong>Trạng thái: </strong>
                 <span
-                  className={`badge ${drawing?.status === "FINALIZED" ? "bg-success" : "bg-warning text-dark"} ms-1`}
+                  className={`badge ${isFinalized ? "bg-success" : "bg-warning text-dark"} ms-1`}
                 >
                   {drawing?.status ?? "BẢN NHÁP"}
                 </span>
@@ -110,14 +114,21 @@ export default function DrawingPage() {
 
               <hr />
               <p className="text-muted small text-justify">
-                * Việc lưu nháp (Save Draft) được thực hiện trực tiếp trong
-                thanh công cụ của khu vực vẽ.
+                * Việc lưu nháp được thực hiện trực tiếp trong thanh công cụ của
+                khu vực vẽ.
+                {isFinalized && (
+                  <>
+                    {" "}
+                    Trang này đã được <strong>chốt</strong>, không thể vẽ hoặc
+                    lưu thêm.
+                  </>
+                )}
               </p>
 
               <button
                 className="btn btn-danger w-100 btn-finalize mt-2"
                 onClick={handleFinalize}
-                disabled={drawing?.status === "FINALIZED"}
+                disabled={isFinalized}
               >
                 🔒 Chốt Bản Vẽ (Finalize)
               </button>

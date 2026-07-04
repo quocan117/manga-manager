@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { getNotifications } from "../../services/assistantService";
 
@@ -7,17 +7,18 @@ export default function AssistantLayout() {
   const user = JSON.parse(localStorage.getItem("user"));
   const [unreadCount, setUnreadCount] = useState(0);
 
-  useEffect(() => {
-    const loadUnread = async () => {
-      try {
-        const data = await getNotifications();
-        setUnreadCount(data.filter((n) => !n.isRead).length);
-      } catch (error) {
-        console.error(error);
-      }
-    };
-    loadUnread();
+  const loadUnread = useCallback(async () => {
+    try {
+      const data = await getNotifications();
+      setUnreadCount(data.filter((n) => !n.isRead).length);
+    } catch (error) {
+      console.error(error);
+    }
   }, []);
+
+  useEffect(() => {
+    loadUnread();
+  }, [loadUnread]);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -29,9 +30,8 @@ export default function AssistantLayout() {
     <div className="container-fluid">
       <div className="row">
         <div className="col-md-2 sidebar">
-          <div className="sidebar-header">
-            <h3>Assistant Portal</h3>
-            <small>Manga Studio</small>
+          <div className="sidebar-title">
+            ASSISTANT
           </div>
 
           <ul className="nav flex-column mt-4">
@@ -72,10 +72,9 @@ export default function AssistantLayout() {
               <h4>Xin chào, {user?.username || "Assistant"}</h4>
               <small>Assistant</small>
             </div>
-            <span className="badge bg-success">Online</span>
           </div>
           <hr />
-          <Outlet />
+          <Outlet context={{ refreshUnreadCount: loadUnread }} />
         </div>
       </div>
     </div>
