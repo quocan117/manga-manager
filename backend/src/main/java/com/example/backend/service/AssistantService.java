@@ -230,7 +230,7 @@ public class AssistantService {
                 task.getAssignedBy(),
                 "TASK_SUBMITTED",
                 task.getTaskId(),
-                "Trợ lý " + assistant.getUsername() + " đã nộp bài, kèm file gốc và ảnh chỉnh sửa.");
+                "Trợ lý " + assistant.getUsername() + " đã hoàn thiện phần việc. Vui lòng kiểm duyệt");
         return toSubmissionResponse(savedSubmission);
     }
 
