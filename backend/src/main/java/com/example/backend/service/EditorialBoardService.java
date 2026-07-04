@@ -373,7 +373,8 @@ public class EditorialBoardService {
     }
 
     private void notify(User user, String type, Long refId, String message) {
-        if (user == null) return;
+        if (user == null)
+            return;
         Notification n = new Notification();
         n.setUser(user);
         n.setType(type);

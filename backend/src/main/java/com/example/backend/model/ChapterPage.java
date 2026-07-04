@@ -21,7 +21,10 @@ public class ChapterPage {
     private Chapter chapter;
 
     private Integer pageNumber;
+
+    @Column(columnDefinition = "NVARCHAR(MAX)")
     private String imageUrl;
+
     private String pageStatus;
     private LocalDateTime createdAt;
 }

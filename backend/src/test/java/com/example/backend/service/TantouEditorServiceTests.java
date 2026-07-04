@@ -62,7 +62,7 @@ class TantouEditorServiceTests {
     private UserRepository userRepository;
     @Mock
     private NotificationRepository notificationRepository;
-
+    @Mock
     private TantouEditorService service;
 
     @BeforeEach
