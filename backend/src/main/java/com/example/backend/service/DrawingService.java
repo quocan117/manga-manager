@@ -30,7 +30,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
-public class MangakaDrawingService {
+public class DrawingService {
     private final ChapterPageRepository pageRepository;
     private final PageDrawingRepository drawingRepository;
     private final PageDrawingRevisionRepository revisionRepository;
@@ -38,7 +38,7 @@ public class MangakaDrawingService {
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
 
-    public MangakaDrawingService(
+    public DrawingService(
             ChapterPageRepository pageRepository,
             PageDrawingRepository drawingRepository,
             PageDrawingRevisionRepository revisionRepository,

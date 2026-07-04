@@ -27,10 +27,12 @@ import com.example.backend.dto.DrawingDtos.SaveDrawingRequest;
 import com.example.backend.model.Chapter;
 import com.example.backend.model.ChapterPage;
 import com.example.backend.model.MangaSeries;
+import com.example.backend.model.Notification;
 import com.example.backend.model.PageDrawing;
 import com.example.backend.model.Submission;
 import com.example.backend.model.Task;
 import com.example.backend.model.User;
+import com.example.backend.repository.NotificationRepository;
 import com.example.backend.repository.PageDrawingRepository;
 import com.example.backend.repository.PageDrawingRevisionRepository;
 import com.example.backend.repository.SubmissionRepository;
@@ -52,6 +54,8 @@ class AssistantServiceTests {
     private PageDrawingRevisionRepository revisionRepository;
     @Mock
     private UserRepository userRepository;
+    @Mock
+    private NotificationRepository notificationRepository;
 
     private AssistantService service;
     private ObjectMapper objectMapper;
@@ -65,6 +69,7 @@ class AssistantServiceTests {
                 drawingRepository,
                 revisionRepository,
                 userRepository,
+                notificationRepository,
                 objectMapper);
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(EMAIL, null, List.of()));
@@ -155,6 +160,33 @@ class AssistantServiceTests {
         verify(taskRepository).save(task);
     }
 
+    @Test
+    void getsNotificationsForCurrentAssistant() {
+        Notification notification = notification(70L, user(1L, EMAIL), false);
+        when(notificationRepository.findByUserEmailOrderByCreatedAtDesc(EMAIL))
+                .thenReturn(List.of(notification));
+
+        var response = service.getNotifications();
+
+        assertEquals(1, response.size());
+        assertEquals(70L, response.get(0).id());
+        assertEquals("TASK_ASSIGNED", response.get(0).type());
+        assertEquals(false, response.get(0).isRead());
+    }
+
+    @Test
+    void marksNotificationReadForCurrentAssistant() {
+        Notification notification = notification(70L, user(1L, EMAIL), false);
+        when(notificationRepository.findByNotificationIdAndUserEmail(70L, EMAIL))
+                .thenReturn(Optional.of(notification));
+        when(notificationRepository.save(notification)).thenReturn(notification);
+
+        var response = service.markNotificationRead(70L);
+
+        assertEquals(true, response.isRead());
+        verify(notificationRepository).save(notification);
+    }
+
     private Task task(Long id, User assistant, String status) {
         MangaSeries series = new MangaSeries();
         series.setSeriesId(40L);
@@ -195,6 +227,18 @@ class AssistantServiceTests {
         drawing.setStatus("FINALIZED");
         drawing.setVersion(version);
         return drawing;
+    }
+
+    private Notification notification(Long id, User user, boolean isRead) {
+        Notification notification = new Notification();
+        notification.setNotificationId(id);
+        notification.setUser(user);
+        notification.setType("TASK_ASSIGNED");
+        notification.setReferenceId(10L);
+        notification.setMessage("New task assigned");
+        notification.setIsRead(isRead);
+        notification.setCreatedAt(LocalDateTime.now());
+        return notification;
     }
 
     private User user(Long id, String email) {

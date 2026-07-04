@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.example.backend.dto.AssistantDtos.SubmissionResponse;
 import com.example.backend.dto.AssistantDtos.SubmitTaskRequest;
 import com.example.backend.dto.AssistantDtos.TaskResponse;
+import com.example.backend.dto.AssistantDtos.NotificationResponse;
 import com.example.backend.dto.DrawingDtos.DrawingResponse;
 import com.example.backend.dto.DrawingDtos.RevisionResponse;
 import com.example.backend.dto.DrawingDtos.SaveDrawingRequest;
@@ -97,5 +98,15 @@ public class AssistantController {
             @PathVariable Long taskId,
             @Valid @RequestBody SubmitTaskRequest request) {
         return service.submitTask(taskId, request);
+    }
+
+    @GetMapping("/notifications")
+    public List<NotificationResponse> getNotifications() {
+        return service.getNotifications();
+    }
+
+    @PatchMapping("/notifications/{notificationId}/read")
+    public NotificationResponse markNotificationRead(@PathVariable Long notificationId) {
+        return service.markNotificationRead(notificationId);
     }
 }

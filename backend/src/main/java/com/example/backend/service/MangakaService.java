@@ -71,9 +71,14 @@ public class MangakaService {
     private static final Set<String> TANTOU_WORKLOAD_STATUSES = Set.of(
             "DRAFT", TANTOU_REVIEW_STATUS, REVISION_REQUESTED_STATUS);
     private static final long MAX_PAGE_IMAGE_SIZE_BYTES = 5L * 1024 * 1024;
+    private static final long MAX_COVER_IMAGE_SIZE_BYTES = 5L * 1024 * 1024;
     private static final Set<String> PAGE_IMAGE_CONTENT_TYPES = Set.of(
             "image/jpeg", "image/png", "image/webp", "image/gif");
+    private static final Set<String> COVER_IMAGE_CONTENT_TYPES = Set.of(
+            "image/jpeg", "image/png", "image/webp", "image/gif");
     private static final Set<String> PAGE_IMAGE_EXTENSIONS = Set.of(
+            ".jpg", ".jpeg", ".png", ".webp", ".gif");
+    private static final Set<String> COVER_IMAGE_EXTENSIONS = Set.of(
             ".jpg", ".jpeg", ".png", ".webp", ".gif");
 
     private final UserRepository userRepository;
@@ -89,6 +94,9 @@ public class MangakaService {
 
     @Value("${manga.upload.page-image-root:}")
     private String pageImageUploadRootOverride;
+
+    @Value("${manga.upload.cover-image-root:}")
+    private String coverImageUploadRootOverride;
 
     public MangakaService(
             UserRepository userRepository,
@@ -129,6 +137,29 @@ public class MangakaService {
         return toSeriesResponse(mangaSeriesRepository.save(series));
     }
 
+    @Transactional
+    public SeriesResponse createSeriesWithCoverUpload(
+            String title,
+            List<String> genres,
+            String coverUrl,
+            String description,
+            String publicationType,
+            String artStyle,
+            MultipartFile coverImage) {
+        String storedCoverUrl = blankToNull(coverUrl);
+        if (coverImage != null && !coverImage.isEmpty()) {
+            storedCoverUrl = storeSeriesCoverImage(coverImage);
+        }
+
+        return createSeries(new CreateSeriesRequest(
+                title,
+                parseGenreValues(genres),
+                storedCoverUrl,
+                description,
+                publicationType,
+                artStyle));
+    }
+
     @Transactional(readOnly = true)
     public List<SeriesResponse> getMySeries() {
         return mangaSeriesRepository.findByAuthorEmailOrderByCreatedAtDesc(currentEmail())
@@ -148,8 +179,7 @@ public class MangakaService {
 
     @Transactional
     public SeriesResponse submitSeries(Long seriesId, SubmitSeriesReviewRequest request) {
-        MangaSeries series = mangaSeriesRepository.findById(seriesId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy series với ID: " + seriesId));
+        MangaSeries series = ownedSeries(seriesId);
 
         User assignedEditor = getEditorWithLeastWorkload(null);
 
@@ -589,6 +619,33 @@ public class MangakaService {
                 editor.getUserId(), TANTOU_WORKLOAD_STATUSES);
     }
 
+    private String storeSeriesCoverImage(MultipartFile coverImage) {
+        validateCoverImage(coverImage);
+
+        Path uploadRoot = coverImageUploadRoot();
+        try {
+            Files.createDirectories(uploadRoot);
+        } catch (IOException exception) {
+            throw new ResponseStatusException(
+                    HttpStatus.INTERNAL_SERVER_ERROR, "Could not create cover image folder", exception);
+        }
+
+        String fileName = coverImageFileName(coverImage.getOriginalFilename());
+        Path target = uploadRoot.resolve(fileName).normalize();
+        if (!target.startsWith(uploadRoot)) {
+            throw badRequest("Invalid cover image file name");
+        }
+
+        try (InputStream inputStream = coverImage.getInputStream()) {
+            Files.copy(inputStream, target, StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException exception) {
+            throw new ResponseStatusException(
+                    HttpStatus.INTERNAL_SERVER_ERROR, "Could not save cover image", exception);
+        }
+
+        return "series/" + fileName;
+    }
+
     private void validatePageImage(MultipartFile image) {
         if (image == null || image.isEmpty()) {
             throw badRequest("Image file cannot be empty");
@@ -604,12 +661,35 @@ public class MangakaService {
         }
     }
 
+    private void validateCoverImage(MultipartFile image) {
+        if (image == null || image.isEmpty()) {
+            throw badRequest("Cover image file cannot be empty");
+        }
+        if (image.getSize() > MAX_COVER_IMAGE_SIZE_BYTES) {
+            throw new ResponseStatusException(
+                    HttpStatus.PAYLOAD_TOO_LARGE, "Cover image must be 5MB or smaller");
+        }
+
+        String contentType = image.getContentType();
+        if (contentType == null || !COVER_IMAGE_CONTENT_TYPES.contains(contentType.toLowerCase(Locale.ROOT))) {
+            throw badRequest("Only JPG, PNG, WEBP, or GIF cover images are allowed");
+        }
+    }
+
     private String pageImageFileName(Long chapterId, int pageNumber, String originalFilename) {
         String extension = fileExtension(originalFilename);
         if (!PAGE_IMAGE_EXTENSIONS.contains(extension)) {
             throw badRequest("Only JPG, PNG, WEBP, or GIF images are allowed");
         }
         return "chapter-" + chapterId + "-page-" + pageNumber + "-" + UUID.randomUUID() + extension;
+    }
+
+    private String coverImageFileName(String originalFilename) {
+        String extension = fileExtension(originalFilename);
+        if (!COVER_IMAGE_EXTENSIONS.contains(extension)) {
+            throw badRequest("Only JPG, PNG, WEBP, or GIF cover images are allowed");
+        }
+        return "series-cover-" + UUID.randomUUID() + extension;
     }
 
     private String fileExtension(String originalFilename) {
@@ -629,6 +709,35 @@ public class MangakaService {
         }
 
         return Path.of("uploads/pages").toAbsolutePath().normalize();
+    }
+
+    private Path coverImageUploadRoot() {
+        if (coverImageUploadRootOverride != null && !coverImageUploadRootOverride.isBlank()) {
+            return Path.of(coverImageUploadRootOverride).toAbsolutePath().normalize();
+        }
+
+        return Path.of("uploads/covers").toAbsolutePath().normalize();
+    }
+
+    private List<String> parseGenreValues(List<String> genreValues) {
+        List<String> genres = new ArrayList<>();
+        if (genreValues != null) {
+            for (String value : genreValues) {
+                if (value == null) {
+                    continue;
+                }
+                for (String genre : value.split(",")) {
+                    String trimmed = genre.trim();
+                    if (!trimmed.isBlank()) {
+                        genres.add(trimmed);
+                    }
+                }
+            }
+        }
+        if (genres.isEmpty()) {
+            throw badRequest("At least one genre is required");
+        }
+        return genres;
     }
 
     private String blankToNull(String value) {

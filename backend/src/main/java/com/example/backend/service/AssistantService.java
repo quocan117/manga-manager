@@ -15,6 +15,7 @@ import org.springframework.web.server.ResponseStatusException;
 import com.example.backend.dto.AssistantDtos.SubmissionResponse;
 import com.example.backend.dto.AssistantDtos.SubmitTaskRequest;
 import com.example.backend.dto.AssistantDtos.TaskResponse;
+import com.example.backend.dto.AssistantDtos.NotificationResponse;
 import com.example.backend.dto.DrawingDtos.DrawingResponse;
 import com.example.backend.dto.DrawingDtos.RevisionResponse;
 import com.example.backend.dto.DrawingDtos.SaveDrawingRequest;
@@ -22,11 +23,13 @@ import com.example.backend.dto.DrawingDtos.VersionRequest;
 import com.example.backend.model.Chapter;
 import com.example.backend.model.ChapterPage;
 import com.example.backend.model.MangaSeries;
+import com.example.backend.model.Notification;
 import com.example.backend.model.PageDrawing;
 import com.example.backend.model.PageDrawingRevision;
 import com.example.backend.model.Submission;
 import com.example.backend.model.Task;
 import com.example.backend.model.User;
+import com.example.backend.repository.NotificationRepository;
 import com.example.backend.repository.PageDrawingRepository;
 import com.example.backend.repository.PageDrawingRevisionRepository;
 import com.example.backend.repository.SubmissionRepository;
@@ -53,6 +56,7 @@ public class AssistantService {
     private final PageDrawingRepository drawingRepository;
     private final PageDrawingRevisionRepository revisionRepository;
     private final UserRepository userRepository;
+    private final NotificationRepository notificationRepository;
     private final ObjectMapper objectMapper;
 
     public AssistantService(
@@ -61,12 +65,14 @@ public class AssistantService {
             PageDrawingRepository drawingRepository,
             PageDrawingRevisionRepository revisionRepository,
             UserRepository userRepository,
+            NotificationRepository notificationRepository,
             ObjectMapper objectMapper) {
         this.taskRepository = taskRepository;
         this.submissionRepository = submissionRepository;
         this.drawingRepository = drawingRepository;
         this.revisionRepository = revisionRepository;
         this.userRepository = userRepository;
+        this.notificationRepository = notificationRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -226,6 +232,23 @@ public class AssistantService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<NotificationResponse> getNotifications() {
+        return notificationRepository.findByUserEmailOrderByCreatedAtDesc(currentEmail())
+                .stream()
+                .map(this::toNotificationResponse)
+                .toList();
+    }
+
+    @Transactional
+    public NotificationResponse markNotificationRead(Long notificationId) {
+        Notification notification = notificationRepository
+                .findByNotificationIdAndUserEmail(notificationId, currentEmail())
+                .orElseThrow(() -> notFound("Notification not found"));
+        notification.setIsRead(true);
+        return toNotificationResponse(notificationRepository.save(notification));
+    }
+
     private PageDrawing getOrCreateDrawing(Task task, User assistant) {
         return drawingRepository.findByTaskTaskIdAndOwnerEmail(task.getTaskId(), assistant.getEmail())
                 .orElseGet(() -> {
@@ -383,6 +406,16 @@ public class AssistantService {
                 revision.getPreviewImageUrl(),
                 revision.getStatus(),
                 revision.getCreatedAt());
+    }
+
+    private NotificationResponse toNotificationResponse(Notification notification) {
+        return new NotificationResponse(
+                notification.getNotificationId(),
+                notification.getType(),
+                notification.getReferenceId(),
+                notification.getMessage(),
+                notification.getIsRead(),
+                notification.getCreatedAt());
     }
 
     private JsonNode parseCanvasData(String canvasData) {

@@ -53,4 +53,13 @@ public class AssistantDtos {
             LocalDateTime reviewedAt) {
     }
 
+    public record NotificationResponse(
+            Long id,
+            String type,
+            Long referenceId,
+            String message,
+            Boolean isRead,
+            LocalDateTime createdAt) {
+    }
+
 }

@@ -30,7 +30,7 @@ public class PageDrawingRevision {
     @Column(columnDefinition = "NVARCHAR(MAX)", nullable = false)
     private String canvasData;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(columnDefinition = "NVARCHAR(MAX)")
     private String previewImageUrl;
 
     private String status;

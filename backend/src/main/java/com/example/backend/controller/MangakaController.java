@@ -49,10 +49,24 @@ public class MangakaController {
         this.service = service;
     }
 
-    @PostMapping("/series")
+    @PostMapping(value = "/series", consumes = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     public SeriesResponse createSeries(@Valid @RequestBody CreateSeriesRequest request) {
         return service.createSeries(request);
+    }
+
+    @PostMapping(value = "/series", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @ResponseStatus(HttpStatus.CREATED)
+    public SeriesResponse createSeriesWithCoverUpload(
+            @RequestParam String title,
+            @RequestParam List<String> genres,
+            @RequestParam(required = false) String coverUrl,
+            @RequestParam(required = false) String description,
+            @RequestParam(required = false) String publicationType,
+            @RequestParam(required = false) String artStyle,
+            @RequestParam(value = "coverImage", required = false) MultipartFile coverImage) {
+        return service.createSeriesWithCoverUpload(
+                title, genres, coverUrl, description, publicationType, artStyle, coverImage);
     }
 
     @GetMapping({"/series", "/my-series"})

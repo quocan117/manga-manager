@@ -35,7 +35,7 @@ import com.example.backend.repository.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @ExtendWith(MockitoExtension.class)
-class MangakaDrawingServiceTests {
+class DrawingServiceTests {
     private static final String EMAIL = "artist@manga.test";
 
     @Mock
@@ -49,13 +49,13 @@ class MangakaDrawingServiceTests {
     @Mock
     private UserRepository userRepository;
 
-    private MangakaDrawingService service;
+    private DrawingService service;
     private ObjectMapper objectMapper;
 
     @BeforeEach
     void setUp() {
         objectMapper = new ObjectMapper();
-        service = new MangakaDrawingService(
+        service = new DrawingService(
                 pageRepository,
                 drawingRepository,
                 revisionRepository,

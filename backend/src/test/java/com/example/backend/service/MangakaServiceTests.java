@@ -131,6 +131,40 @@ class MangakaServiceTests {
     }
 
     @Test
+    void createSeriesUploadsCoverImage(@TempDir Path tempDir) {
+        ReflectionTestUtils.setField(service, "coverImageUploadRootOverride", tempDir.toString());
+        User mangaka = user(1L, EMAIL);
+        MockMultipartFile coverImage = new MockMultipartFile(
+                "coverImage",
+                "cover.png",
+                "image/png",
+                "cover".getBytes(StandardCharsets.UTF_8));
+        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(mangaka));
+        when(mangaSeriesRepository.save(any(MangaSeries.class))).thenAnswer(invocation -> {
+            MangaSeries series = invocation.getArgument(0);
+            series.setSeriesId(10L);
+            return series;
+        });
+
+        var response = service.createSeriesWithCoverUpload(
+                "New series",
+                List.of("Action, Comedy"),
+                "https://cdn.example.test/ignored-cover.jpg",
+                null,
+                null,
+                null,
+                coverImage);
+
+        ArgumentCaptor<MangaSeries> captor = ArgumentCaptor.forClass(MangaSeries.class);
+        verify(mangaSeriesRepository).save(captor.capture());
+        assertEquals(List.of("Action", "Comedy"), response.genres());
+        assertTrue(response.coverUrl().startsWith("series/series-cover-"));
+        assertTrue(response.coverUrl().endsWith(".png"));
+        assertEquals(response.coverUrl(), captor.getValue().getCoverImage());
+        assertTrue(Files.exists(tempDir.resolve(Path.of(response.coverUrl()).getFileName())));
+    }
+
+    @Test
     void submitSeriesRejectsSeriesOwnedByAnotherMangaka() {
         MangaSeries series = new MangaSeries();
         series.setSeriesId(20L);

@@ -63,6 +63,8 @@ class TantouEditorServiceTests {
     @Mock
     private NotificationRepository notificationRepository;
     @Mock
+    private MangakaService mangakaService;
+
     private TantouEditorService service;
 
     @BeforeEach
@@ -77,7 +79,8 @@ class TantouEditorServiceTests {
                 taskRepository,
                 submissionRepository,
                 userRepository,
-                notificationRepository);
+                notificationRepository,
+                mangakaService);
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(EMAIL, null, List.of()));
     }

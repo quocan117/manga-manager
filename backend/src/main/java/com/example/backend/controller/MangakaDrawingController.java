@@ -16,7 +16,7 @@ import com.example.backend.dto.DrawingDtos.DrawingResponse;
 import com.example.backend.dto.DrawingDtos.RevisionResponse;
 import com.example.backend.dto.DrawingDtos.SaveDrawingRequest;
 import com.example.backend.dto.DrawingDtos.VersionRequest;
-import com.example.backend.service.MangakaDrawingService;
+import com.example.backend.service.DrawingService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
 import jakarta.validation.Valid;
@@ -27,9 +27,9 @@ import jakarta.validation.Valid;
 @PreAuthorize("hasRole('MANGAKA')")
 @SecurityRequirement(name = "Bearer Authentication")
 public class MangakaDrawingController {
-    private final MangakaDrawingService service;
+    private final DrawingService service;
 
-    public MangakaDrawingController(MangakaDrawingService service) {
+    public MangakaDrawingController(DrawingService service) {
         this.service = service;
     }
 
