@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { getPageDrawing, finalizeDrawing } from "../../services/drawingService";
+import { resolveImageUrl } from "../../utils/imageUrl";
 import CanvasMarkupTool from "../../components/CanvasMarkupTool";
 import "../styles/drawing.css";
 
@@ -12,9 +13,7 @@ export default function DrawingPage() {
   const [drawing, setDrawing] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const originalImageUrl = location.state?.originalImageUrl
-    ? `http://localhost:8080/covers/${location.state.originalImageUrl}`
-    : null;
+  const originalImageUrl = resolveImageUrl(location.state?.originalImageUrl);
 
   const currentBackgroundUrl = drawing?.previewImageUrl || originalImageUrl;
 
@@ -52,8 +51,8 @@ export default function DrawingPage() {
     } catch (error) {
       alert(
         "Lỗi khi chốt bản vẽ: " +
-        (error.response?.data?.message ||
-          "Phiên bản đã cũ, vui lòng tải lại trang."),
+          (error.response?.data?.message ||
+            "Phiên bản đã cũ, vui lòng tải lại trang."),
       );
     }
   };

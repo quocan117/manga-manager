@@ -24,14 +24,6 @@ export const getMySeries = async () => {
   return response.data;
 };
 
-export const createSeries = async (data) => {
-  const response = await axios.post(`${API_URL}/series`, data, {
-    headers: authHeader(),
-  });
-
-  return response.data;
-};
-
 export const submitSeriesReview = async (seriesId, storyboardUrl) => {
   const response = await axios.post(
     `${API_URL}/series/${seriesId}/submit`,
@@ -145,7 +137,11 @@ export const getChapterPages = async (chapterId) => {
 };
 
 export const createAssistant = async (assistantData) => {
-  const response = await axios.post(`${API_URL}/assistants`, assistantData, getAuthHeaders());
+  const response = await axios.post(
+    `${API_URL}/assistants`,
+    assistantData,
+    getAuthHeaders(),
+  );
   return response.data;
 };
 
@@ -153,5 +149,25 @@ export const getChapterById = async (chapterId) => {
   const response = await axios.get(`${API_URL}/chapters/${chapterId}`, {
     headers: authHeader(),
   });
+  return response.data;
+};
+
+export const createSeriesWithCoverUpload = async (form, coverImageFile) => {
+  const formData = new FormData();
+  formData.append("title", form.title);
+  form.genres.forEach((genre) => formData.append("genres", genre));
+  if (form.description) formData.append("description", form.description);
+  if (form.publicationType)
+    formData.append("publicationType", form.publicationType);
+  if (form.artStyle) formData.append("artStyle", form.artStyle);
+  if (coverImageFile) formData.append("coverImage", coverImageFile);
+
+  const response = await axios.post(`${API_URL}/series`, formData, {
+    headers: {
+      ...authHeader(),
+      "Content-Type": "multipart/form-data",
+    },
+  });
+
   return response.data;
 };

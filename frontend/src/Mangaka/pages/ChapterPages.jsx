@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getChapterPages, getChapterById } from "../../services/mangakaService";
+import { resolveImageUrl } from "../../utils/imageUrl";
 
 export default function ChapterPages() {
   const { chapterId } = useParams();
@@ -52,12 +53,11 @@ export default function ChapterPages() {
             <div className="col-md-3 mb-4" key={page.id}>
               <div className="card shadow-sm">
                 <img
-                  src={
-                    page.imageUrl
-                      ? `http://localhost:8080/covers/${page.imageUrl}`
-                      : "https://placehold.co/200x300?text=Trang+" +
-                        page.pageNumber
-                  }
+                  src={resolveImageUrl(
+                    page.imageUrl,
+                    "https://placehold.co/200x300?text=Trang+" +
+                      page.pageNumber,
+                  )}
                   className="card-img-top"
                   alt={`Page ${page.pageNumber}`}
                   style={{ height: "300px", objectFit: "cover" }}
@@ -70,7 +70,7 @@ export default function ChapterPages() {
                     className="btn btn-primary w-100"
                     onClick={() =>
                       navigate(`/mangaka/pages/${page.id}/drawing`, {
-                        state: { originalImageUrl: page.imageUrl }, 
+                        state: { originalImageUrl: page.imageUrl },
                       })
                     }
                   >
