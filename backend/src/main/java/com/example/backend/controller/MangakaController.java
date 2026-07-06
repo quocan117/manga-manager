@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.example.backend.dto.ChapterRevisionNoteResponse;
 import com.example.backend.dto.MangakaDtos.AssignTaskRequest;
 import com.example.backend.dto.MangakaDtos.AssistantResponse;
 import com.example.backend.dto.MangakaDtos.CreateAssistantRequest;
@@ -30,6 +31,7 @@ import com.example.backend.dto.MangakaDtos.RankingResponse;
 import com.example.backend.dto.MangakaDtos.ReviewSubmissionRequest;
 import com.example.backend.dto.MangakaDtos.SeriesResponse;
 import com.example.backend.dto.MangakaDtos.SubmissionResponse;
+import com.example.backend.dto.MangakaDtos.SubmitChapterToEditorRequest;
 import com.example.backend.dto.MangakaDtos.SubmitSeriesReviewRequest;
 import com.example.backend.dto.MangakaDtos.TaskResponse;
 import com.example.backend.service.MangakaService;
@@ -114,6 +116,18 @@ public class MangakaController {
     @GetMapping("/chapters/{chapterId}")
     public ChapterResponse getChapter(@PathVariable Long chapterId) {
         return service.getChapter(chapterId);
+    }
+
+    @PatchMapping("/chapters/{chapterId}/submit-to-editor")
+    public ChapterResponse submitChapterToEditor(
+            @PathVariable Long chapterId,
+            @Valid @RequestBody SubmitChapterToEditorRequest request) {
+        return service.submitChapterToEditor(chapterId, request);
+    }
+
+    @GetMapping("/chapters/{chapterId}/revision-notes")
+    public List<ChapterRevisionNoteResponse> getChapterRevisionNotes(@PathVariable Long chapterId) {
+        return service.getChapterRevisionNotes(chapterId);
     }
 
     @GetMapping("/assistants")

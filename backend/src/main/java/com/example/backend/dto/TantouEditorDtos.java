@@ -35,6 +35,7 @@ public final class TantouEditorDtos {
             Long id,
             Integer chapterNumber,
             String title,
+            String manuscriptUrl,
             String status,
             LocalDateTime releaseDate,
             List<PageManuscriptResponse> pages) {

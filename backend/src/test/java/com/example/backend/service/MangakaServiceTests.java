@@ -38,6 +38,7 @@ import com.example.backend.dto.MangakaDtos.AssignTaskRequest;
 import com.example.backend.dto.MangakaDtos.CreateAssistantRequest;
 import com.example.backend.dto.MangakaDtos.CreateSeriesRequest;
 import com.example.backend.dto.MangakaDtos.ReviewSubmissionRequest;
+import com.example.backend.dto.MangakaDtos.SubmitChapterToEditorRequest;
 import com.example.backend.dto.MangakaDtos.SubmitSeriesReviewRequest;
 import com.example.backend.model.Chapter;
 import com.example.backend.model.ChapterPage;
@@ -49,6 +50,7 @@ import com.example.backend.model.Task;
 import com.example.backend.model.User;
 import com.example.backend.repository.ChapterPageRepository;
 import com.example.backend.repository.ChapterRepository;
+import com.example.backend.repository.ChapterRevisionNoteRepository;
 import com.example.backend.repository.MangaSeriesRepository;
 import com.example.backend.repository.NotificationRepository;
 import com.example.backend.repository.RoleRepository;
@@ -71,6 +73,8 @@ class MangakaServiceTests {
     private MangaSeriesRepository mangaSeriesRepository;
     @Mock
     private ChapterRepository chapterRepository;
+    @Mock
+    private ChapterRevisionNoteRepository chapterRevisionNoteRepository;
     @Mock
     private ChapterPageRepository chapterPageRepository;
     @Mock
@@ -270,6 +274,39 @@ class MangakaServiceTests {
         assertEquals(1, response.size());
         assertEquals(30L, response.get(0).id());
         assertEquals(1, response.get(0).chapterNumber());
+    }
+
+    @Test
+    void submitChapterToEditorStoresManuscriptAndNotifiesAssignedEditor() {
+        User mangaka = user(1L, EMAIL);
+        User editor = tantouEditor(3L, "editor@manga.test");
+        MangaSeries series = new MangaSeries();
+        series.setSeriesId(20L);
+        series.setAuthor(mangaka);
+        series.setTantouEditor(editor);
+        Chapter chapter = new Chapter();
+        chapter.setChapterId(30L);
+        chapter.setSeries(series);
+        chapter.setTitle("Chapter 1");
+        chapter.setStatus("DRAFT");
+
+        when(chapterRepository.findById(30L)).thenReturn(Optional.of(chapter));
+        when(chapterRepository.save(chapter)).thenReturn(chapter);
+
+        var response = service.submitChapterToEditor(
+                30L,
+                new SubmitChapterToEditorRequest("drive/chapter-1.psd"));
+
+        assertEquals("SUBMITTED_TO_EDITOR", chapter.getStatus());
+        assertEquals("drive/chapter-1.psd", chapter.getManuscriptUrl());
+        assertEquals("drive/chapter-1.psd", response.manuscriptUrl());
+
+        ArgumentCaptor<Notification> notificationCaptor = ArgumentCaptor.forClass(Notification.class);
+        verify(notificationRepository).save(notificationCaptor.capture());
+        Notification notification = notificationCaptor.getValue();
+        assertEquals(editor, notification.getUser());
+        assertEquals("NEW_CHAPTER_SUBMISSION", notification.getType());
+        assertEquals(30L, notification.getReferenceId());
     }
 
     @Test

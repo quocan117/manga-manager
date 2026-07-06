@@ -26,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.example.backend.dto.ChapterRevisionNoteResponse;
 import com.example.backend.dto.MangakaDtos.AssignTaskRequest;
 import com.example.backend.dto.MangakaDtos.AssistantResponse;
 import com.example.backend.dto.MangakaDtos.CreateAssistantRequest;
@@ -39,10 +40,12 @@ import com.example.backend.dto.MangakaDtos.RankingResponse;
 import com.example.backend.dto.MangakaDtos.ReviewSubmissionRequest;
 import com.example.backend.dto.MangakaDtos.SeriesResponse;
 import com.example.backend.dto.MangakaDtos.SubmissionResponse;
+import com.example.backend.dto.MangakaDtos.SubmitChapterToEditorRequest;
 import com.example.backend.dto.MangakaDtos.SubmitSeriesReviewRequest;
 import com.example.backend.dto.MangakaDtos.TaskResponse;
 import com.example.backend.model.Chapter;
 import com.example.backend.model.ChapterPage;
+import com.example.backend.model.ChapterRevisionNote;
 import com.example.backend.model.MangaSeries;
 import com.example.backend.model.Notification;
 import com.example.backend.model.Role;
@@ -51,6 +54,7 @@ import com.example.backend.model.Task;
 import com.example.backend.model.User;
 import com.example.backend.repository.ChapterPageRepository;
 import com.example.backend.repository.ChapterRepository;
+import com.example.backend.repository.ChapterRevisionNoteRepository;
 import com.example.backend.repository.MangaSeriesRepository;
 import com.example.backend.repository.NotificationRepository;
 import com.example.backend.repository.RoleRepository;
@@ -66,8 +70,10 @@ public class MangakaService {
     private static final String ASSISTANT_ROLE = "ASSISTANT";
     private static final String TANTOU_EDITOR_ROLE = "TANTOU_EDITOR";
     private static final String ACTIVE_STATUS = "ACTIVE";
+    private static final String SUBMITTED_TO_EDITOR_STATUS = "SUBMITTED_TO_EDITOR";
     private static final String TANTOU_REVIEW_STATUS = "TANTOU_REVIEW";
     private static final String REVISION_REQUESTED_STATUS = "REVISION_REQUESTED";
+    private static final String PUBLISHED_STATUS = "PUBLISHED";
     private static final Set<String> TANTOU_WORKLOAD_STATUSES = Set.of(
             "DRAFT", TANTOU_REVIEW_STATUS, REVISION_REQUESTED_STATUS);
     private static final long MAX_PAGE_IMAGE_SIZE_BYTES = 5L * 1024 * 1024;
@@ -86,6 +92,7 @@ public class MangakaService {
     private final PasswordEncoder passwordEncoder;
     private final MangaSeriesRepository mangaSeriesRepository;
     private final ChapterRepository chapterRepository;
+    private final ChapterRevisionNoteRepository chapterRevisionNoteRepository;
     private final ChapterPageRepository chapterPageRepository;
     private final TaskRepository taskRepository;
     private final SubmissionRepository submissionRepository;
@@ -104,6 +111,7 @@ public class MangakaService {
             PasswordEncoder passwordEncoder,
             MangaSeriesRepository mangaSeriesRepository,
             ChapterRepository chapterRepository,
+            ChapterRevisionNoteRepository chapterRevisionNoteRepository,
             ChapterPageRepository chapterPageRepository,
             TaskRepository taskRepository,
             SubmissionRepository submissionRepository,
@@ -114,6 +122,7 @@ public class MangakaService {
         this.passwordEncoder = passwordEncoder;
         this.mangaSeriesRepository = mangaSeriesRepository;
         this.chapterRepository = chapterRepository;
+        this.chapterRevisionNoteRepository = chapterRevisionNoteRepository;
         this.chapterPageRepository = chapterPageRepository;
         this.taskRepository = taskRepository;
         this.submissionRepository = submissionRepository;
@@ -314,6 +323,48 @@ public class MangakaService {
     public ChapterResponse getChapter(Long chapterId) {
         Chapter chapter = ownedChapter(chapterId);
         return toChapterResponse(chapter);
+    }
+
+    @Transactional
+    public ChapterResponse submitChapterToEditor(Long chapterId, SubmitChapterToEditorRequest request) {
+        Chapter chapter = ownedChapter(chapterId);
+        if (PUBLISHED_STATUS.equalsIgnoreCase(chapter.getStatus())) {
+            throw badRequest("Published chapters cannot be submitted again");
+        }
+
+        MangaSeries series = chapter.getSeries();
+        User editor = series == null ? null : series.getTantouEditor();
+        if (editor == null) {
+            throw conflict("This series has no assigned tantou editor");
+        }
+
+        String manuscriptUrl = blankToNull(request.manuscriptUrl());
+        if (manuscriptUrl == null) {
+            throw badRequest("manuscriptUrl is required");
+        }
+
+        if (REVISION_REQUESTED_STATUS.equalsIgnoreCase(chapter.getStatus())) {
+            chapterRevisionNoteRepository.deleteByChapterChapterId(chapterId);
+        }
+
+        chapter.setManuscriptUrl(manuscriptUrl);
+        chapter.setStatus(SUBMITTED_TO_EDITOR_STATUS);
+        Chapter savedChapter = chapterRepository.save(chapter);
+        notify(
+                editor,
+                "NEW_CHAPTER_SUBMISSION",
+                savedChapter.getChapterId(),
+                "New chapter submitted: " + savedChapter.getTitle());
+        return toChapterResponse(savedChapter);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ChapterRevisionNoteResponse> getChapterRevisionNotes(Long chapterId) {
+        ownedChapter(chapterId);
+        return chapterRevisionNoteRepository.findByChapterChapterIdOrderByOrderIndexAscCreatedAtAsc(chapterId)
+                .stream()
+                .map(this::toChapterRevisionNoteResponse)
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -559,7 +610,17 @@ public class MangakaService {
     private ChapterResponse toChapterResponse(Chapter chapter) {
         return new ChapterResponse(
                 chapter.getChapterId(), chapter.getSeries().getSeriesId(), chapter.getChapterNumber(),
-                chapter.getTitle(), chapter.getStatus(), chapter.getCreatedAt());
+                chapter.getTitle(), chapter.getManuscriptUrl(), chapter.getStatus(), chapter.getCreatedAt());
+    }
+
+    private ChapterRevisionNoteResponse toChapterRevisionNoteResponse(ChapterRevisionNote note) {
+        Chapter chapter = note.getChapter();
+        return new ChapterRevisionNoteResponse(
+                note.getNoteId(),
+                chapter == null ? null : chapter.getChapterId(),
+                note.getImageUrl(),
+                note.getOrderIndex(),
+                note.getCreatedAt());
     }
 
     private PageResponse toPageResponse(ChapterPage page) {

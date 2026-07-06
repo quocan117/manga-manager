@@ -1,10 +1,15 @@
 package com.example.backend.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -13,16 +18,22 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import com.example.backend.dto.TantouEditorDtos.CommentRequest;
 import com.example.backend.dto.TantouEditorDtos.ScheduleRequest;
 import com.example.backend.model.Chapter;
 import com.example.backend.model.ChapterPage;
+import com.example.backend.model.ChapterRevisionNote;
 import com.example.backend.model.MangaSeries;
+import com.example.backend.model.Notification;
 import com.example.backend.model.PublishSchedule;
 import com.example.backend.model.ReviewComment;
 import com.example.backend.model.Task;
@@ -30,6 +41,7 @@ import com.example.backend.model.User;
 import com.example.backend.repository.BoardDecisionRepository;
 import com.example.backend.repository.ChapterPageRepository;
 import com.example.backend.repository.ChapterRepository;
+import com.example.backend.repository.ChapterRevisionNoteRepository;
 import com.example.backend.repository.MangaSeriesRepository;
 import com.example.backend.repository.NotificationRepository;
 import com.example.backend.repository.PublishScheduleRepository;
@@ -46,6 +58,8 @@ class TantouEditorServiceTests {
     private MangaSeriesRepository mangaSeriesRepository;
     @Mock
     private ChapterRepository chapterRepository;
+    @Mock
+    private ChapterRevisionNoteRepository chapterRevisionNoteRepository;
     @Mock
     private ChapterPageRepository pageRepository;
     @Mock
@@ -72,6 +86,7 @@ class TantouEditorServiceTests {
         service = new TantouEditorService(
                 mangaSeriesRepository,
                 chapterRepository,
+                chapterRevisionNoteRepository,
                 pageRepository,
                 commentRepository,
                 scheduleRepository,
@@ -88,6 +103,90 @@ class TantouEditorServiceTests {
     @AfterEach
     void clearSecurityContext() {
         SecurityContextHolder.clearContext();
+    }
+
+    @Test
+    void listsPendingChapterReviewsForCurrentEditor() {
+        MangaSeries series = series(10L);
+        Chapter chapter = chapter(11L, series);
+        chapter.setManuscriptUrl("drive/chapter-11.psd");
+        chapter.setStatus("SUBMITTED_TO_EDITOR");
+        when(chapterRepository.findBySeriesTantouEditorEmailAndStatusIgnoreCaseOrderByCreatedAtDesc(
+                EMAIL, "SUBMITTED_TO_EDITOR")).thenReturn(List.of(chapter));
+        when(pageRepository.findByChapterChapterIdOrderByPageNumberAsc(11L)).thenReturn(List.of());
+
+        var response = service.getPendingChapterReviews();
+
+        assertEquals(1, response.size());
+        assertEquals(11L, response.get(0).id());
+        assertEquals("drive/chapter-11.psd", response.get(0).manuscriptUrl());
+    }
+
+    @Test
+    void createsChapterRevisionNoteWithUploadedImage(@TempDir Path tempDir) {
+        ReflectionTestUtils.setField(service, "chapterRevisionNoteUploadRootOverride", tempDir.toString());
+        User editor = user(1L, EMAIL);
+        MangaSeries series = series(10L);
+        Chapter chapter = chapter(11L, series);
+        MockMultipartFile image = new MockMultipartFile(
+                "image", "revision.png", "image/png", "revision image".getBytes(StandardCharsets.UTF_8));
+        when(chapterRepository.findById(11L)).thenReturn(Optional.of(chapter));
+        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(editor));
+        when(chapterRevisionNoteRepository.save(any(ChapterRevisionNote.class))).thenAnswer(invocation -> {
+            ChapterRevisionNote note = invocation.getArgument(0);
+            note.setNoteId(90L);
+            return note;
+        });
+
+        var response = service.createChapterRevisionNote(11L, image, "{\"objects\":[]}", 2);
+
+        assertEquals(90L, response.id());
+        assertEquals(11L, response.chapterId());
+        assertEquals(2, response.orderIndex());
+        assertTrue(response.imageUrl().startsWith("chapter-revision-notes/chapter-11/"));
+        String savedFileName = Path.of(response.imageUrl()).getFileName().toString();
+        assertTrue(Files.exists(tempDir.resolve("chapter-11").resolve(savedFileName)));
+    }
+
+    @Test
+    void requestChapterRevisionNotifiesMangaka() {
+        MangaSeries series = series(10L);
+        Chapter chapter = chapter(11L, series);
+        chapter.setStatus("SUBMITTED_TO_EDITOR");
+        when(chapterRepository.findById(11L)).thenReturn(Optional.of(chapter));
+        when(chapterRepository.save(chapter)).thenReturn(chapter);
+        when(pageRepository.findByChapterChapterIdOrderByPageNumberAsc(11L)).thenReturn(List.of());
+
+        var response = service.requestChapterRevision(11L);
+
+        assertEquals("REVISION_REQUESTED", response.status());
+        ArgumentCaptor<Notification> notificationCaptor = ArgumentCaptor.forClass(Notification.class);
+        verify(notificationRepository).save(notificationCaptor.capture());
+        Notification notification = notificationCaptor.getValue();
+        assertEquals(series.getAuthor(), notification.getUser());
+        assertEquals("CHAPTER_REVISION_REQUESTED", notification.getType());
+        assertEquals(11L, notification.getReferenceId());
+    }
+
+    @Test
+    void publishChapterSetsReleaseDateAndNotifiesMangaka() {
+        MangaSeries series = series(10L);
+        Chapter chapter = chapter(11L, series);
+        chapter.setStatus("SUBMITTED_TO_EDITOR");
+        when(chapterRepository.findById(11L)).thenReturn(Optional.of(chapter));
+        when(chapterRepository.save(chapter)).thenReturn(chapter);
+        when(pageRepository.findByChapterChapterIdOrderByPageNumberAsc(11L)).thenReturn(List.of());
+
+        var response = service.publishChapter(11L);
+
+        assertEquals("PUBLISHED", response.status());
+        assertNotNull(chapter.getReleaseDate());
+        ArgumentCaptor<Notification> notificationCaptor = ArgumentCaptor.forClass(Notification.class);
+        verify(notificationRepository).save(notificationCaptor.capture());
+        Notification notification = notificationCaptor.getValue();
+        assertEquals(series.getAuthor(), notification.getUser());
+        assertEquals("CHAPTER_PUBLISHED", notification.getType());
+        assertEquals(11L, notification.getReferenceId());
     }
 
     @Test

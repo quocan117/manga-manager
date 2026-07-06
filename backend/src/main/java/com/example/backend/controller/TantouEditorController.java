@@ -3,6 +3,7 @@ package com.example.backend.controller;
 import java.util.List;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -16,8 +17,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
+import com.example.backend.dto.ChapterRevisionNoteResponse;
 import com.example.backend.dto.MangakaDtos.NotificationResponse;
+import com.example.backend.dto.TantouEditorDtos.ChapterManuscriptResponse;
 import com.example.backend.dto.TantouEditorDtos.CommentRequest;
 import com.example.backend.dto.TantouEditorDtos.CommentResponse;
 import com.example.backend.dto.TantouEditorDtos.DossierResponse;
@@ -52,6 +56,36 @@ public class TantouEditorController {
     @GetMapping("/series/pending-editorial-review")
     public List<SeriesSummaryResponse> getPendingEditorialReviewSeries() {
         return service.getPendingEditorialReviewSeries();
+    }
+
+    @GetMapping("/chapters/pending-review")
+    public List<ChapterManuscriptResponse> getPendingChapterReviews() {
+        return service.getPendingChapterReviews();
+    }
+
+    @GetMapping("/chapters/{chapterId}")
+    public ChapterManuscriptResponse getChapter(@PathVariable Long chapterId) {
+        return service.getChapter(chapterId);
+    }
+
+    @PostMapping(value = "/chapters/{chapterId}/revision-notes", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @ResponseStatus(HttpStatus.CREATED)
+    public ChapterRevisionNoteResponse createChapterRevisionNote(
+            @PathVariable Long chapterId,
+            @RequestParam("image") MultipartFile image,
+            @RequestParam(required = false) String canvasData,
+            @RequestParam Integer orderIndex) {
+        return service.createChapterRevisionNote(chapterId, image, canvasData, orderIndex);
+    }
+
+    @PostMapping("/chapters/{chapterId}/request-revision")
+    public ChapterManuscriptResponse requestChapterRevision(@PathVariable Long chapterId) {
+        return service.requestChapterRevision(chapterId);
+    }
+
+    @PostMapping("/chapters/{chapterId}/publish")
+    public ChapterManuscriptResponse publishChapter(@PathVariable Long chapterId) {
+        return service.publishChapter(chapterId);
     }
 
     @GetMapping("/series/{seriesId}/manuscript")

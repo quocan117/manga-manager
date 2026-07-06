@@ -16,6 +16,9 @@ public class WebMvcConfig implements WebMvcConfigurer {
     @Value("${manga.upload.cover-image-root:uploads/covers}")
     private String coverImageUploadRoot;
 
+    @Value("${manga.upload.chapter-revision-note-root:uploads/chapter-revision-notes}")
+    private String chapterRevisionNoteUploadRoot;
+
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         String uploadPath = Path.of(pageImageUploadRoot)
@@ -41,5 +44,17 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
         registry.addResourceHandler("/covers/series/**")
                 .addResourceLocations(coverUploadPath);
+
+        String chapterRevisionNoteUploadPath = Path.of(chapterRevisionNoteUploadRoot)
+                .toAbsolutePath()
+                .normalize()
+                .toUri()
+                .toString();
+        if (!chapterRevisionNoteUploadPath.endsWith("/")) {
+            chapterRevisionNoteUploadPath = chapterRevisionNoteUploadPath + "/";
+        }
+
+        registry.addResourceHandler("/covers/chapter-revision-notes/**")
+                .addResourceLocations(chapterRevisionNoteUploadPath);
     }
 }

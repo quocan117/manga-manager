@@ -11,5 +11,8 @@ public interface ChapterRepository extends JpaRepository<Chapter, Long> {
     List<Chapter> findBySeriesSeriesIdAndStatusIgnoreCaseOrderByChapterNumberAsc(
             Long seriesId, String status);
 
+    List<Chapter> findBySeriesTantouEditorEmailAndStatusIgnoreCaseOrderByCreatedAtDesc(
+            String email, String status);
+
     boolean existsBySeriesSeriesIdAndChapterNumber(Long seriesId, Integer chapterNumber);
 }

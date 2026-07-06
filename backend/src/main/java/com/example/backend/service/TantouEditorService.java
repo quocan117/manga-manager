@@ -1,20 +1,29 @@
 package com.example.backend.service;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Stream;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.example.backend.dto.ChapterRevisionNoteResponse;
 import com.example.backend.dto.MangakaDtos.NotificationResponse;
 import com.example.backend.dto.TantouEditorDtos.BoardDecisionResponse;
 import com.example.backend.dto.TantouEditorDtos.ChapterManuscriptResponse;
@@ -30,6 +39,7 @@ import com.example.backend.dto.TantouEditorDtos.SeriesSummaryResponse;
 import com.example.backend.model.BoardDecision;
 import com.example.backend.model.Chapter;
 import com.example.backend.model.ChapterPage;
+import com.example.backend.model.ChapterRevisionNote;
 import com.example.backend.model.MangaSeries;
 import com.example.backend.model.PublishSchedule;
 import com.example.backend.model.ReviewComment;
@@ -39,6 +49,7 @@ import com.example.backend.model.Notification;
 import com.example.backend.repository.BoardDecisionRepository;
 import com.example.backend.repository.ChapterPageRepository;
 import com.example.backend.repository.ChapterRepository;
+import com.example.backend.repository.ChapterRevisionNoteRepository;
 import com.example.backend.repository.MangaSeriesRepository;
 import com.example.backend.repository.PublishScheduleRepository;
 import com.example.backend.repository.ReviewCommentRepository;
@@ -56,9 +67,17 @@ public class TantouEditorService {
     private static final String TANTOU_REVIEW_STATUS = "TANTOU_REVIEW";
     private static final String BOARD_REVIEW_STATUS = "REVIEWING";
     private static final String REVISION_REQUESTED_STATUS = "REVISION_REQUESTED";
+    private static final String SUBMITTED_TO_EDITOR_STATUS = "SUBMITTED_TO_EDITOR";
+    private static final String PUBLISHED_STATUS = "PUBLISHED";
+    private static final long MAX_REVISION_NOTE_IMAGE_SIZE_BYTES = 5L * 1024 * 1024;
+    private static final Set<String> REVISION_NOTE_IMAGE_CONTENT_TYPES = Set.of(
+            "image/jpeg", "image/png", "image/webp", "image/gif");
+    private static final Set<String> REVISION_NOTE_IMAGE_EXTENSIONS = Set.of(
+            ".jpg", ".jpeg", ".png", ".webp", ".gif");
 
     private final MangaSeriesRepository mangaSeriesRepository;
     private final ChapterRepository chapterRepository;
+    private final ChapterRevisionNoteRepository chapterRevisionNoteRepository;
     private final ChapterPageRepository pageRepository;
     private final ReviewCommentRepository commentRepository;
     private final PublishScheduleRepository scheduleRepository;
@@ -69,9 +88,13 @@ public class TantouEditorService {
     private final NotificationRepository notificationRepository;
     private final MangakaService mangakaService;
 
+    @Value("${manga.upload.chapter-revision-note-root:}")
+    private String chapterRevisionNoteUploadRootOverride;
+
     public TantouEditorService(
             MangaSeriesRepository mangaSeriesRepository,
             ChapterRepository chapterRepository,
+            ChapterRevisionNoteRepository chapterRevisionNoteRepository,
             ChapterPageRepository pageRepository,
             ReviewCommentRepository commentRepository,
             PublishScheduleRepository scheduleRepository,
@@ -83,6 +106,7 @@ public class TantouEditorService {
             MangakaService mangakaService) {
         this.mangaSeriesRepository = mangaSeriesRepository;
         this.chapterRepository = chapterRepository;
+        this.chapterRevisionNoteRepository = chapterRevisionNoteRepository;
         this.pageRepository = pageRepository;
         this.commentRepository = commentRepository;
         this.scheduleRepository = scheduleRepository;
@@ -280,6 +304,71 @@ public class TantouEditorService {
         return buildProgress(series(seriesId));
     }
 
+    @Transactional(readOnly = true)
+    public List<ChapterManuscriptResponse> getPendingChapterReviews() {
+        return chapterRepository.findBySeriesTantouEditorEmailAndStatusIgnoreCaseOrderByCreatedAtDesc(
+                currentEmail(), SUBMITTED_TO_EDITOR_STATUS)
+                .stream()
+                .map(this::toChapterManuscript)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public ChapterManuscriptResponse getChapter(Long chapterId) {
+        return toChapterManuscript(chapterForCurrentEditor(chapterId));
+    }
+
+    @Transactional
+    public ChapterRevisionNoteResponse createChapterRevisionNote(
+            Long chapterId,
+            MultipartFile image,
+            String canvasData,
+            Integer orderIndex) {
+        Chapter chapter = chapterForCurrentEditor(chapterId);
+        validateRevisionNoteImage(image);
+        if (orderIndex == null || orderIndex < 0) {
+            throw badRequest("orderIndex must be zero or greater");
+        }
+
+        ChapterRevisionNote note = new ChapterRevisionNote();
+        note.setChapter(chapter);
+        note.setEditor(currentUser());
+        note.setImageUrl(storeChapterRevisionNoteImage(chapterId, orderIndex, image));
+        note.setCanvasData(blankToNull(canvasData));
+        note.setOrderIndex(orderIndex);
+        note.setCreatedAt(LocalDateTime.now());
+        return toChapterRevisionNoteResponse(chapterRevisionNoteRepository.save(note));
+    }
+
+    @Transactional
+    public ChapterManuscriptResponse requestChapterRevision(Long chapterId) {
+        Chapter chapter = chapterForCurrentEditor(chapterId);
+        if (!SUBMITTED_TO_EDITOR_STATUS.equalsIgnoreCase(chapter.getStatus())) {
+            throw badRequest("Only submitted chapters can be returned for revision");
+        }
+        chapter.setStatus(REVISION_REQUESTED_STATUS);
+        Chapter savedChapter = chapterRepository.save(chapter);
+        MangaSeries series = savedChapter.getSeries();
+        notify(series == null ? null : series.getAuthor(), "CHAPTER_REVISION_REQUESTED", savedChapter.getChapterId(),
+                "Chapter revision requested: " + savedChapter.getTitle());
+        return toChapterManuscript(savedChapter);
+    }
+
+    @Transactional
+    public ChapterManuscriptResponse publishChapter(Long chapterId) {
+        Chapter chapter = chapterForCurrentEditor(chapterId);
+        if (!SUBMITTED_TO_EDITOR_STATUS.equalsIgnoreCase(chapter.getStatus())) {
+            throw badRequest("Only submitted chapters can be published");
+        }
+        chapter.setStatus(PUBLISHED_STATUS);
+        chapter.setReleaseDate(LocalDateTime.now());
+        Chapter savedChapter = chapterRepository.save(chapter);
+        MangaSeries series = savedChapter.getSeries();
+        notify(series == null ? null : series.getAuthor(), "CHAPTER_PUBLISHED", savedChapter.getChapterId(),
+                "Chapter published: " + savedChapter.getTitle());
+        return toChapterManuscript(savedChapter);
+    }
+
     private static final List<String> ASSIGNMENT_NOTIFICATION_TYPES =
             Arrays.asList("NEW_ASSIGNMENT", "SYSTEM_ASSIGNMENT");
 
@@ -404,6 +493,7 @@ public class TantouEditorService {
                 chapter.getChapterId(),
                 chapter.getChapterNumber(),
                 chapter.getTitle(),
+                chapter.getManuscriptUrl(),
                 chapter.getStatus(),
                 chapter.getReleaseDate(),
                 pages);
@@ -575,11 +665,32 @@ public class TantouEditorService {
                 decision.getDecisionDate());
     }
 
+    private ChapterRevisionNoteResponse toChapterRevisionNoteResponse(ChapterRevisionNote note) {
+        Chapter chapter = note.getChapter();
+        return new ChapterRevisionNoteResponse(
+                note.getNoteId(),
+                chapter == null ? null : chapter.getChapterId(),
+                note.getImageUrl(),
+                note.getOrderIndex(),
+                note.getCreatedAt());
+    }
+
     private MangaSeries series(Long seriesId) {
         MangaSeries series = mangaSeriesRepository.findById(seriesId)
                 .orElseThrow(() -> notFound("Manga series not found"));
         assertVisibleToCurrentEditor(series);
         return series;
+    }
+
+    private Chapter chapterForCurrentEditor(Long chapterId) {
+        Chapter chapter = chapterRepository.findById(chapterId)
+                .orElseThrow(() -> notFound("Chapter not found"));
+        MangaSeries series = chapter.getSeries();
+        User editor = series == null ? null : series.getTantouEditor();
+        if (editor == null || !currentEmail().equalsIgnoreCase(editor.getEmail())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You are not assigned to this chapter");
+        }
+        return chapter;
     }
 
     private ChapterPage page(Long pageId) {
@@ -590,6 +701,75 @@ public class TantouEditorService {
             assertVisibleToCurrentEditor(chapter.getSeries());
         }
         return page;
+    }
+
+    private String storeChapterRevisionNoteImage(Long chapterId, Integer orderIndex, MultipartFile image) {
+        Path uploadRoot = chapterRevisionNoteUploadRoot().resolve("chapter-" + chapterId).normalize();
+        try {
+            Files.createDirectories(uploadRoot);
+        } catch (IOException exception) {
+            throw new ResponseStatusException(
+                    HttpStatus.INTERNAL_SERVER_ERROR, "Could not create chapter revision note folder", exception);
+        }
+
+        String fileName = chapterRevisionNoteImageFileName(chapterId, orderIndex, image.getOriginalFilename());
+        Path target = uploadRoot.resolve(fileName).normalize();
+        if (!target.startsWith(uploadRoot)) {
+            throw badRequest("Invalid image file name");
+        }
+
+        try (InputStream inputStream = image.getInputStream()) {
+            Files.copy(inputStream, target, StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException exception) {
+            throw new ResponseStatusException(
+                    HttpStatus.INTERNAL_SERVER_ERROR, "Could not save chapter revision note image", exception);
+        }
+
+        return "chapter-revision-notes/chapter-" + chapterId + "/" + fileName;
+    }
+
+    private void validateRevisionNoteImage(MultipartFile image) {
+        if (image == null || image.isEmpty()) {
+            throw badRequest("Image file cannot be empty");
+        }
+        if (image.getSize() > MAX_REVISION_NOTE_IMAGE_SIZE_BYTES) {
+            throw new ResponseStatusException(
+                    HttpStatus.PAYLOAD_TOO_LARGE, "Revision note image must be 5MB or smaller");
+        }
+
+        String contentType = image.getContentType();
+        if (contentType == null
+                || !REVISION_NOTE_IMAGE_CONTENT_TYPES.contains(contentType.toLowerCase(Locale.ROOT))) {
+            throw badRequest("Only JPG, PNG, WEBP, or GIF images are allowed");
+        }
+    }
+
+    private String chapterRevisionNoteImageFileName(Long chapterId, Integer orderIndex, String originalFilename) {
+        String extension = fileExtension(originalFilename);
+        if (!REVISION_NOTE_IMAGE_EXTENSIONS.contains(extension)) {
+            throw badRequest("Only JPG, PNG, WEBP, or GIF images are allowed");
+        }
+        String indexPart = orderIndex == null ? "unindexed" : orderIndex.toString();
+        return "chapter-" + chapterId + "-revision-" + indexPart + "-" + UUID.randomUUID() + extension;
+    }
+
+    private String fileExtension(String originalFilename) {
+        if (originalFilename == null || originalFilename.isBlank()) {
+            throw badRequest("Image file name is required");
+        }
+        int extensionIndex = originalFilename.lastIndexOf('.');
+        if (extensionIndex < 0 || extensionIndex == originalFilename.length() - 1) {
+            throw badRequest("Image file extension is required");
+        }
+        return originalFilename.substring(extensionIndex).toLowerCase(Locale.ROOT);
+    }
+
+    private Path chapterRevisionNoteUploadRoot() {
+        if (chapterRevisionNoteUploadRootOverride != null && !chapterRevisionNoteUploadRootOverride.isBlank()) {
+            return Path.of(chapterRevisionNoteUploadRootOverride).toAbsolutePath().normalize();
+        }
+
+        return Path.of("uploads/chapter-revision-notes").toAbsolutePath().normalize();
     }
 
     private void assertVisibleToCurrentEditor(MangaSeries series) {
@@ -623,6 +803,13 @@ public class TantouEditorService {
     private String blankToDefault(String value, String defaultValue) {
         if (value == null || value.isBlank()) {
             return defaultValue;
+        }
+        return value.trim();
+    }
+
+    private String blankToNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
         }
         return value.trim();
     }
