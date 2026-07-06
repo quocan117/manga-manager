@@ -43,6 +43,7 @@ import com.example.backend.dto.MangakaDtos.SubmissionResponse;
 import com.example.backend.dto.MangakaDtos.SubmitChapterToEditorRequest;
 import com.example.backend.dto.MangakaDtos.SubmitSeriesReviewRequest;
 import com.example.backend.dto.MangakaDtos.TaskResponse;
+import com.example.backend.dto.MangakaDtos.UpdateAssistantStatusRequest;
 import com.example.backend.model.Chapter;
 import com.example.backend.model.ChapterPage;
 import com.example.backend.model.ChapterRevisionNote;
@@ -70,6 +71,9 @@ public class MangakaService {
     private static final String ASSISTANT_ROLE = "ASSISTANT";
     private static final String TANTOU_EDITOR_ROLE = "TANTOU_EDITOR";
     private static final String ACTIVE_STATUS = "ACTIVE";
+    private static final String INACTIVE_STATUS = "INACTIVE";
+    private static final String DELETED_STATUS = "DELETED";
+    private static final Set<String> ASSISTANT_STATUSES = Set.of(ACTIVE_STATUS, INACTIVE_STATUS);
     private static final String SUBMITTED_TO_EDITOR_STATUS = "SUBMITTED_TO_EDITOR";
     private static final String TANTOU_REVIEW_STATUS = "TANTOU_REVIEW";
     private static final String REVISION_REQUESTED_STATUS = "REVISION_REQUESTED";
@@ -369,11 +373,10 @@ public class MangakaService {
 
     @Transactional(readOnly = true)
     public List<AssistantResponse> getAvailableAssistants() {
-        return userRepository.findByRoleRoleNameAndStatusOrderByUsernameAsc(ASSISTANT_ROLE, ACTIVE_STATUS)
+        User mangaka = currentUser();
+        return userRepository.findByRoleRoleNameAndCreatedByOrderByUsernameAsc(ASSISTANT_ROLE, mangaka)
                 .stream()
-                .map(user -> new AssistantResponse(
-                        user.getUserId(), user.getUsername(), user.getEmail(), user.getStatus(),
-                        user.getCreatedAt(), user.getAvatarUrl()))
+                .map(this::toAssistantResponse)
                 .toList();
     }
 
@@ -407,6 +410,40 @@ public class MangakaService {
         assistant.setCreatedAt(LocalDateTime.now());
 
         return toAssistantResponse(userRepository.save(assistant));
+    }
+
+    @Transactional
+    public AssistantResponse updateAssistantStatus(Long assistantId, UpdateAssistantStatusRequest request) {
+        User assistant = ownedAssistant(assistantId);
+        String normalized = request.status() == null
+                ? ""
+                : request.status().trim().toUpperCase(Locale.ROOT);
+        if (!ASSISTANT_STATUSES.contains(normalized)) {
+            throw badRequest("Status must be ACTIVE or INACTIVE");
+        }
+        assistant.setStatus(normalized);
+        return toAssistantResponse(userRepository.save(assistant));
+    }
+
+    @Transactional
+    public AssistantResponse deleteAssistant(Long assistantId) {
+        User assistant = ownedAssistant(assistantId);
+        assistant.setStatus(DELETED_STATUS);
+        return toAssistantResponse(userRepository.save(assistant));
+    }
+
+    private User ownedAssistant(Long assistantId) {
+        User mangaka = currentUser();
+        User assistant = userRepository.findById(assistantId)
+                .orElseThrow(() -> notFound("Assistant not found"));
+        if (assistant.getRole() == null || !ASSISTANT_ROLE.equals(assistant.getRole().getRoleName())) {
+            throw badRequest("The selected user is not an assistant");
+        }
+        User createdBy = assistant.getCreatedBy();
+        if (createdBy == null || !createdBy.getUserId().equals(mangaka.getUserId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only manage assistants you created");
+        }
+        return assistant;
     }
 
     @Transactional
@@ -458,7 +495,7 @@ public class MangakaService {
     public List<TaskResponse> getChapterTasks(Long chapterId) {
         ownedChapter(chapterId);
         return taskRepository.findByChapterChapterIdAndAssignedByEmailOrderByCreatedAtDesc(
-                chapterId, currentEmail())
+                        chapterId, currentEmail())
                 .stream()
                 .map(this::toTaskResponse)
                 .toList();
@@ -578,9 +615,9 @@ public class MangakaService {
         List<String> genres = series.getGenre() == null || series.getGenre().isBlank()
                 ? List.of()
                 : Arrays.stream(series.getGenre().split(","))
-                        .map(String::trim)
-                        .filter(value -> !value.isBlank())
-                        .toList();
+                .map(String::trim)
+                .filter(value -> !value.isBlank())
+                .toList();
         return new SeriesResponse(
                 series.getSeriesId(), series.getTitle(), genres, series.getCoverImage(),
                 series.getDescription(), series.getStatus(), series.getStoryboardUrl(),
@@ -849,7 +886,6 @@ public class MangakaService {
                 candidates.add(editor);
             }
         }
-
         // Chọn ngẫu nhiên nếu có nhiều người cùng mức độ ưu tiên
         return candidates.get(new Random().nextInt(candidates.size()));
     }
