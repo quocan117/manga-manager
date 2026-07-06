@@ -19,6 +19,7 @@ B3(Optional): chạy query trong backend/database (Chỉ dùng khi có cập nh�
 5. ensure_large_image_columns<br>
 6. alter_text_columns_to_nvarchar_max<br>
 7. add_task_submission_original_file_urls<br>
+8. add_chapter_editor_review_flow<br>
 <h5><strong>Lưu ý: số lượng like sẽ khác nhau ở mỗi máy vì dùng %*00 + *0 </strong></h5>
 
 <h3>Tài khoản:</h3>
