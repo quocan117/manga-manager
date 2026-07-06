@@ -32,7 +32,6 @@ import AssistantNotification from "./Assistant/components/Notification";
 import TaskDetailPage from "./Assistant/pages/TaskDetailPage";
 import ChapterEditorSubmission from "./Mangaka/pages/ChapterEditorSubmission";
 import ChapterReviewPage from "./TantouEditor/pages/ChapterReviewPage";
-
 function App() {
   useEffect(() => {
     const trackGuestAccess = async () => {
@@ -57,7 +56,6 @@ function App() {
     };
     trackGuestAccess();
   }, []);
-
   return (
     <>
       <Routes>
@@ -72,7 +70,6 @@ function App() {
             </PrivateRoute>
           }
         />
-
         {/**Route Mangaka */}
         <Route
           path="/mangaka"
@@ -93,7 +90,6 @@ function App() {
           <Route path="chapters/:chapterId/editor-submission" element={<ChapterEditorSubmission />} />
           <Route path="manage-assistants" element={<ManageAssistants />} />
         </Route>
-
         {/**Route Editorial Board */}
         <Route
           path="/board"
@@ -108,7 +104,6 @@ function App() {
           <Route path="review" element={<ReviewSeriesPage />} />
           <Route path="manage-users" element={<ManageUsersPage />} />
         </Route>
-
         {/**Route Assistant */}
         <Route
           path="/assistant"
@@ -124,7 +119,6 @@ function App() {
           <Route path="tasks/:taskId" element={<TaskDetailPage />} />
           <Route path="notifications" element={<AssistantNotification />} />
         </Route>
-
         {/* Route tantou editor */}
         <Route
           path="/tantou"
@@ -144,5 +138,4 @@ function App() {
     </>
   );
 }
-
 export default App;

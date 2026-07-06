@@ -4,16 +4,13 @@ import {
   getNotifications,
   markNotificationRead, 
 } from "../../services/mangakaService";
-
 export default function Notification() {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const { refreshUnreadCount } = useOutletContext() || {}; 
-
   useEffect(() => {
     fetchNotifications();
   }, []);
-
   const fetchNotifications = async () => {
     try {
       const data = await getNotifications();
@@ -24,7 +21,6 @@ export default function Notification() {
       setLoading(false);
     }
   };
-
   const handleClick = async (notification) => {
     if (notification.isRead) return;
     try {
@@ -39,9 +35,7 @@ export default function Notification() {
       console.error("Lỗi khi đánh dấu đã đọc:", error);
     }
   };
-
   if (loading) return <div className="text-center mt-4">Loading...</div>;
-
   return (
     <div className="card shadow border-0">
       <div className="card-header bg-white d-flex justify-content-between align-items-center">
@@ -51,12 +45,10 @@ export default function Notification() {
           {notifications.filter((n) => !n.isRead).length} chưa đọc
         </span>
       </div>
-
       <div className="card-body">
         {notifications.length === 0 && (
           <div className="text-center text-muted">Không có thông báo nào</div>
         )}
-
         {notifications.map((notification) => (
           <div
             key={notification.id}

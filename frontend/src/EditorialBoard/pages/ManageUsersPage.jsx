@@ -6,7 +6,6 @@ import {
   deleteMangaka,
 } from "../../services/boardService";
 import "../styles/EditorialBoard.css";
-
 export default function ManageUsersPage() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -16,11 +15,9 @@ export default function ManageUsersPage() {
     password: "",
     role: "MANGAKA", 
   });
-
   useEffect(() => {
     fetchUsers();
   }, []);
-
   const fetchUsers = async () => {
     try {
       const data = await getUsers();
@@ -32,25 +29,21 @@ export default function ManageUsersPage() {
       console.error("Lỗi khi tải danh sách:", error);
     }
   };
-
   const handleChange = (e) => {
     setForm({
       ...form,
       [e.target.name]: e.target.value,
     });
   };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (form.password.length < 8) {
       alert("Mật khẩu phải có ít nhất 8 ký tự!");
       return;
     }
-
     try {
       setLoading(true);
       await createUser(form); 
-
       alert(`Tạo tài khoản ${form.role} thành công!`);
       setForm({ username: "", email: "", password: "", role: "MANGAKA" });
       fetchUsers();
@@ -65,7 +58,6 @@ export default function ManageUsersPage() {
       setLoading(false);
     }
   };
-
   const handleToggleStatus = async (id, currentStatus) => {
     const newStatus = currentStatus === "ACTIVE" ? "INACTIVE" : "ACTIVE";
     const actionText = newStatus === "ACTIVE" ? "MỞ KHÓA" : "KHÓA";
@@ -81,7 +73,6 @@ export default function ManageUsersPage() {
       }
     }
   };
-
   const handleDelete = async (id, username) => {
     if (
       window.confirm(`CẢNH BÁO: Bạn có chắc muốn XÓA tài khoản "${username}"?`)
@@ -97,11 +88,9 @@ export default function ManageUsersPage() {
       }
     }
   };
-
   return (
     <div className="tab-content" style={{ padding: "20px" }}>
       <h2 className="mb-4">👤 Quản Lý & Cấp Tài Khoản Hệ Thống</h2>
-
       <div className="card shadow mb-5" style={{ maxWidth: "600px" }}>
         <div className="card-header bg-primary text-white">
           Khởi Tạo Tài Khoản Mới
@@ -130,7 +119,6 @@ export default function ManageUsersPage() {
                 required
               />
             </div>
-
             <div className="mb-3">
               <label className="form-label">Loại tài khoản</label>
               <select
@@ -145,7 +133,6 @@ export default function ManageUsersPage() {
                 </option>
               </select>
             </div>
-
             <div className="mb-4">
               <label className="form-label">Mật khẩu cấp phát</label>
               <input
@@ -169,7 +156,6 @@ export default function ManageUsersPage() {
           </form>
         </div>
       </div>
-
       <h4 className="mb-3">Danh sách Người dùng</h4>
       <div className="card shadow">
         <div className="card-body p-0">

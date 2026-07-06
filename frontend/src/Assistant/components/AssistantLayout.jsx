@@ -1,12 +1,10 @@
 import { useEffect, useState, useCallback } from "react";
-import { Outlet, NavLink, useNavigate } from "react-router-dom";
+import { Outlet, NavLink } from "react-router-dom";
 import { getNotifications } from "../../services/assistantService";
-
+import { useAuth } from "../../context/AuthContext";
 export default function AssistantLayout() {
-  const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem("user"));
+  const { user, logout } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
-
   const loadUnread = useCallback(async () => {
     try {
       const data = await getNotifications();
@@ -15,17 +13,12 @@ export default function AssistantLayout() {
       console.error(error);
     }
   }, []);
-
   useEffect(() => {
     loadUnread();
   }, [loadUnread]);
-
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    navigate("/login");
+    logout();
   };
-
   return (
     <div className="container-fluid">
       <div className="row">
@@ -33,7 +26,6 @@ export default function AssistantLayout() {
           <div className="sidebar-title">
             ASSISTANT
           </div>
-
           <ul className="nav flex-column mt-4">
             <li>
               <NavLink to="/assistant" end className="sidebar-link">
@@ -65,7 +57,6 @@ export default function AssistantLayout() {
             </li>
           </ul>
         </div>
-
         <div className="col-md-10 p-4">
           <div className="d-flex justify-content-between">
             <div>

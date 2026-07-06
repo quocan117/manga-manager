@@ -1,5 +1,4 @@
 import api from "./api";
-
 export const savePageDrawing = async (
   pageId,
   canvasData,
@@ -18,12 +17,10 @@ export const savePageDrawing = async (
     throw error;
   }
 };
-
 export const getPageDrawing = async (pageId) => {
   const response = await api.get(`/mangaka/pages/${pageId}/drawing`);
   return response.data;
 };
-
 export const finalizeDrawing = async (pageId, expectedVersion) => {
   try {
     const response = await api.post(
@@ -38,4 +35,3 @@ export const finalizeDrawing = async (pageId, expectedVersion) => {
     throw error;
   }
 };
-

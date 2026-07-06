@@ -1,157 +1,75 @@
-import axios from "axios";
-
-const API_URL = "http://localhost:8080/mangaka";
-
-const authHeader = () => ({
-  Authorization: `Bearer ${localStorage.getItem("token")}`,
-});
-
-const getAuthHeaders = () => {
-  const token = localStorage.getItem("token");
-  return {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-  };
-};
-
+// Áp dụng Fetch API (Exercise 10) thông qua api.js thay vì axios.
+// api.js đã tự động gắn Authorization header từ localStorage nên
+// không cần hàm authHeader() thủ công nữa.
+import api from "./api";
 export const getMySeries = async () => {
-  const response = await axios.get(`${API_URL}/my-series`, {
-    headers: authHeader(),
-  });
-
+  const response = await api.get("/mangaka/my-series");
   return response.data;
 };
-
 export const submitSeriesReview = async (seriesId, storyboardUrl) => {
-  const response = await axios.post(
-    `${API_URL}/series/${seriesId}/submit`,
-    {
-      storyboardUrl,
-    },
-    {
-      headers: authHeader(),
-    },
-  );
-
+  const response = await api.post(`/mangaka/series/${seriesId}/submit`, {
+    storyboardUrl,
+  });
   return response.data;
 };
-
 export const getSeriesChapters = async (seriesId) => {
-  const response = await axios.get(`${API_URL}/series/${seriesId}/chapters`, {
-    headers: authHeader(),
-  });
-
+  const response = await api.get(`/mangaka/series/${seriesId}/chapters`);
   return response.data;
 };
-
 export const createPage = async (data) => {
-  const response = await axios.post(`${API_URL}/pages`, data, {
-    headers: authHeader(),
-  });
-
+  const response = await api.post("/mangaka/pages", data);
   return response.data;
 };
-
 export const getAssistants = async () => {
-  const response = await axios.get(`${API_URL}/assistants`, getAuthHeaders());
+  const response = await api.get("/mangaka/assistants");
   return response.data;
 };
-
 export const assignTask = async (data) => {
-  const response = await axios.post(`${API_URL}/tasks`, data, {
-    headers: authHeader(),
-  });
-
+  const response = await api.post("/mangaka/tasks", data);
   return response.data;
 };
-
 export const getChapterTasks = async (chapterId) => {
-  const response = await axios.get(`${API_URL}/chapters/${chapterId}/tasks`, {
-    headers: authHeader(),
-  });
-
+  const response = await api.get(`/mangaka/chapters/${chapterId}/tasks`);
   return response.data;
 };
-
 export const getChapterSubmissions = async (chapterId) => {
-  const response = await axios.get(
-    `${API_URL}/chapters/${chapterId}/submissions`,
-    {
-      headers: authHeader(),
-    },
-  );
-
+  const response = await api.get(`/mangaka/chapters/${chapterId}/submissions`);
   return response.data;
 };
-
 export const reviewSubmission = async (submissionId, decision, reviewNote) => {
-  const response = await axios.patch(
-    `${API_URL}/submissions/${submissionId}/review`,
-    {
-      decision,
-      reviewNote,
-    },
-    {
-      headers: authHeader(),
-    },
+  const response = await api.patch(
+    `/mangaka/submissions/${submissionId}/review`,
+    { decision, reviewNote },
   );
-
   return response.data;
 };
-
 export const getRankings = async () => {
-  const response = await axios.get(`${API_URL}/rankings`, {
-    headers: authHeader(),
-  });
-
+  const response = await api.get("/mangaka/rankings");
   return response.data;
 };
-
 export const getNotifications = async () => {
-  const response = await axios.get(`${API_URL}/notifications`, {
-    headers: authHeader(),
-  });
-
+  const response = await api.get("/mangaka/notifications");
   return response.data;
 };
-
 export const markNotificationRead = async (notificationId) => {
-  const response = await axios.patch(
-    `${API_URL}/notifications/${notificationId}/read`,
+  const response = await api.patch(
+    `/mangaka/notifications/${notificationId}/read`,
     {},
-    {
-      headers: authHeader(),
-    },
   );
-
   return response.data;
 };
-
 export const getChapterPages = async (chapterId) => {
-  const response = await axios.get(`${API_URL}/chapters/${chapterId}/pages`, {
-    headers: authHeader(),
-  });
+  const response = await api.get(`/mangaka/chapters/${chapterId}/pages`);
   return response.data;
 };
-
 export const createAssistant = async (assistantData) => {
-  const response = await axios.post(
-    `${API_URL}/assistants`,
-    assistantData,
-    getAuthHeaders(),
-  );
+  const response = await api.post("/mangaka/assistants", assistantData);
   return response.data;
 };
-
 export const getChapterById = async (chapterId) => {
-  const response = await axios.get(`${API_URL}/chapters/${chapterId}`, {
-    headers: authHeader(),
-  });
+  const response = await api.get(`/mangaka/chapters/${chapterId}`);
   return response.data;
 };
-
 export const createSeriesWithCoverUpload = async (form, coverImageFile) => {
   const formData = new FormData();
   formData.append("title", form.title);
@@ -161,13 +79,18 @@ export const createSeriesWithCoverUpload = async (form, coverImageFile) => {
     formData.append("publicationType", form.publicationType);
   if (form.artStyle) formData.append("artStyle", form.artStyle);
   if (coverImageFile) formData.append("coverImage", coverImageFile);
+  const response = await api.post("/mangaka/series", formData);
+  return response.data;
+};
 
-  const response = await axios.post(`${API_URL}/series`, formData, {
-    headers: {
-      ...authHeader(),
-      "Content-Type": "multipart/form-data",
-    },
-  });
-
+export const updateAssistantStatus = async (assistantId, status) => {
+  const response = await api.patch(
+    `/mangaka/assistants/${assistantId}/status`,
+    { status },
+  );
+  return response.data;
+};
+export const deleteAssistant = async (assistantId) => {
+  const response = await api.delete(`/mangaka/assistants/${assistantId}`);
   return response.data;
 };

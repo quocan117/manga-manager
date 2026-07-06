@@ -4,15 +4,12 @@ import {
   voteSeriesDecision,
 } from "../../services/boardService";
 import "../styles/EditorialBoard.css";
-
 export default function ReviewSeriesPage() {
   const [seriesList, setSeriesList] = useState([]);
   const [loading, setLoading] = useState(true);
-
   useEffect(() => {
     fetchReviewingSeries();
   }, []);
-
   const fetchReviewingSeries = async () => {
     try {
       setLoading(true);
@@ -24,7 +21,6 @@ export default function ReviewSeriesPage() {
       setLoading(false);
     }
   };
-
   const handleVote = async (seriesId, title, decisionType) => {
     const actionText =
       decisionType === "APPROVE" ? "DUYỆT XUẤT BẢN" : "YÊU CẦU SỬA/TỪ CHỐI";
@@ -32,9 +28,7 @@ export default function ReviewSeriesPage() {
       `Vui lòng nhập lý do cho quyết định ${actionText} truyện "${title}":`,
       "",
     );
-
     if (reason === null) return;
-
     try {
       await voteSeriesDecision(seriesId, decisionType, reason);
       alert(`Đã gửi quyết định: ${actionText} thành công!`);
@@ -46,14 +40,12 @@ export default function ReviewSeriesPage() {
       );
     }
   };
-
   if (loading)
     return (
       <div className="tab-content">
         <h2>Đang tải dữ liệu...</h2>
       </div>
     );
-
   return (
     <div className="tab-content">
       <h2 className="mb-4">📝 Xét Duyệt Tác Phẩm Mới</h2>
@@ -62,7 +54,6 @@ export default function ReviewSeriesPage() {
         <strong>REVIEWING</strong>. Tác phẩm sẽ tự động xuất bản nếu đạt đủ số
         phiếu đồng thuận.
       </p>
-
       <div className="table-wrapper">
         <table className="admin-table">
           <thead>

@@ -1,45 +1,20 @@
 import { Navigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
-export default function PrivateRoute({
-    children,
-    role
-}) {
+export default function PrivateRoute({ children, role }) {
+  const { user, token, loading } = useAuth();
 
-    const token =
-        localStorage.getItem("token");
+  if (loading) {
+    return null;
+  }
+  // Chưa đăng nhập
+  if (!token || !user) {
+    return <Navigate to="/" replace />;
+  }
+  // Sai role
+  if (role && user.role !== role) {
+    return <Navigate to="/" replace />;
+  }
 
-    const user =
-        JSON.parse(
-            localStorage.getItem("user")
-        );
-
-    // Chưa đăng nhập
-    if (!token || !user) {
-
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-
-        return (
-            <Navigate
-                to="/login"
-                replace
-            />
-        );
-    }
-
-    // Sai role
-    if (
-        role &&
-        user.role !== role
-    ) {
-
-        return (
-            <Navigate
-                to="/"
-                replace
-            />
-        );
-    }
-
-    return children;
+  return children;
 }

@@ -1,21 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
-import { Outlet, NavLink, useNavigate } from "react-router-dom";
+import { Outlet, NavLink } from "react-router-dom";
 import { getNotifications } from "../../services/mangakaService";
+import { useAuth } from "../../context/AuthContext";
 import "../styles/MangakaLayout.css";
-
 export default function MangakaLayout() {
-  const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
-
-  let user = null;
-
-  try {
-    user = JSON.parse(localStorage.getItem("user"));
-  } catch (error) {
-    console.error("User parse error:", error);
-    user = null;
-  }
-
   const loadUnread = useCallback(async () => {
     try {
       const data = await getNotifications();
@@ -24,18 +14,14 @@ export default function MangakaLayout() {
       console.error(error);
     }
   }, []);
-
   useEffect(() => {
     loadUnread();
   }, [loadUnread]);
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-
-    navigate("/");
+    logout();
   };
-
+  
   return (
     <div className="mangaka-layout">
       <div className="sidebar">
@@ -52,7 +38,6 @@ export default function MangakaLayout() {
               📊 Dashboard
             </NavLink>
           </li>
-
           <li>
             <NavLink
               to="/mangaka/manga"
@@ -63,7 +48,6 @@ export default function MangakaLayout() {
               📚 My Series
             </NavLink>
           </li>
-
           <li>
             <NavLink
               to="/mangaka/tasks"
@@ -74,7 +58,6 @@ export default function MangakaLayout() {
               🎨 Assistant Tasks
             </NavLink>
           </li>
-
           <li>
             <NavLink
               to="/mangaka/ranking"
@@ -85,7 +68,6 @@ export default function MangakaLayout() {
               🏆 Ranking
             </NavLink>
           </li>
-
           <li>
             <NavLink
               to="/mangaka/notifications"
@@ -99,7 +81,6 @@ export default function MangakaLayout() {
               )}
             </NavLink>
           </li>
-
           <li>
             <NavLink
               to="/mangaka/manage-assistants"
@@ -110,7 +91,6 @@ export default function MangakaLayout() {
               👥 Quản lý Trợ lý
             </NavLink>
           </li>
-
           <li className="mt-4">
             <button className="logout-btn" onClick={handleLogout}>
               🚪 Logout
@@ -118,7 +98,6 @@ export default function MangakaLayout() {
           </li>
         </ul>
       </div>
-
       <div className="mangaka-content p-4">
         <div className="card shadow-sm border-0 mb-4">
           <div className="card-body d-flex justify-content-between align-items-center">
@@ -128,22 +107,10 @@ export default function MangakaLayout() {
                   ? `Xin chào, ${user.username}`
                   : "Chưa có thông tin tài khoản"}
               </h4>
-
               <small className="text-muted">{user?.role || "Guest"}</small>
-            </div>
-
-            <div className="text-end">
-              <span className="badge bg-success">Online</span>
-
-              <br />
-
-              <small className="text-muted">
-                {user?.role || "ROLE_UNKNOWN"}
-              </small>
             </div>
           </div>
         </div>
-
         <Outlet context={{ refreshUnreadCount: loadUnread }} />
       </div>
     </div>

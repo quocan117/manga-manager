@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { getSchedules, createSchedule } from "../../services/tantouService";
 import { getAllSeries } from "../../services/seriesService"; 
-
 export default function ScheduleManagement() {
   const [schedules, setSchedules] = useState([]);
   const [publishedSeries, setPublishedSeries] = useState([]);
@@ -10,11 +9,9 @@ export default function ScheduleManagement() {
     publishDate: "",
     frequency: "WEEKLY",
   });
-
   useEffect(() => {
     fetchData();
   }, []);
-
   const fetchData = async () => {
     try {
       const [schData, seriesData] = await Promise.all([
@@ -31,7 +28,6 @@ export default function ScheduleManagement() {
       console.error("Lỗi lấy dữ liệu lịch:", error);
     }
   };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -47,11 +43,9 @@ export default function ScheduleManagement() {
       alert("Lỗi lưu lịch.");
     }
   };
-
   return (
     <div className="p-4 bg-light min-vh-100">
       <h2 className="mb-4">📅 Cài Đặt Lịch Phát Hành Bản In/Online</h2>
-
       <div className="row">
         <div className="col-md-4">
           <div className="card shadow-sm border-0 mb-4">
@@ -112,7 +106,6 @@ export default function ScheduleManagement() {
             </div>
           </div>
         </div>
-
         <div className="col-md-8">
           <div className="card shadow-sm border-0">
             <div className="card-header bg-white fw-bold">

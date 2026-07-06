@@ -1,6 +1,5 @@
 import React from "react";
 import "../styles/SeriesCard.css";
-
 const SeriesCard = ({ series, onClick }) => {
   return (
     <div className="series-card" onClick={() => onClick(series)}>
@@ -20,5 +19,4 @@ const SeriesCard = ({ series, onClick }) => {
     </div>
   );
 };
-
 export default SeriesCard;

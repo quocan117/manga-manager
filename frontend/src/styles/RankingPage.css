@@ -2,7 +2,6 @@
   min-height: 100vh;
   background-color: #f8f9fa;
 }
-
 .ranking-header {
   background: linear-gradient(135deg, #ff4757, #ff6b81);
   color: white;
@@ -10,12 +9,10 @@
   padding: 40px 20px;
   margin-bottom: 30px;
 }
-
 .ranking-header h1 {
   margin: 0 0 10px 0;
   font-size: 32px;
 }
-
 .ranking-list {
   max-width: 800px;
   margin: 0 auto;
@@ -24,7 +21,6 @@
   flex-direction: column;
   gap: 15px;
 }
-
 .ranking-item {
   display: flex;
   align-items: center;
@@ -34,30 +30,25 @@
   box-shadow: 0 4px 6px rgba(0,0,0,0.05);
   transition: transform 0.2s;
 }
-
 .ranking-item:hover {
   transform: translateY(-3px);
   box-shadow: 0 8px 15px rgba(0,0,0,0.1);
 }
-
 .rank-number {
   width: 120px;
   font-weight: bold;
   font-size: 18px;
 }
-
 .rank-badge {
   padding: 5px 10px;
   border-radius: 20px;
   white-space: nowrap; 
   display: inline-block;
 }
-
 .rank-badge.gold { color: #d4af37; font-size: 20px; }
 .rank-badge.silver { color: #c0c0c0; font-size: 18px; }
 .rank-badge.bronze { color: #cd7f32; font-size: 18px; }
 .rank-badge.normal { color: #888; font-size: 20px; padding-left: 10px; }
-
 .ranking-cover {
   width: 80px;
   height: 110px;
@@ -65,23 +56,19 @@
   border-radius: 6px;
   margin-right: 20px;
 }
-
 .ranking-info {
   flex: 1;
 }
-
 .ranking-info h2 {
   margin: 0 0 5px 0;
   font-size: 20px;
   color: #333;
 }
-
 .ranking-author {
   color: #666;
   margin: 0 0 10px 0;
   font-size: 14px;
 }
-
 .genre-tag {
   background-color: #f1f2f6;
   color: #57606f;
@@ -90,25 +77,21 @@
   font-size: 12px;
   margin-right: 8px;
 }
-
 .ranking-likes {
   text-align: right;
   min-width: 120px;
 }
-
 .like-count {
   display: block;
   font-size: 24px;
   font-weight: 800;
   color: #ff4757;
 }
-
 .like-label {
   font-size: 12px;
   color: #888;
   font-weight: bold;
 }
-
 .ranking-cover {
   width: 90px;
   height: 130px;

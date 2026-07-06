@@ -1,20 +1,17 @@
 import React from "react";
-import { Outlet, NavLink, useNavigate } from "react-router-dom";
+import { Outlet, NavLink } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 import "../styles/EditorialBoard.css";
-
 const BoardLayout = () => {
-  const navigate = useNavigate();
-
+  const { user, logout } = useAuth();
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    navigate("/");
+    logout();
   };
-
   return (
     <div className="editorial-dashboard-container">
       <div className="sidebar">
         <h2 className="sidebar-title">EDITORIAL BOARD</h2>
+        {user && <p className="text-white-50 px-3 mb-0">Xin chào, {user.username}</p>}
         <ul className="sidebar-menu">
           <li>
             <NavLink
@@ -47,12 +44,10 @@ const BoardLayout = () => {
           </li>
         </ul>
       </div>
-
       <div className="main-board-content">
         <Outlet />
       </div>
     </div>
   );
 };
-
 export default BoardLayout;

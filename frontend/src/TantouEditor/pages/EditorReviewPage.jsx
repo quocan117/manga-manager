@@ -5,13 +5,11 @@ import {
   submitToBoard,
   requestRevision,
 } from "../../services/tantouService";
-
 export default function EditorReviewPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [dossier, setDossier] = useState(null);
   const [actionNote, setActionNote] = useState("");
-
   useEffect(() => {
     const fetchDossier = async () => {
       try {
@@ -23,13 +21,11 @@ export default function EditorReviewPage() {
     };
     fetchDossier();
   }, [id]);
-
   const handleAction = async (isApprove) => {
     if (!actionNote && !isApprove) {
       alert("Vui lòng nhập lý do nếu yêu cầu tác giả sửa lại bản thảo!");
       return;
     }
-
     try {
       if (isApprove) {
         await submitToBoard(id, actionNote);
@@ -43,10 +39,8 @@ export default function EditorReviewPage() {
       alert("Lỗi khi xử lý thao tác.");
     }
   };
-
   if (!dossier)
     return <div className="p-4">Đang tải hồ sơ bảo vệ Series...</div>;
-
   return (
     <div className="p-4 bg-light min-vh-100">
       <div className="d-flex justify-content-between align-items-center mb-4">
@@ -58,7 +52,6 @@ export default function EditorReviewPage() {
           Trở về
         </button>
       </div>
-
       <div className="row">
         <div className="col-md-4">
           <div className="card shadow-sm border-0 mb-4">
@@ -72,7 +65,6 @@ export default function EditorReviewPage() {
               </p>
             </div>
           </div>
-
           <div className="card shadow-sm border-0">
             <div className="card-header bg-white fw-bold">
               Quyết định của Biên tập viên
@@ -100,7 +92,6 @@ export default function EditorReviewPage() {
             </div>
           </div>
         </div>
-
         <div className="col-md-8">
           <div className="card shadow-sm border-0 h-100">
             <div className="card-header bg-white fw-bold">
@@ -130,7 +121,6 @@ export default function EditorReviewPage() {
                   Mangaka chưa gửi kèm link bản thảo nào.
                 </p>
               )}
-
               <hr className="my-3" />
               <div className="text-muted small fst-italic">
                 Chế độ đánh dấu tọa độ (Markup Mode) trên từng trang truyện sẽ

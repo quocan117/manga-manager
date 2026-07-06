@@ -2,23 +2,18 @@ import { useState } from "react";
 import { submitSeriesReview } from "../../services/mangakaService";
 import "../../styles/SeriesModal.css";
 import "../styles/SubmitSeriesModal.css";
-
 export default function SubmitSeriesModal({ series, onClose, onSubmitted }) {
   const [storyboardUrl, setStoryboardUrl] = useState(series?.storyboardUrl || "");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-
   const isResubmit = series?.status === "REVISION_REQUESTED";
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-
     if (!storyboardUrl.trim()) {
       setError("Vui lòng nhập link bản thảo (storyboard) trước khi gửi.");
       return;
     }
-
     try {
       setSubmitting(true);
       const updated = await submitSeriesReview(series.id, storyboardUrl.trim());
@@ -36,9 +31,7 @@ export default function SubmitSeriesModal({ series, onClose, onSubmitted }) {
       setSubmitting(false);
     }
   };
-
   if (!series) return null;
-
   return (
     <div className="custom-modal-overlay" onClick={onClose}>
       <div
@@ -48,22 +41,18 @@ export default function SubmitSeriesModal({ series, onClose, onSubmitted }) {
         <button className="close-btn" onClick={onClose} aria-label="Đóng">
           ✕
         </button>
-
         <h3 className="submit-series-title">
           {isResubmit ? "Gửi lại hồ sơ cho Biên tập" : "Gửi hồ sơ Series cho Biên tập"}
         </h3>
-
         <p className="submit-series-subtitle">
           Series: <strong>{series.title}</strong>
         </p>
-
         {isResubmit && (
           <div className="submit-series-hint warning">
             Series này trước đó đã bị yêu cầu chỉnh sửa. Hãy cập nhật lại link
             bản thảo rồi gửi lại cho biên tập phụ trách.
           </div>
         )}
-
         {!isResubmit && (
           <div className="submit-series-hint">
             Sau khi gửi, hệ thống sẽ tự động chọn biên tập viên đang có{" "}
@@ -71,7 +60,6 @@ export default function SubmitSeriesModal({ series, onClose, onSubmitted }) {
             tra hồ sơ của bạn trước khi trình lên Hội đồng Biên tập xét duyệt.
           </div>
         )}
-
         <form onSubmit={handleSubmit}>
           <div className="mb-3">
             <label className="form-label">Link bản thảo (storyboard)</label>
@@ -89,9 +77,7 @@ export default function SubmitSeriesModal({ series, onClose, onSubmitted }) {
               kiểm duyệt.
             </small>
           </div>
-
           {error && <div className="alert alert-danger py-2">{error}</div>}
-
           <div className="d-flex gap-2 justify-content-end mt-4">
             <button
               type="button"

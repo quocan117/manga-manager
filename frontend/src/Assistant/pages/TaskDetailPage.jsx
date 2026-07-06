@@ -10,13 +10,10 @@ import {
 } from "../../services/assistantService";
 import { resolveImageUrl } from "../../utils/imageUrl";
 import CanvasMarkupTool from "../../components/CanvasMarkupTool";
-
 const WORKABLE_STATUSES = ["ASSIGNED", "IN_PROGRESS", "REVISION_REQUESTED"];
-
 export default function TaskDetailPage() {
   const { taskId } = useParams();
   const navigate = useNavigate();
-
   const [task, setTask] = useState(null);
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -24,9 +21,7 @@ export default function TaskDetailPage() {
   const [originalFileUrl, setOriginalFileUrl] = useState("");
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
-
   const backgroundUrl = resolveImageUrl(task?.pageImageUrl);
-
   const loadTask = useCallback(async () => {
     try {
       setLoading(true);
@@ -44,11 +39,9 @@ export default function TaskDetailPage() {
       setLoading(false);
     }
   }, [taskId]);
-
   useEffect(() => {
     loadTask();
   }, [loadTask]);
-
   const handleAccept = async () => {
     try {
       const updated = await acceptTask(taskId);
@@ -58,7 +51,6 @@ export default function TaskDetailPage() {
       alert("Nhận Task thất bại: " + (error.response?.data?.message || ""));
     }
   };
-
   const handleSubmit = async () => {
     if (!originalFileUrl.trim()) {
       alert("Vui lòng nhập link file đã hoàn thiện trước khi nộp.");
@@ -73,7 +65,6 @@ export default function TaskDetailPage() {
         drawingVersion,
         originalFileUrl,
       );
-
       alert("Nộp thành công! Mangaka sẽ nhận được file của bạn.");
       setNote("");
       loadTask();
@@ -83,7 +74,6 @@ export default function TaskDetailPage() {
       setSubmitting(false);
     }
   };
-
   if (loading)
     return <div className="text-center mt-5">Đang tải nhiệm vụ...</div>;
   if (!task)
@@ -92,10 +82,8 @@ export default function TaskDetailPage() {
         Không tìm thấy nhiệm vụ.
       </div>
     );
-
   const canWork = WORKABLE_STATUSES.includes(task.status);
   const latestSubmission = submissions[0];
-
   return (
     <div className="container-fluid mt-4">
       <div className="d-flex justify-content-between align-items-center mb-3">
@@ -110,7 +98,6 @@ export default function TaskDetailPage() {
           ⬅ Quay lại
         </button>
       </div>
-
       <div className="row">
         <div className="col-md-4 mb-4">
           <div className="card shadow">
@@ -138,7 +125,6 @@ export default function TaskDetailPage() {
                 <br />
                 {task.description || "Không có mô tả."}
               </p>
-
               <hr />
               <p className="mb-1">
                 <strong>Tài liệu gốc để làm việc:</strong>
@@ -155,7 +141,6 @@ export default function TaskDetailPage() {
               ) : (
                 <p className="text-muted small mb-0">Chưa có link file gốc</p>
               )}
-
               {task.status === "ASSIGNED" && (
                 <button
                   className="btn btn-success w-100 mt-3"
@@ -164,7 +149,6 @@ export default function TaskDetailPage() {
                   ✅ Nhận Task
                 </button>
               )}
-
               {latestSubmission && (
                 <>
                   <hr />
@@ -187,7 +171,6 @@ export default function TaskDetailPage() {
             </div>
           </div>
         </div>
-
         <div className="col-md-8">
           <div className="card shadow mb-3">
             <div className="card-header bg-dark text-white fw-bold">
@@ -201,7 +184,6 @@ export default function TaskDetailPage() {
               />
             </div>
           </div>
-
           {canWork && (
             <div className="card shadow">
               <div className="card-header bg-white fw-bold">

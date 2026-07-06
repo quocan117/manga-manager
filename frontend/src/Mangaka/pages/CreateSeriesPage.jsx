@@ -1,10 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createSeriesWithCoverUpload } from "../../services/mangakaService";
-
 export default function CreateSeriesPage() {
   const navigate = useNavigate();
-
   const [form, setForm] = useState({
     title: "",
     genres: "",
@@ -12,39 +10,30 @@ export default function CreateSeriesPage() {
     publicationType: "",
     artStyle: "",
   });
-
   const [coverImageFile, setCoverImageFile] = useState(null);
   const [coverPreview, setCoverPreview] = useState(null);
   const [loading, setLoading] = useState(false);
-
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
-
   const handleCoverFileChange = (e) => {
     const file = e.target.files[0] || null;
     setCoverImageFile(file);
     setCoverPreview(file ? URL.createObjectURL(file) : null);
   };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     if (!coverImageFile) {
       alert("Vui lòng chọn ảnh bìa cho series!");
       return;
     }
-
     try {
       setLoading(true);
-
       const genres = form.genres
         .split(",")
         .map((g) => g.trim())
         .filter(Boolean);
-
       await createSeriesWithCoverUpload({ ...form, genres }, coverImageFile);
-
       alert("Tạo Series thành công!");
       navigate("/mangaka/manga");
     } catch (error) {
@@ -57,14 +46,12 @@ export default function CreateSeriesPage() {
       setLoading(false);
     }
   };
-
   return (
     <div className="container">
       <div className="card shadow">
         <div className="card-header">
           <h3 className="mb-0">Create New Series</h3>
         </div>
-
         <div className="card-body">
           <form onSubmit={handleSubmit}>
             <div className="mb-3">
@@ -78,7 +65,6 @@ export default function CreateSeriesPage() {
                 required
               />
             </div>
-
             <div className="mb-3">
               <label className="form-label">Genres</label>
               <input
@@ -92,7 +78,6 @@ export default function CreateSeriesPage() {
               />
               <small className="text-muted">Ngăn cách bằng dấu phẩy</small>
             </div>
-
             <div className="mb-3 p-3 border rounded bg-light">
               <label className="form-label fw-bold">Ảnh bìa series</label>
               <input
@@ -107,7 +92,6 @@ export default function CreateSeriesPage() {
                 Tối đa 5MB. Định dạng: JPG, PNG, WEBP, GIF.
               </small>
             </div>
-
             {coverPreview && (
               <div className="mb-3">
                 <img
@@ -118,7 +102,6 @@ export default function CreateSeriesPage() {
                 />
               </div>
             )}
-
             <div className="mb-3">
               <label className="form-label">Description</label>
               <textarea
@@ -129,7 +112,6 @@ export default function CreateSeriesPage() {
                 onChange={handleChange}
               />
             </div>
-
             <div className="mb-3">
               <label className="form-label">Publication Type</label>
               <select
@@ -145,7 +127,6 @@ export default function CreateSeriesPage() {
                 <option value="Comic">Comic</option>
               </select>
             </div>
-
             <div className="mb-4">
               <label className="form-label">Art Style</label>
               <input
@@ -157,7 +138,6 @@ export default function CreateSeriesPage() {
                 onChange={handleChange}
               />
             </div>
-
             <div className="d-flex gap-2">
               <button
                 type="submit"

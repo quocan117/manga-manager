@@ -9,18 +9,15 @@ import {
   reviewSubmission,
   getChapterSubmissions,
 } from "../../services/mangakaService";
-
 export default function AssistantTasks() {
   const [assistants, setAssistants] = useState([]);
   const [seriesList, setSeriesList] = useState([]);
   const [chapterList, setChapterList] = useState([]);
   const [pageList, setPageList] = useState([]);
   const [tasks, setTasks] = useState([]);
-
   const [selectedSeriesId, setSelectedSeriesId] = useState("");
   const [selectedChapterId, setSelectedChapterId] = useState("");
   const [submissions, setSubmissions] = useState([]);
-
   const [form, setForm] = useState({
     pageId: "",
     assistantId: "",
@@ -30,12 +27,10 @@ export default function AssistantTasks() {
     dueDate: "",
     originalFileUrl: "",
   });
-
   useEffect(() => {
     fetchAssistants();
     fetchSeries();
   }, []);
-
   const fetchAssistants = async () => {
     try {
       const data = await getAssistants();
@@ -44,7 +39,6 @@ export default function AssistantTasks() {
       console.error(error);
     }
   };
-
   const fetchSeries = async () => {
     try {
       const data = await getMySeries();
@@ -53,7 +47,6 @@ export default function AssistantTasks() {
       console.error(error);
     }
   };
-
   useEffect(() => {
     if (selectedSeriesId) {
       fetchChapters(selectedSeriesId);
@@ -62,7 +55,6 @@ export default function AssistantTasks() {
       setSelectedChapterId("");
     }
   }, [selectedSeriesId]);
-
   const fetchChapters = async (seriesId) => {
     try {
       const data = await getSeriesChapters(seriesId);
@@ -71,7 +63,6 @@ export default function AssistantTasks() {
       console.error(error);
     }
   };
-
   useEffect(() => {
     if (selectedChapterId) {
       fetchTasks();
@@ -84,7 +75,6 @@ export default function AssistantTasks() {
       setForm((prev) => ({ ...prev, pageId: "" }));
     }
   }, [selectedChapterId]);
-
   const fetchTasks = async () => {
     if (!selectedChapterId) return;
     try {
@@ -94,7 +84,6 @@ export default function AssistantTasks() {
       console.error(error);
     }
   };
-
   const fetchPages = async () => {
     if (!selectedChapterId) return;
     try {
@@ -104,7 +93,6 @@ export default function AssistantTasks() {
       console.error(error);
     }
   };
-
   const fetchSubmissions = async () => {
     if (!selectedChapterId) return;
     try {
@@ -114,7 +102,6 @@ export default function AssistantTasks() {
       console.error(error);
     }
   };
-
   const handleReview = async (submission, decision) => {
     let reviewNote = null;
     if (decision === "REVISION_REQUESTED") {
@@ -141,18 +128,15 @@ export default function AssistantTasks() {
       alert("Duyệt bài thất bại: " + (error.response?.data?.message || ""));
     }
   };
-
   const findTaskTitle = (taskId) =>
     tasks.find((t) => (t.id || t.taskId) === taskId)?.title ||
     `Task #${taskId}`;
-
   const handleChange = (e) => {
     setForm({
       ...form,
       [e.target.name]: e.target.value,
     });
   };
-
   const handleAssign = async (e) => {
     e.preventDefault();
     try {
@@ -177,15 +161,12 @@ export default function AssistantTasks() {
       alert("Giao việc thất bại. Vui lòng kiểm tra lại dữ liệu.");
     }
   };
-
   const selectedChapterData = chapterList.find(
     (c) => c.id === Number(selectedChapterId),
   );
-
   return (
     <div>
       <h2 className="mb-4">Assistant Tasks</h2>
-
       <div className="row">
         <div className="col-md-5">
           <div className="card shadow mb-4">
@@ -209,7 +190,6 @@ export default function AssistantTasks() {
                     ))}
                   </select>
                 </div>
-
                 <div className="mb-3">
                   <label className="form-label text-primary fw-bold">
                     2. Chọn Chapter
@@ -228,7 +208,6 @@ export default function AssistantTasks() {
                     ))}
                   </select>
                 </div>
-
                 <div className="mb-3">
                   <label className="form-label text-primary fw-bold">
                     3. Chọn Trang Truyện (Page)
@@ -253,7 +232,6 @@ export default function AssistantTasks() {
                     ))}
                   </select>
                 </div>
-
                 <div className="mb-3">
                   <label className="form-label">
                     Link tài liệu gốc (Google Drive/OneDrive...)
@@ -267,9 +245,7 @@ export default function AssistantTasks() {
                     onChange={handleChange}
                   />
                 </div>
-
                 <hr className="my-4" />
-
                 <div className="mb-3">
                   <label className="form-label">Chọn Trợ lý (Assistant)</label>
                   <select
@@ -287,7 +263,6 @@ export default function AssistantTasks() {
                     ))}
                   </select>
                 </div>
-
                 <div className="mb-3">
                   <label className="form-label">
                     Loại Công Việc (Task Type)
@@ -304,7 +279,6 @@ export default function AssistantTasks() {
                     <option value="OTHER">OTHER</option>
                   </select>
                 </div>
-
                 <div className="mb-3">
                   <label className="form-label">Tiêu đề (Title)</label>
                   <input
@@ -316,7 +290,6 @@ export default function AssistantTasks() {
                     required
                   />
                 </div>
-
                 <div className="mb-3">
                   <label className="form-label">
                     Mô tả chi tiết (Description)
@@ -329,7 +302,6 @@ export default function AssistantTasks() {
                     onChange={handleChange}
                   />
                 </div>
-
                 <div className="mb-4">
                   <label className="form-label">Hạn chót (Due Date)</label>
                   <input
@@ -341,7 +313,6 @@ export default function AssistantTasks() {
                     required
                   />
                 </div>
-
                 <button type="submit" className="btn btn-success w-100 fw-bold">
                   Assign Task
                 </button>
@@ -349,7 +320,6 @@ export default function AssistantTasks() {
             </div>
           </div>
         </div>
-
         <div className="col-md-7">
           <div className="card shadow">
             <div className="card-header bg-white py-3">
@@ -359,7 +329,6 @@ export default function AssistantTasks() {
                   `- Chapter ${selectedChapterData.chapterNumber}`}
               </span>
             </div>
-
             <div>
               <div className="card-header bg-white py-3">
                 <span className="fw-bold fs-5">📥 Bài nộp từ Trợ lý</span>
@@ -396,13 +365,11 @@ export default function AssistantTasks() {
                           {s.status}
                         </span>
                       </div>
-
                       {s.note && (
                         <p className="small mt-2 mb-1">
                           Ghi chú trợ lý: {s.note}
                         </p>
                       )}
-
                       <div className="d-flex gap-2 mt-2">
                         {s.originalFileUrl ? (
                           <a
@@ -419,7 +386,6 @@ export default function AssistantTasks() {
                           </span>
                         )}
                       </div>
-
                       {s.status === "SUBMITTED" && (
                         <div className="d-flex gap-2 mt-3">
                           <button
@@ -443,7 +409,6 @@ export default function AssistantTasks() {
                 )}
               </div>
             </div>
-
             <div className="card-body p-0">
               <table className="table table-hover mb-0">
                 <thead className="table-light">

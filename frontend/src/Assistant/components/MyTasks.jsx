@@ -1,16 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getMyTasks } from "../../services/assistantService";
-
 export default function MyTasks() {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-
   useEffect(() => {
     loadTasks();
   }, []);
-
   const loadTasks = async () => {
     try {
       const data = await getMyTasks();
@@ -21,9 +18,7 @@ export default function MyTasks() {
       setLoading(false);
     }
   };
-
   if (loading) return <div className="text-center mt-4">Đang tải...</div>;
-
   return (
     <div>
       <h2>My Tasks</h2>

@@ -1,34 +1,27 @@
 import React, { useState, useEffect } from "react";
 import { cancelSeries } from "../../services/boardService";
-
 const RankingDecisionPage = () => {
   const [seriesList, setSeriesList] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-
   const [searchQuery, setSearchQuery] = useState("");
   const [filterOption, setFilterOption] = useState("all");
-
   useEffect(() => {
     const fetchRankingForBoard = async () => {
       try {
         const response = await fetch("http://localhost:8080/manga-series");
         if (response.ok) {
           const data = await response.json();
-
           const processedData = data.map((series) => {
             const totalLikes =
               series.chapters?.reduce((sum, ch) => sum + ch.likes, 0) || 0;
             return { ...series, totalLikes };
           });
-
           processedData.sort((a, b) => a.totalLikes - b.totalLikes);
-
           const rankedData = processedData.map((series, index) => ({
             ...series,
             globalRank: processedData.length - index,
             isDanger: index < 3,
           }));
-
           setSeriesList(rankedData);
         } else {
           console.error("Lỗi khi tải dữ liệu xếp hạng.");
@@ -39,10 +32,8 @@ const RankingDecisionPage = () => {
         setIsLoading(false);
       }
     };
-
     fetchRankingForBoard();
   }, []);
-
   const handleCancelSeries = async (id, title) => {
     if (
       window.confirm(
@@ -65,39 +56,32 @@ const RankingDecisionPage = () => {
       }
     }
   };
-
   if (isLoading)
     return (
       <div className="tab-content">
         <h2>Đang tải dữ liệu...</h2>
       </div>
     );
-
   const activeSeriesList = seriesList.filter((s) => s.status !== "CANCELLED");
-
   const displayedSeries = activeSeriesList.filter((series) => {
     const matchesSearch =
       series.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (series.author &&
         series.author.toLowerCase().includes(searchQuery.toLowerCase()));
-
     const matchesFilter =
       filterOption === "all"
         ? true
         : filterOption === "danger"
           ? series.isDanger
           : !series.isDanger;
-
     return matchesSearch && matchesFilter;
   });
-
   const totalSeries = activeSeriesList.length;
   const totalPlatformLikes = activeSeriesList.reduce(
     (sum, s) => sum + s.totalLikes,
     0,
   );
   const atRiskCount = activeSeriesList.filter((s) => s.isDanger).length;
-
   return (
     <div className="tab-content">
       <h2>Bảng Xếp Hạng & Đánh Giá Năng Lực Series</h2>
@@ -105,7 +89,6 @@ const RankingDecisionPage = () => {
         Theo dõi chỉ số tương tác định kỳ để ra quyết định duy trì phát hành
         hoặc đình bản tác phẩm.
       </p>
-
       <div className="dashboard-summary">
         <div className="summary-card">
           <h3>Tổng Series Xuất Bản</h3>
@@ -120,7 +103,6 @@ const RankingDecisionPage = () => {
           <p className="summary-value">{atRiskCount}</p>
         </div>
       </div>
-
       <div
         className="board-header"
         style={{ marginBottom: "15px", alignItems: "flex-end" }}
@@ -158,7 +140,6 @@ const RankingDecisionPage = () => {
             Xuất bản ổn định
           </button>
         </div>
-
         <input
           type="text"
           placeholder="🔍 Tìm tên truyện, tác giả..."
@@ -167,7 +148,6 @@ const RankingDecisionPage = () => {
           onChange={(e) => setSearchQuery(e.target.value)}
         />
       </div>
-
       <div className="table-wrapper">
         <table className="admin-table">
           <thead>
@@ -248,5 +228,4 @@ const RankingDecisionPage = () => {
     </div>
   );
 };
-
 export default RankingDecisionPage;

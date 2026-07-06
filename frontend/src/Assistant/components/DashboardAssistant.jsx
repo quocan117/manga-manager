@@ -1,14 +1,11 @@
 import { useEffect, useState } from "react";
 import { getMyTasks, getNotifications } from "../../services/assistantService";
-
 export default function DashboardAssistant() {
   const [tasks, setTasks] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
-
   useEffect(() => {
     loadData();
   }, []);
-
   const loadData = async () => {
     try {
       const [taskData, notifData] = await Promise.all([
@@ -21,10 +18,8 @@ export default function DashboardAssistant() {
       console.error("Lỗi khi tải dashboard:", error);
     }
   };
-
   const pendingCount = tasks.filter((t) => t.status === "ASSIGNED").length;
   const submittedCount = tasks.filter((t) => t.status === "SUBMITTED").length;
-
   return (
     <div>
       <h2 className="mb-4">Assistant Dashboard</h2>

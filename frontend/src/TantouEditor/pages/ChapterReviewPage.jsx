@@ -7,19 +7,15 @@ import {
   sendChapterRevisionToMangaka,
   publishChapter,
 } from "../../services/chapterEditorService";
-
 export default function ChapterReviewPage() {
   const { chapterId } = useParams();
   const navigate = useNavigate();
-
   const [chapter, setChapter] = useState(null);
   const [loading, setLoading] = useState(true);
   const [publishing, setPublishing] = useState(false);
-
   useEffect(() => {
     fetchChapter();
   }, [chapterId]);
-
   const fetchChapter = async () => {
     try {
       setLoading(true);
@@ -31,7 +27,6 @@ export default function ChapterReviewPage() {
       setLoading(false);
     }
   };
-
   const handleSaveNote = async (index, { canvasData, previewImageUrl }) => {
     return saveChapterRevisionNote(chapterId, {
       previewImageUrl,
@@ -39,7 +34,6 @@ export default function ChapterReviewPage() {
       orderIndex: index,
     });
   };
-
   const handleSendAll = async () => {
     try {
       await sendChapterRevisionToMangaka(chapterId);
@@ -50,7 +44,6 @@ export default function ChapterReviewPage() {
       alert("Lỗi khi gửi yêu cầu chỉnh sửa.");
     }
   };
-
   const handlePublish = async () => {
     if (
       !window.confirm(
@@ -70,9 +63,7 @@ export default function ChapterReviewPage() {
       setPublishing(false);
     }
   };
-
   if (loading) return <div className="p-4">Đang tải chapter...</div>;
-
   return (
     <div className="p-4 bg-light min-vh-100">
       <div className="d-flex justify-content-between align-items-center mb-4">
@@ -87,7 +78,6 @@ export default function ChapterReviewPage() {
           Trở về
         </button>
       </div>
-
       <div className="card shadow-sm border-0 mb-4">
         <div className="card-header bg-white fw-bold">
           File gốc do Mangaka gửi
@@ -107,7 +97,6 @@ export default function ChapterReviewPage() {
           )}
         </div>
       </div>
-
       <div className="card shadow-sm border-0 mb-4">
         <div className="card-header bg-white fw-bold">
           Đánh dấu các trang cần chỉnh sửa (nếu có)
@@ -124,7 +113,6 @@ export default function ChapterReviewPage() {
           />
         </div>
       </div>
-
       <div className="card shadow-sm border-0">
         <div className="card-header bg-white fw-bold">Duyệt & Xuất bản</div>
         <div className="card-body">

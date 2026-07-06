@@ -32,7 +32,6 @@ const CanvasMarkupTool = ({
   const isLocked = readOnly || drawingStatus === "FINALIZED";
   const shouldHideControls = isLocked && hideControls;
   const isLockedRef = useRef(isLocked);
-
   useEffect(() => {
     isLockedRef.current = isLocked;
   }, [isLocked]);
@@ -87,7 +86,6 @@ const CanvasMarkupTool = ({
     isRestoringRef.current = false;
     pushHistory(canvas);
   };
-
   const handleClearAll = () => {
     if (!canvas || isLocked) return;
     if (!window.confirm("Xóa toàn bộ nét đánh dấu mới trên trang này?")) return;
@@ -102,7 +100,6 @@ const CanvasMarkupTool = ({
     isRestoringRef.current = false;
     pushHistory(canvas);
   };
-
   useEffect(() => {
     const initCanvas = new fabric.Canvas(canvasRef.current, {
       width: 800,
@@ -189,7 +186,6 @@ const CanvasMarkupTool = ({
       initCanvas.dispose();
     };
   }, [pageId, backgroundImageUrl, pushHistory, restoreFromHistory]);
-
   useEffect(() => {
     if (!canvas) return;
     if (isLocked) {
@@ -205,7 +201,6 @@ const CanvasMarkupTool = ({
     }
     canvas.renderAll();
   }, [isLocked, canvas]);
-
   const toggleDrawingMode = () => {
     if (isLocked) return;
     if (canvas) {
@@ -214,7 +209,6 @@ const CanvasMarkupTool = ({
       setIsDrawingMode(!isDrawingMode);
     }
   };
-
   const handleSave = async () => {
     if (!canvas || isLocked) return;
     const canvasJSON = canvas.toJSON();
@@ -235,7 +229,6 @@ const CanvasMarkupTool = ({
       alert("Lưu thất bại! " + (error.response?.data?.message || ""));
     }
   };
-  
   return (
     <div className="canvas-markup-container">
       {!shouldHideControls && (

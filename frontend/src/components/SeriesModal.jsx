@@ -1,37 +1,30 @@
 import React, { useState } from "react";
 import "../styles/SeriesModal.css";
 import { likeChapter } from "../services/chapterService";
-
 const SeriesModal = ({ series, onClose }) => {
   const [userLikes, setUserLikes] = useState(() => {
     const savedLikes = localStorage.getItem("guest_liked_chapters");
     return savedLikes ? JSON.parse(savedLikes) : {};
   });
-
   const [filter, setFilter] = useState("");
   const handleToggleLike = async (chapterId) => {
     const sessionToken = localStorage.getItem("guest_session_token");
-
     if (userLikes[chapterId]) {
       return;
     }
-
     const newLikesState = { ...userLikes, [chapterId]: true };
     setUserLikes(newLikesState);
     localStorage.setItem("guest_liked_chapters", JSON.stringify(newLikesState));
-
     const targetChapter = series.chapters.find((c) => c.id === chapterId);
     if (targetChapter) {
       targetChapter.likes += 1;
     }
-
     try {
       await likeChapter(chapterId, sessionToken);
     } catch (error) {
       console.error("Lỗi gọi API Like:", error);
     }
   };
-
   if (!series) return null;
   const filteredChapters =
     filter === ""
@@ -67,7 +60,6 @@ const SeriesModal = ({ series, onClose }) => {
         <div className="modal-chapters">
           <div className="chapter-filter-header">
             <h3>Danh sách chương</h3>
-
             <select
               className="chapter-filter-select"
               value={filter}
@@ -117,5 +109,4 @@ const SeriesModal = ({ series, onClose }) => {
     </div>
   );
 };
-
 export default SeriesModal;

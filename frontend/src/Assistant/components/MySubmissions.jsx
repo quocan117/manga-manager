@@ -3,26 +3,21 @@ import {
   getMyTasks,
   getTaskSubmissions,
 } from "../../services/assistantService";
-
 export default function MySubmissions() {
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
-
   useEffect(() => {
     loadSubmissions();
   }, []);
-
   const loadSubmissions = async () => {
     try {
       const tasks = await getMyTasks();
       const relevantTasks = tasks.filter((t) =>
         ["SUBMITTED", "APPROVED", "REVISION_REQUESTED"].includes(t.status),
       );
-
       const results = await Promise.all(
         relevantTasks.map((t) => getTaskSubmissions(t.id)),
       );
-
       setSubmissions(results.flat());
     } catch (error) {
       console.error("Lỗi khi tải submissions:", error);
@@ -30,9 +25,7 @@ export default function MySubmissions() {
       setLoading(false);
     }
   };
-
   if (loading) return <div className="text-center mt-4">Đang tải...</div>;
-
   return (
     <div>
       <h2>My Submissions</h2>

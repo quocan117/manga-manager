@@ -1,21 +1,10 @@
-import axios from "axios";
-
-const API_URL = "http://localhost:8080/auth";
-
+// Áp dụng Fetch API (Exercise 10) thông qua api.js thay vì axios
+import api from "./api";
 export const login = async (form) => {
-    const response = await axios.post(
-        `${API_URL}/login`,
-        form
-    );
-
+    const response = await api.post("/auth/login", form);
     return response.data;
 };
-
 export const register = async (registerData) => {
-    const response = await axios.post(
-        `${API_URL}/register`,
-        registerData
-    );
-
+    const response = await api.post("/auth/register", registerData);
     return response.data;
 };

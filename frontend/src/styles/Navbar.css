@@ -5,7 +5,6 @@
   top: 0;
   z-index: 1000;
 }
-
 .navbar-container {
   display: flex;
   justify-content: space-between;
@@ -15,31 +14,26 @@
   margin: 0 auto;
   padding: 15px 20px;
 }
-
 .nav-logo {
   font-size: 24px;
   font-weight: bold;
   cursor: pointer;
   color: #ff4757;
 }
-
 .nav-menu {
   display: flex;
   align-items: center;
   gap: 30px;
 }
-
 .nav-link {
   cursor: pointer;
   font-weight: 500;
   user-select: none;
 }
-
 .nav-dropdown {
   position: relative;
   display: inline-block;
 }
-
 .search-input {
   padding: 8px 15px;
   border-radius: 20px;
@@ -47,12 +41,10 @@
   outline: none;
   width: 250px;
 }
-
 .auth-buttons {
   display: flex;
   gap: 12px;
 }
-
 .signup-btn {
   padding: 10px 20px;
   background-color: transparent;
@@ -62,7 +54,6 @@
   cursor: pointer;
   font-weight: bold;
 }
-
 .login-btn {
   padding: 10px 20px;
   background-color: #007bff;
@@ -72,7 +63,6 @@
   cursor: pointer;
   font-weight: bold;
 }
-
 .dropdown-content {
   position: absolute;
   top: 160%;
@@ -89,7 +79,6 @@
   grid-template-columns: repeat(3, 1fr);
   gap: 10px 15px;
 }
-
 .dropdown-content::before {
   content: "";
   position: absolute;
@@ -99,7 +88,6 @@
   border-style: solid;
   border-color: transparent transparent #ff4757 transparent;
 }
-
 .dropdown-item {
   padding: 8px 12px;
   cursor: pointer;
@@ -109,20 +97,17 @@
   border-radius: 6px;
   transition: all 0.25s ease-in-out; 
 }
-
 .dropdown-item:hover {
   color: #ff4757;           
   background-color: #fff0f1; 
   transform: translateX(8px); 
   font-weight: 600;           
 }
-
 @keyframes fadeIn {
   from {
     opacity: 0;
     transform: translateY(-10px);
   }
-
   to {
     opacity: 1;
     transform: translateY(0);

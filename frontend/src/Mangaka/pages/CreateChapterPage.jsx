@@ -1,47 +1,37 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { chapterService } from "../../services/chapterService";
-
 export default function CreateChapterPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-
   const [form, setForm] = useState({
     chapterNumber: "",
     title: "",
   });
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [loading, setLoading] = useState(false);
-
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
-
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
     setSelectedFiles(files);
   };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     if (!selectedFiles || selectedFiles.length === 0) {
       alert("Vui lòng chọn ít nhất 1 trang truyện!");
       return;
     }
-
     try {
       setLoading(true);
-
       const chapterResponse = await chapterService.createChapter({
         seriesId: Number(id),
         chapterNumber: Number(form.chapterNumber),
         title: form.title,
       });
-
       const newChapterId = chapterResponse.id;
       await chapterService.uploadChapterPages(newChapterId, selectedFiles);
-
       alert("Tạo chapter và tải ảnh thành công!");
       navigate("/mangaka/manga");
     } catch (error) {
@@ -53,13 +43,11 @@ export default function CreateChapterPage() {
       setLoading(false);
     }
   };
-
   return (
     <div className="container mt-4">
       <div className="card shadow mx-auto" style={{ maxWidth: "700px" }}>
         <div className="card-body">
           <h3 className="mb-4">Create Chapter & Upload Pages</h3>
-
           <form onSubmit={handleSubmit}>
             <div className="mb-3">
               <label>Chapter Number</label>
@@ -72,7 +60,6 @@ export default function CreateChapterPage() {
                 required
               />
             </div>
-
             <div className="mb-3">
               <label>Title</label>
               <input
@@ -84,7 +71,6 @@ export default function CreateChapterPage() {
                 required
               />
             </div>
-
             <div className="mb-4 p-3 border rounded bg-light">
               <label className="fw-bold mb-2">Tải lên các trang truyện</label>
               <input
@@ -95,7 +81,6 @@ export default function CreateChapterPage() {
                 className="form-control mb-2"
                 disabled={loading}
               />
-
               {selectedFiles.length > 0 && (
                 <div className="text-muted small">
                   <p className="mb-1 font-semibold">
@@ -115,7 +100,6 @@ export default function CreateChapterPage() {
                 </div>
               )}
             </div>
-
             <div className="d-flex gap-2">
               <button
                 type="submit"
@@ -124,7 +108,6 @@ export default function CreateChapterPage() {
               >
                 {loading ? "Đang xử lý..." : "Lưu & Tải Ảnh Lên"}
               </button>
-
               <button
                 type="button"
                 className="btn btn-secondary"

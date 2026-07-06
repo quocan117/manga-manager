@@ -2,14 +2,12 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getChapterPages, getChapterById } from "../../services/mangakaService";
 import { resolveImageUrl } from "../../utils/imageUrl";
-
 export default function ChapterPages() {
   const { chapterId } = useParams();
   const navigate = useNavigate();
   const [pages, setPages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [chapter, setChapter] = useState(null);
-
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -27,10 +25,8 @@ export default function ChapterPages() {
     };
     fetchData();
   }, [chapterId]);
-
   if (loading)
     return <div className="text-center mt-5">Đang tải danh sách trang...</div>;
-
   return (
     <div className="container mt-4">
       <div className="d-flex justify-content-between align-items-center mb-4">
@@ -42,7 +38,6 @@ export default function ChapterPages() {
           Quay lại
         </button>
       </div>
-
       <div className="row">
         {pages.length === 0 ? (
           <div className="col-12 text-center text-muted">

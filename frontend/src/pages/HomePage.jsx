@@ -6,7 +6,6 @@ import SeriesModal from "../components/SeriesModal";
 import FloatingMenu from "../components/FloatingMenu";
 import { getAllSeries } from "../services/seriesService";
 import "../styles/HomePage.css";
-
 const HomePage = () => {
   // 1. QUẢN LÝ STATE & ROUTING
   const navigate = useNavigate();
@@ -14,13 +13,11 @@ const HomePage = () => {
   const [selectedSeries, setSelectedSeries] = useState(null);
   const [jumpPage, setJumpPage] = useState("");
   const [trendingSeries, setTrendingSeries] = useState([]);
-
   // Trích xuất parameters từ URL
   const currentGenre = searchParams.get("genre");
   const searchQuery = searchParams.get("search");
   const isFiltering = currentGenre || searchQuery;
   const currentPage = parseInt(searchParams.get("page")) || 1;
-
   //Gọi API lấy toàn bộ series hiển thị lên trang chủ
   useEffect(() => {
     const fetchSeries = async () => {
@@ -33,7 +30,6 @@ const HomePage = () => {
     };
     fetchSeries();
   }, []);
-
   // 2. XỬ LÝ DỮ LIỆU
   // Lấy Top 4 Series có lượt Like cao nhất
   const top4Series = [...trendingSeries]
@@ -43,11 +39,9 @@ const HomePage = () => {
       return totalB - totalA;
     })
     .slice(0, 4);
-
   // Xử lý Lọc & Tìm kiếm
   let filteredSeries = trendingSeries;
   let filterTitle = "";
-
   if (currentGenre) {
     filteredSeries = trendingSeries.filter((series) =>
       series.genres?.includes(currentGenre),
@@ -62,7 +56,6 @@ const HomePage = () => {
     );
     filterTitle = `🔍 Kết quả tìm kiếm: "${searchQuery}" (${filteredSeries.length} series)`;
   }
-
   // Xử lý dữ liệu cho khu vực "Khám phá" (Loại trừ Top 4 và Phân trang)
   const ITEMS_PER_PAGE = 20;
   const top4Ids = top4Series.map((series) => series.id);
@@ -76,7 +69,6 @@ const HomePage = () => {
     startIndex,
     startIndex + ITEMS_PER_PAGE,
   );
-
   // 3. CÁC HÀM XỬ LÝ SỰ KIỆN
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= totalPages) {
@@ -86,7 +78,6 @@ const HomePage = () => {
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
-
   const handleJumpPage = (e) => {
     e.preventDefault();
     const pageNum = parseInt(jumpPage);
@@ -95,7 +86,6 @@ const HomePage = () => {
       setJumpPage("");
     }
   };
-
   // 4. HIỂN THỊ GIAO DIỆN
   return (
     <div className="home-container">
@@ -109,7 +99,6 @@ const HomePage = () => {
           động ngay!
         </p>
       </div>
-
       <div className="main-content">
         {isFiltering ? (
           // Lọc và tìm kiếm
@@ -151,7 +140,6 @@ const HomePage = () => {
                 ))}
               </div>
             </section>
-
             <section style={{ marginTop: "50px" }}>
               <h2 className="section-title">Khám Phá Các Series Khác</h2>
               <div className="cards-grid">
@@ -163,7 +151,6 @@ const HomePage = () => {
                   />
                 ))}
               </div>
-
               {totalPages > 1 && (
                 <div className="pagination-container">
                   <div className="pagination-buttons">
@@ -183,7 +170,6 @@ const HomePage = () => {
                       Sau »
                     </button>
                   </div>
-
                   <form className="jump-page-form" onSubmit={handleJumpPage}>
                     <input
                       type="number"
@@ -201,7 +187,6 @@ const HomePage = () => {
           </>
         )}
       </div>
-
       {selectedSeries && (
         <SeriesModal
           series={selectedSeries}
@@ -212,5 +197,4 @@ const HomePage = () => {
     </div>
   );
 };
-
 export default HomePage;

@@ -9,9 +9,7 @@ import {
 } from "../../services/tantouService";
 import { useNavigate } from "react-router-dom";
 import { getPendingReviewChapters } from "../../services/chapterEditorService";
-
 const ASSIGNMENT_NOTIFICATION_TYPES = ["NEW_ASSIGNMENT", "SYSTEM_ASSIGNMENT"];
-
 const PROGRESS_STATUS_LABELS = {
   PENDING_EDITOR: "Chờ xác nhận",
   TANTOU_REVIEW: "Đang kiểm tra",
@@ -20,7 +18,6 @@ const PROGRESS_STATUS_LABELS = {
   Published: "Đã xuất bản",
   PUBLISHED: "Đã xuất bản",
 };
-
 function ProgressStatusBadge({ status }) {
   if (!status) return null;
   const label = PROGRESS_STATUS_LABELS[status] || status;
@@ -33,7 +30,6 @@ function ProgressStatusBadge({ status }) {
     </span>
   );
 }
-
 export default function TantouDashboard() {
   const [progress, setProgress] = useState([]);
   const [pendingSeries, setPendingSeries] = useState([]);
@@ -43,11 +39,9 @@ export default function TantouDashboard() {
   const [rejectingId, setRejectingId] = useState(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-
   useEffect(() => {
     fetchDashboardData();
   }, []);
-
   const fetchDashboardData = async () => {
     try {
       const [progressData, pendingData, notificationData, pendingChapterData] =
@@ -70,11 +64,9 @@ export default function TantouDashboard() {
       setLoading(false);
     }
   };
-
   const handleAccept = async (notification) => {
     const seriesId = notification.referenceId;
     if (!seriesId) return;
-
     setAcceptingId(notification.id);
     try {
       await acceptSeries(seriesId);
@@ -83,7 +75,6 @@ export default function TantouDashboard() {
         prev.filter((n) => n.id !== notification.id),
       );
       fetchDashboardData();
-
       navigate(`/tantou/review/${seriesId}`);
     } catch (error) {
       console.error("Lỗi nhận hồ sơ:", error);
@@ -96,16 +87,13 @@ export default function TantouDashboard() {
       setAcceptingId(null);
     }
   };
-
   const handleReject = async (notification) => {
     const seriesId = notification.referenceId;
     if (!seriesId) return;
-
     const confirmed = window.confirm(
       "Bạn có chắc muốn từ chối hồ sơ này? Hệ thống sẽ tự động chuyển cho biên tập viên đang có ít việc nhất.",
     );
     if (!confirmed) return;
-
     setRejectingId(notification.id);
     try {
       await rejectSeries(seriesId);
@@ -125,13 +113,10 @@ export default function TantouDashboard() {
       setRejectingId(null);
     }
   };
-
   if (loading) return <div className="p-4">Đang tải báo cáo Studio...</div>;
-
   return (
     <div className="p-4 bg-light min-vh-100">
       <h2 className="mb-4">📊 Báo Cáo Tiến Độ Studio (Real-time)</h2>
-
       {pendingAssignments.length > 0 && (
         <div className="card shadow-sm mb-5 border-0 border-start border-4 border-warning">
           <div className="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
@@ -169,7 +154,6 @@ export default function TantouDashboard() {
                     >
                       {isAccepting ? "Đang nhận..." : "Nhận hồ sơ series"}
                     </button>
-
                     <button
                       type="button"
                       className="btn btn-sm btn-outline-danger ms-2"
@@ -185,7 +169,6 @@ export default function TantouDashboard() {
           </div>
         </div>
       )}
-
       <div className="card shadow-sm mb-5 border-0">
         <div className="card-header bg-white fw-bold">
           Tiến độ hoàn thiện các tác phẩm đang phụ trách
@@ -219,7 +202,6 @@ export default function TantouDashboard() {
           </table>
         </div>
       </div>
-
       <h2 className="mb-4">📝 Bản Thảo Cần Kiểm Duyệt (Pending)</h2>
       <div className="row">
         {pendingSeries.map((series) => (
@@ -250,7 +232,6 @@ export default function TantouDashboard() {
           </div>
         ))}
       </div>
-
       <h2 className="mb-4 mt-5">📖 Chapter Cần Duyệt</h2>
       <div className="row">
         {pendingChapters.length === 0 && (

@@ -1,22 +1,18 @@
 import { useState } from "react";
 import CanvasMarkupTool from "./CanvasMarkupTool";
-
 export default function ChapterMarkupUploader({ onSaveNote, onSendAll }) {
   const [images, setImages] = useState([]); 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [sending, setSending] = useState(false);
-
   const handleAddFiles = (e) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
-
     const newItems = files.map((file) => ({
       file,
       previewUrl: URL.createObjectURL(file),
       note: null,
       finalized: false,
     }));
-
     setImages((prev) => {
       const wasEmpty = prev.length === 0;
       const updated = [...prev, ...newItems];
@@ -25,31 +21,25 @@ export default function ChapterMarkupUploader({ onSaveNote, onSendAll }) {
     });
     e.target.value = "";
   };
-
   const currentImage = images[currentIndex];
   const allFinalized =
     images.length > 0 && images.every((img) => img.finalized);
-
   const handlePersist = async (canvasJSON, previewImageUrl) => {
     const note = await onSaveNote(currentIndex, {
       imageFile: currentImage.file,
       canvasData: canvasJSON,
       previewImageUrl,
     });
-
     setImages((prev) =>
       prev.map((img, idx) =>
         idx === currentIndex ? { ...img, note, finalized: true } : img,
       ),
     );
-
     return { version: 1, status: "FINALIZED" };
   };
-
   const handleNext = () => {
     if (currentIndex < images.length - 1) setCurrentIndex((i) => i + 1);
   };
-
   const handleSendAll = async () => {
     setSending(true);
     try {
@@ -58,7 +48,6 @@ export default function ChapterMarkupUploader({ onSaveNote, onSendAll }) {
       setSending(false);
     }
   };
-
   return (
     <div className="chapter-markup-uploader">
       <div className="mb-3 p-3 border rounded bg-light">
@@ -79,14 +68,12 @@ export default function ChapterMarkupUploader({ onSaveNote, onSendAll }) {
           </small>
         )}
       </div>
-
       {images.length === 0 && (
         <div className="alert alert-secondary">
           Chưa có ảnh nào. Hãy chọn ít nhất 1 ảnh cần chỉnh sửa để bắt đầu đánh
           dấu.
         </div>
       )}
-
       {currentImage && (
         <div className="card shadow-sm mb-3">
           <div className="card-header d-flex justify-content-between align-items-center">
@@ -115,7 +102,6 @@ export default function ChapterMarkupUploader({ onSaveNote, onSendAll }) {
           </div>
         </div>
       )}
-
       {images.length > 0 && (
         <button
           className="btn btn-success w-100 fw-bold"

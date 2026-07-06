@@ -4,23 +4,17 @@ import { getPageDrawing, finalizeDrawing } from "../../services/drawingService";
 import { resolveImageUrl } from "../../utils/imageUrl";
 import CanvasMarkupTool from "../../components/CanvasMarkupTool";
 import "../styles/drawing.css";
-
 export default function DrawingPage() {
   const { pageId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-
   const [drawing, setDrawing] = useState(null);
   const [loading, setLoading] = useState(true);
-
   const originalImageUrl = resolveImageUrl(location.state?.originalImageUrl);
-
   const isFinalized = drawing?.status === "FINALIZED"; 
-
   useEffect(() => {
     loadDrawing();
   }, [pageId]);
-
   const loadDrawing = async () => {
     try {
       setLoading(true);
@@ -35,7 +29,6 @@ export default function DrawingPage() {
       setLoading(false);
     }
   };
-
   const handleFinalize = async () => {
     if (
       !window.confirm(
@@ -43,7 +36,6 @@ export default function DrawingPage() {
       )
     )
       return;
-
     try {
       const data = await finalizeDrawing(pageId, drawing?.version || 0);
       setDrawing(data); 
@@ -57,7 +49,6 @@ export default function DrawingPage() {
       );
     }
   };
-
   if (loading) {
     return (
       <div className="drawing-loading">
@@ -66,7 +57,6 @@ export default function DrawingPage() {
       </div>
     );
   }
-
   return (
     <div className="container-fluid mt-4 drawing-page-container">
       <div className="d-flex justify-content-between align-items-center mb-3">
@@ -75,7 +65,6 @@ export default function DrawingPage() {
           ⬅ Quay lại
         </button>
       </div>
-
       <div className="row">
         <div className="col-md-9">
           <div className="card shadow canvas-card">
@@ -93,7 +82,6 @@ export default function DrawingPage() {
             </div>
           </div>
         </div>
-
         <div className="col-md-3">
           <div className="card shadow info-card">
             <div className="card-header bg-info text-white fw-bold">
@@ -111,7 +99,6 @@ export default function DrawingPage() {
               <div className="info-item mb-3">
                 <strong>Phiên bản hiện tại: </strong> v{drawing?.version ?? 0}
               </div>
-
               <hr />
               <p className="text-muted small text-justify">
                 * Việc lưu nháp được thực hiện trực tiếp trong thanh công cụ của
@@ -124,7 +111,6 @@ export default function DrawingPage() {
                   </>
                 )}
               </p>
-
               <button
                 className="btn btn-danger w-100 btn-finalize mt-2"
                 onClick={handleFinalize}
