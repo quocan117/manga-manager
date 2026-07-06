@@ -30,6 +30,8 @@ import ManageAssistants from "./Mangaka/pages/ManageAssistants";
 import TantouNotifications from "./TantouEditor/pages/TantouNotifications";
 import AssistantNotification from "./Assistant/components/Notification";
 import TaskDetailPage from "./Assistant/pages/TaskDetailPage";
+import ChapterEditorSubmission from "./Mangaka/pages/ChapterEditorSubmission";
+import ChapterReviewPage from "./TantouEditor/pages/ChapterReviewPage";
 
 function App() {
   useEffect(() => {
@@ -88,6 +90,7 @@ function App() {
           <Route path="tasks" element={<AssistantTasks />} />
           <Route path="pages/:pageId/drawing" element={<DrawingPage />} />
           <Route path="chapters/:chapterId/pages" element={<ChapterPages />} />
+          <Route path="chapters/:chapterId/editor-submission" element={<ChapterEditorSubmission />} />
           <Route path="manage-assistants" element={<ManageAssistants />} />
         </Route>
 
@@ -133,6 +136,7 @@ function App() {
         >
           <Route index element={<TantouDashboard />} />
           <Route path="review/:id" element={<EditorReviewPage />} />
+          <Route path="chapters/:chapterId/review" element={<ChapterReviewPage />} />
           <Route path="schedule" element={<ScheduleManagement />} />
           <Route path="notifications" element={<TantouNotifications />} />
         </Route>

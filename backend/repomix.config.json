@@ -1,0 +1,35 @@
+{
+  "output": {
+    "filePath": "SWP_Backend_Code.txt",
+    "style": "xml",
+    "compress": false,
+    "removeComments": false,
+    "removeEmptyLines": true,
+    "showLineNumbers": true,
+    "fileSummary": true,
+    "directoryStructure": true,
+    "topFilesLength": 15
+  },
+  "include": [
+    "**/*.java",
+    "**/*.xml",
+    "**/*.yml",
+    "**/*.yaml",
+    "**/*.properties",
+    "**/*.sql",
+    "pom.xml",
+    "build.gradle"
+  ],
+  "ignore": {
+    "useGitignore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": [
+      "src/test/**",
+      "**/*.log",
+      "**/target/**",
+      "**/build/**",
+      "src/main/resources/static/**"
+    ]
+  },
+  "security": { "enableSecurityCheck": true }
+}

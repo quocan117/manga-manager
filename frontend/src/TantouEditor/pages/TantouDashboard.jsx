@@ -8,6 +8,7 @@ import {
   rejectSeries,
 } from "../../services/tantouService";
 import { useNavigate } from "react-router-dom";
+import { getPendingReviewChapters } from "../../services/chapterEditorService";
 
 const ASSIGNMENT_NOTIFICATION_TYPES = ["NEW_ASSIGNMENT", "SYSTEM_ASSIGNMENT"];
 
@@ -36,6 +37,7 @@ function ProgressStatusBadge({ status }) {
 export default function TantouDashboard() {
   const [progress, setProgress] = useState([]);
   const [pendingSeries, setPendingSeries] = useState([]);
+  const [pendingChapters, setPendingChapters] = useState([]);
   const [pendingAssignments, setPendingAssignments] = useState([]);
   const [acceptingId, setAcceptingId] = useState(null);
   const [rejectingId, setRejectingId] = useState(null);
@@ -48,13 +50,16 @@ export default function TantouDashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      const [progressData, pendingData, notificationData] = await Promise.all([
-        getStudioProgress(),
-        getPendingReviewSeries(),
-        getNotifications(),
-      ]);
+      const [progressData, pendingData, notificationData, pendingChapterData] =
+        await Promise.all([
+          getStudioProgress(),
+          getPendingReviewSeries(),
+          getNotifications(),
+          getPendingReviewChapters(),
+        ]);
       setProgress(progressData);
       setPendingSeries(pendingData);
+      setPendingChapters(pendingChapterData);
       const assignments = (notificationData || []).filter(
         (n) => ASSIGNMENT_NOTIFICATION_TYPES.includes(n.type) && !n.isRead,
       );
@@ -164,7 +169,7 @@ export default function TantouDashboard() {
                     >
                       {isAccepting ? "Đang nhận..." : "Nhận hồ sơ series"}
                     </button>
-                    
+
                     <button
                       type="button"
                       className="btn btn-sm btn-outline-danger ms-2"
@@ -239,6 +244,30 @@ export default function TantouDashboard() {
                   onClick={() => navigate(`/tantou/review/${series.id}`)}
                 >
                   Mở Hồ Sơ & Kiểm Duyệt
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <h2 className="mb-4 mt-5">📖 Chapter Cần Duyệt</h2>
+      <div className="row">
+        {pendingChapters.length === 0 && (
+          <p className="text-muted">Chưa có chapter nào cần duyệt.</p>
+        )}
+        {pendingChapters.map((c) => (
+          <div className="col-md-4 mb-4" key={c.id}>
+            <div className="card shadow-sm border-0 h-100">
+              <div className="card-body">
+                <h5 className="fw-bold">
+                  {c.seriesTitle} - Chapter {c.chapterNumber}
+                </h5>
+                <button
+                  className="btn btn-primary w-100"
+                  onClick={() => navigate(`/tantou/chapters/${c.id}/review`)}
+                >
+                  Mở & Duyệt Chapter
                 </button>
               </div>
             </div>

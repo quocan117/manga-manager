@@ -1,0 +1,39 @@
+{
+  "$schema": "https://repomix.com/schemas/latest/schema.json",
+  "output": {
+    "filePath": "SWP_Frontend_Code.txt",
+    "style": "xml",
+    "compress": false,
+    "removeComments": false,
+    "removeEmptyLines": true,
+    "showLineNumbers": false,
+    "topFilesLength": 10,
+    "tokenCountTree": true
+  },
+  "include": [
+    "src/**/*",
+    "*.config.*",
+    "package.json",
+    "tsconfig*.json",
+    "README.md"
+  ],
+  "ignore": {
+    "useGitignore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": [
+      "**/*.test.*",
+      "**/*.spec.*",
+      "**/*.stories.*",
+      "**/*.snap",
+      "**/*.map",
+      "**/*.min.*",
+      "**/__mocks__/**",
+      "**/__tests__/**",
+      "**/fixtures/**",
+      "src/assets/**",
+      "src/locales/**",
+      "src/setupTests.*"
+    ]
+  },
+  "security": { "enableSecurityCheck": true }
+}

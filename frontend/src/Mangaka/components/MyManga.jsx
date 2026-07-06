@@ -4,7 +4,6 @@ import { getMySeries, getSeriesChapters } from "../../services/mangakaService";
 import SubmitSeriesModal from "./SubmitSeriesModal";
 import "../styles/SubmitSeriesModal.css";
 
-// Trạng thái series mà mangaka được phép gửi (hoặc gửi lại) cho biên tập.
 const SUBMITTABLE_STATUSES = ["DRAFT", "REVISION_REQUESTED"];
 
 const STATUS_LABELS = {
@@ -266,6 +265,18 @@ export default function MyManga() {
                                 }
                               >
                                 🖼️ Xem các trang
+                              </button>
+                              <button
+                                className="btn btn-sm btn-warning ms-1"
+                                onClick={() =>
+                                  navigate(
+                                    `/mangaka/chapters/${chapter.id}/editor-submission`,
+                                  )
+                                }
+                              >
+                                {chapter.status === "REVISION_REQUESTED"
+                                  ? "📤 Gửi lại cho Biên tập"
+                                  : "📤 Gửi Biên tập"}
                               </button>
                             </td>
                           </tr>

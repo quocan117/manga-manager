@@ -37,8 +37,8 @@ export default function MangakaLayout() {
   };
 
   return (
-    <div className="row">
-      <div className="col-md-2 sidebar">
+    <div className="mangaka-layout">
+      <div className="sidebar">
         <h3 className="sidebar-title">MANGAKA</h3>
         <ul className="nav flex-column mt-4">
           <li>
@@ -119,7 +119,7 @@ export default function MangakaLayout() {
         </ul>
       </div>
 
-      <div className="col-md-10 p-4">
+      <div className="mangaka-content p-4">
         <div className="card shadow-sm border-0 mb-4">
           <div className="card-body d-flex justify-content-between align-items-center">
             <div>
