@@ -8,8 +8,8 @@
         <processorPath useClasspath="false">
           <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.38/lombok-1.18.38.jar" />
         </processorPath>
-        <module name="backend.test" />
         <module name="backend.main" />
+        <module name="backend.test" />
       </profile>
     </annotationProcessing>
   </component>

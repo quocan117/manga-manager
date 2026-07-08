@@ -197,6 +197,7 @@ public class MangakaService {
         User assignedEditor = getEditorWithLeastWorkload(null);
 
         series.setTantouEditor(assignedEditor);
+        series.setStoryboardUrl(request.storyboardUrl().trim());
         series.setStatus("PENDING_EDITOR");
         series.setEditorAssignedAt(LocalDateTime.now());
 
