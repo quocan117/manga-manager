@@ -20,7 +20,7 @@ import java.util.Optional;
 @Component
 public class PublishScheduleJob {
     private static final String PLANNED_STATUS = "PLANNED";
-    private static final String READY_CHAPTER_STATUS = "SUBMITTED_TO_EDITOR";
+    private static final String READY_CHAPTER_STATUS = "APPROVED";
     private static final String PUBLISHED_CHAPTER_STATUS = "PUBLISHED";
 
     private final PublishScheduleRepository publishScheduleRepository;

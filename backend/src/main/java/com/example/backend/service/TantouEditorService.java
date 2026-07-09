@@ -68,6 +68,7 @@ public class TantouEditorService {
     private static final String BOARD_REVIEW_STATUS = "REVIEWING";
     private static final String REVISION_REQUESTED_STATUS = "REVISION_REQUESTED";
     private static final String SUBMITTED_TO_EDITOR_STATUS = "SUBMITTED_TO_EDITOR";
+    private static final String APPROVED_CHAPTER_STATUS = "APPROVED";
     private static final String PUBLISHED_STATUS = "PUBLISHED";
     private static final long MAX_REVISION_NOTE_IMAGE_SIZE_BYTES = 5L * 1024 * 1024;
     private static final Set<String> REVISION_NOTE_IMAGE_CONTENT_TYPES = Set.of(
@@ -307,7 +308,7 @@ public class TantouEditorService {
     @Transactional(readOnly = true)
     public List<ChapterManuscriptResponse> getPendingChapterReviews() {
         return chapterRepository.findBySeriesTantouEditorEmailAndStatusIgnoreCaseOrderByCreatedAtDesc(
-                currentEmail(), SUBMITTED_TO_EDITOR_STATUS)
+                        currentEmail(), SUBMITTED_TO_EDITOR_STATUS)
                 .stream()
                 .map(this::toChapterManuscript)
                 .toList();
@@ -351,6 +352,20 @@ public class TantouEditorService {
         MangaSeries series = savedChapter.getSeries();
         notify(series == null ? null : series.getAuthor(), "CHAPTER_REVISION_REQUESTED", savedChapter.getChapterId(),
                 "Chapter revision requested: " + savedChapter.getTitle());
+        return toChapterManuscript(savedChapter);
+    }
+
+    @Transactional
+    public ChapterManuscriptResponse approveChapter(Long chapterId) {
+        Chapter chapter = chapterForCurrentEditor(chapterId);
+        if (!SUBMITTED_TO_EDITOR_STATUS.equalsIgnoreCase(chapter.getStatus())) {
+            throw badRequest("Only submitted chapters can be approved");
+        }
+        chapter.setStatus(APPROVED_CHAPTER_STATUS);
+        Chapter savedChapter = chapterRepository.save(chapter);
+        MangaSeries series = savedChapter.getSeries();
+        notify(series == null ? null : series.getAuthor(), "CHAPTER_APPROVED", savedChapter.getChapterId(),
+                "Chapter approved: " + savedChapter.getTitle() + ". Sẽ tự động xuất bản theo lịch.");
         return toChapterManuscript(savedChapter);
     }
 

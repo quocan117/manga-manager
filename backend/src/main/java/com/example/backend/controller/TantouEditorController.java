@@ -83,6 +83,11 @@ public class TantouEditorController {
         return service.requestChapterRevision(chapterId);
     }
 
+    @PostMapping("/chapters/{chapterId}/approve")
+    public ChapterManuscriptResponse approveChapter(@PathVariable Long chapterId) {
+        return service.approveChapter(chapterId);
+    }
+
     @PostMapping("/chapters/{chapterId}/publish")
     public ChapterManuscriptResponse publishChapter(@PathVariable Long chapterId) {
         return service.publishChapter(chapterId);
