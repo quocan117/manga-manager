@@ -8,6 +8,7 @@ import {
 import { resolveImageUrl } from "../../utils/imageUrl";
 import CanvasMarkupTool from "../../components/CanvasMarkupTool";
 const SUBMITTABLE_STATUSES = ["DRAFT", "REVISION_REQUESTED", undefined, null];
+
 export default function ChapterEditorSubmission() {
   const { chapterId } = useParams();
   const navigate = useNavigate();
@@ -18,9 +19,11 @@ export default function ChapterEditorSubmission() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  
   useEffect(() => {
     fetchData();
   }, [chapterId]);
+
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -45,15 +48,18 @@ export default function ChapterEditorSubmission() {
       setLoading(false);
     }
   };
+
   const isResubmit = chapter?.status === "REVISION_REQUESTED";
   const canSubmit = SUBMITTABLE_STATUSES.includes(chapter?.status);
   const currentNote = revisionNotes[currentNoteIndex];
   const handlePrevNote = () => {
     setCurrentNoteIndex((i) => Math.max(0, i - 1));
   };
+
   const handleNextNote = () => {
     setCurrentNoteIndex((i) => Math.min(revisionNotes.length - 1, i + 1));
   };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -79,8 +85,10 @@ export default function ChapterEditorSubmission() {
       setSubmitting(false);
     }
   };
+
   if (loading)
     return <div className="text-center mt-5">Đang tải dữ liệu chapter...</div>;
+
   return (
     <div className="container mt-4">
       <div className="d-flex justify-content-between align-items-center mb-4">

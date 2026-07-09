@@ -5,14 +5,14 @@ import {
   getChapterForReview,
   saveChapterRevisionNote,
   sendChapterRevisionToMangaka,
-  publishChapter,
+  approveChapter,
 } from "../../services/chapterEditorService";
 export default function ChapterReviewPage() {
   const { chapterId } = useParams();
   const navigate = useNavigate();
   const [chapter, setChapter] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [publishing, setPublishing] = useState(false);
+  const [approving, setApproving] = useState(false);
   useEffect(() => {
     fetchChapter();
   }, [chapterId]);
@@ -44,26 +44,31 @@ export default function ChapterReviewPage() {
       alert("Lỗi khi gửi yêu cầu chỉnh sửa.");
     }
   };
-  const handlePublish = async () => {
+
+  const handleApprove = async () => {
     if (
       !window.confirm(
-        "Xác nhận duyệt và xuất bản chapter này lên trang độc giả?",
+        "Xác nhận duyệt chapter này? Chapter sẽ tự động xuất bản theo lịch đã cấu hình cho series.",
       )
     )
       return;
     try {
-      setPublishing(true);
-      await publishChapter(chapterId);
-      alert("Đã xuất bản chapter và thông báo cho Mangaka!");
+      setApproving(true);
+      await approveChapter(chapterId);
+      alert(
+        "Đã duyệt chapter! Mangaka đã được thông báo, chapter sẽ tự động xuất bản theo lịch.",
+      );
       navigate("/tantou");
     } catch (error) {
       console.error(error);
-      alert("Lỗi khi xuất bản chapter.");
+      alert("Lỗi khi duyệt chapter.");
     } finally {
-      setPublishing(false);
+      setApproving(false);
     }
   };
+
   if (loading) return <div className="p-4">Đang tải chapter...</div>;
+
   return (
     <div className="p-4 bg-light min-vh-100">
       <div className="d-flex justify-content-between align-items-center mb-4">
@@ -114,18 +119,20 @@ export default function ChapterReviewPage() {
         </div>
       </div>
       <div className="card shadow-sm border-0">
-        <div className="card-header bg-white fw-bold">Duyệt & Xuất bản</div>
+        <div className="card-header bg-white fw-bold">Duyệt Chapter</div>
         <div className="card-body">
           <p className="text-muted">
-            Nếu chapter đã đạt yêu cầu, không cần chỉnh sửa gì thêm, hãy xuất
-            bản trực tiếp lên trang chủ độc giả.
+            Nếu chapter đã đạt yêu cầu, không cần chỉnh sửa gì thêm, hãy duyệt
+            để Mangaka được thông báo. Chapter sẽ{" "}
+            <strong>tự động xuất bản</strong> theo lịch đã cấu hình ở mục{" "}
+            <strong>Lịch Xuất Bản</strong> — không xuất bản ngay lập tức.
           </p>
           <button
             className="btn btn-success fw-bold"
-            onClick={handlePublish}
-            disabled={publishing}
+            onClick={handleApprove}
+            disabled={approving}
           >
-            {publishing ? "Đang xuất bản..." : "✅ Duyệt & Xuất bản Chapter"}
+            {approving ? "Đang duyệt..." : "✅ Duyệt Chapter"}
           </button>
         </div>
       </div>

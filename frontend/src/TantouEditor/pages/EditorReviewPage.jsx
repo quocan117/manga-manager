@@ -121,13 +121,6 @@ export default function EditorReviewPage() {
                   Mangaka chưa gửi kèm link bản thảo nào.
                 </p>
               )}
-              <hr className="my-3" />
-              <div className="text-muted small fst-italic">
-                Chế độ đánh dấu tọa độ (Markup Mode) trên từng trang truyện sẽ
-                khả dụng ở bước duyệt Chapter (sau khi Mangaka tạo chapter với
-                các trang ảnh thật), không áp dụng ở bước duyệt hồ sơ series
-                này.
-              </div>
             </div>
           </div>
         </div>

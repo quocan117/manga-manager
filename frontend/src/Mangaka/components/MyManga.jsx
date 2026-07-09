@@ -13,6 +13,8 @@ const STATUS_LABELS = {
   Published: "Đã xuất bản",
   PUBLISHED: "Đã xuất bản",
   CANCELLED: "Đã hủy",
+  SUBMITTED_TO_EDITOR: "Đang chờ biên tập duyệt",
+  APPROVED: "Đã duyệt - chờ xuất bản theo lịch",
 };
 function StatusBadge({ status }) {
   const key = (status || "").toLowerCase();

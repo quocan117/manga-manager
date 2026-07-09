@@ -1,7 +1,6 @@
-// Áp dụng Fetch API (Exercise 10) cho toàn bộ service, thay cho axios.
 import api from "./api";
 const BASE_URL = "http://localhost:8080";
-// Guest like: không cần token nên gọi fetch trực tiếp, giữ nguyên logic gốc
+
 export const likeChapter = async (chapterId, sessionToken) => {
   const response = await fetch(`${BASE_URL}/chapters/${chapterId}/likes`, {
     method: "POST",

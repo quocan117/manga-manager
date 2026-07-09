@@ -1,4 +1,5 @@
 import api from "./api";
+
 export const submitChapterToEditor = async (chapterId, manuscriptUrl) => {
   const response = await api.patch(
     `/mangaka/chapters/${chapterId}/submit-to-editor`,
@@ -8,6 +9,7 @@ export const submitChapterToEditor = async (chapterId, manuscriptUrl) => {
   console.warn("[TODO-BE] submit-to-editor chưa có API thật, đang trả mock.");
   return { id: chapterId, status: "SUBMITTED_TO_EDITOR", manuscriptUrl };
 };
+
 export const getChapterRevisionNotes = async (chapterId) => {
   const response = await api.get(
     `/mangaka/chapters/${chapterId}/revision-notes`,
@@ -18,6 +20,7 @@ export const getChapterRevisionNotes = async (chapterId) => {
   );
   return [];
 };
+
 export const getPendingReviewChapters = async () => {
   const response = await api.get("/tantou-editor/chapters/pending-review");
   return response.data;
@@ -26,6 +29,7 @@ export const getPendingReviewChapters = async () => {
   );
   return [];
 };
+
 export const getChapterForReview = async (chapterId) => {
   const response = await api.get(`/tantou-editor/chapters/${chapterId}`);
   return response.data;
@@ -34,6 +38,7 @@ export const getChapterForReview = async (chapterId) => {
   );
   return null;
 };
+
 function dataUrlToBlob(dataUrl) {
   const [header, base64] = dataUrl.split(",");
   const mime = header.match(/:(.*?);/)?.[1] || "image/png";
@@ -42,6 +47,7 @@ function dataUrlToBlob(dataUrl) {
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
   return new Blob([bytes], { type: mime });
 }
+
 export const saveChapterRevisionNote = async (
   chapterId,
   { previewImageUrl, canvasData, orderIndex },
@@ -58,6 +64,7 @@ export const saveChapterRevisionNote = async (
   );
   return response.data;
 };
+
 export const sendChapterRevisionToMangaka = async (chapterId) => {
   const response = await api.post(
     `/tantou-editor/chapters/${chapterId}/request-revision`,
@@ -68,11 +75,10 @@ export const sendChapterRevisionToMangaka = async (chapterId) => {
   );
   return { id: chapterId, status: "REVISION_REQUESTED" };
 };
-export const publishChapter = async (chapterId) => {
+
+export const approveChapter = async (chapterId) => {
   const response = await api.post(
-    `/tantou-editor/chapters/${chapterId}/publish`,
+    `/tantou-editor/chapters/${chapterId}/approve`,
   );
   return response.data;
-  console.warn("[TODO-BE] publish chapter chưa có API thật, đang trả mock.");
-  return { id: chapterId, status: "PUBLISHED" };
 };
