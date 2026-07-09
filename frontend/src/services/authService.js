@@ -1,4 +1,3 @@
-// Áp dụng Fetch API (Exercise 10) thông qua api.js thay vì axios
 import api from "./api";
 export const login = async (form) => {
     const response = await api.post("/auth/login", form);
