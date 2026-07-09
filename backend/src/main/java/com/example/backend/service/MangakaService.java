@@ -75,6 +75,7 @@ public class MangakaService {
     private static final String DELETED_STATUS = "DELETED";
     private static final Set<String> ASSISTANT_STATUSES = Set.of(ACTIVE_STATUS, INACTIVE_STATUS);
     private static final String SUBMITTED_TO_EDITOR_STATUS = "SUBMITTED_TO_EDITOR";
+    private static final String PENDING_EDITOR_STATUS = "PENDING_EDITOR";
     private static final String TANTOU_REVIEW_STATUS = "TANTOU_REVIEW";
     private static final String REVISION_REQUESTED_STATUS = "REVISION_REQUESTED";
     private static final String PUBLISHED_STATUS = "PUBLISHED";
@@ -193,12 +194,21 @@ public class MangakaService {
     @Transactional
     public SeriesResponse submitSeries(Long seriesId, SubmitSeriesReviewRequest request) {
         MangaSeries series = ownedSeries(seriesId);
+        series.setStoryboardUrl(request.storyboardUrl().trim());
+
+        if (REVISION_REQUESTED_STATUS.equalsIgnoreCase(series.getStatus())
+                && series.getTantouEditor() != null) {
+            series.setStatus(TANTOU_REVIEW_STATUS);
+            mangaSeriesRepository.save(series);
+            notify(series.getTantouEditor(), "SERIES_RESUBMITTED", series.getSeriesId(),
+                    "Mangaka " + series.getAuthor().getUsername() + " đã gửi lại hồ sơ series '"
+                            + series.getTitle() + "' sau khi chỉnh sửa.");
+            return toSeriesResponse(series);
+        }
 
         User assignedEditor = getEditorWithLeastWorkload(null);
-
         series.setTantouEditor(assignedEditor);
-        series.setStoryboardUrl(request.storyboardUrl().trim());
-        series.setStatus("PENDING_EDITOR");
+        series.setStatus(PENDING_EDITOR_STATUS);
         series.setEditorAssignedAt(LocalDateTime.now());
 
         mangaSeriesRepository.save(series);
@@ -496,7 +506,7 @@ public class MangakaService {
     public List<TaskResponse> getChapterTasks(Long chapterId) {
         ownedChapter(chapterId);
         return taskRepository.findByChapterChapterIdAndAssignedByEmailOrderByCreatedAtDesc(
-                        chapterId, currentEmail())
+                chapterId, currentEmail())
                 .stream()
                 .map(this::toTaskResponse)
                 .toList();
@@ -616,9 +626,9 @@ public class MangakaService {
         List<String> genres = series.getGenre() == null || series.getGenre().isBlank()
                 ? List.of()
                 : Arrays.stream(series.getGenre().split(","))
-                .map(String::trim)
-                .filter(value -> !value.isBlank())
-                .toList();
+                        .map(String::trim)
+                        .filter(value -> !value.isBlank())
+                        .toList();
         return new SeriesResponse(
                 series.getSeriesId(), series.getTitle(), genres, series.getCoverImage(),
                 series.getDescription(), series.getStatus(), series.getStoryboardUrl(),
@@ -675,7 +685,8 @@ public class MangakaService {
                 submission.getChapter().getChapterId(),
                 submitter == null ? null : submitter.getUserId(),
                 submitter == null ? null : submitter.getUsername(),
-                submission.getArtifactUrl(), submission.getOriginalFileUrl(), submission.getNote(), submission.getStatus(),
+                submission.getArtifactUrl(), submission.getOriginalFileUrl(), submission.getNote(),
+                submission.getStatus(),
                 submission.getReviewNote(), submission.getSubmittedAt(), submission.getReviewedAt());
     }
 

@@ -255,6 +255,35 @@ class MangakaServiceTests {
     }
 
     @Test
+    void submitSeriesResubmitsRevisionToSameTantouEditor() {
+        MangaSeries series = new MangaSeries();
+        series.setSeriesId(20L);
+        series.setTitle("Revision Series");
+        series.setAuthor(user(1L, EMAIL));
+        series.setStatus("REVISION_REQUESTED");
+        User editor = tantouEditor(3L, "tantou1@manga.test");
+        series.setTantouEditor(editor);
+        when(mangaSeriesRepository.findById(20L)).thenReturn(Optional.of(series));
+        when(mangaSeriesRepository.save(series)).thenReturn(series);
+
+        var response = service.submitSeries(20L, new SubmitSeriesReviewRequest("updated-storyboard-url"));
+
+        assertEquals("TANTOU_REVIEW", series.getStatus());
+        assertSame(editor, series.getTantouEditor());
+        assertEquals("updated-storyboard-url", series.getStoryboardUrl());
+        assertEquals("TANTOU_REVIEW", response.status());
+        verify(userRepository, never())
+                .findByRoleRoleNameAndStatusOrderByUsernameAsc(eq("TANTOU_EDITOR"), eq("ACTIVE"));
+
+        ArgumentCaptor<Notification> notificationCaptor = ArgumentCaptor.forClass(Notification.class);
+        verify(notificationRepository).save(notificationCaptor.capture());
+        Notification notification = notificationCaptor.getValue();
+        assertEquals(editor, notification.getUser());
+        assertEquals("SERIES_RESUBMITTED", notification.getType());
+        assertEquals(20L, notification.getReferenceId());
+    }
+
+    @Test
     void getsChaptersForOwnedSeries() {
         MangaSeries series = new MangaSeries();
         series.setSeriesId(20L);
