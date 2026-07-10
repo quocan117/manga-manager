@@ -660,13 +660,17 @@ public class TantouEditorService {
 
     private ScheduleResponse toScheduleResponse(PublishSchedule schedule) {
         MangaSeries series = schedule.getSeries();
+        boolean overdue = "PLANNED".equalsIgnoreCase(schedule.getStatus())
+                && schedule.getPublishDate() != null
+                && schedule.getPublishDate().isBefore(LocalDateTime.now());
         return new ScheduleResponse(
                 schedule.getScheduleId(),
                 series == null ? null : series.getSeriesId(),
                 series == null ? null : series.getTitle(),
                 schedule.getPublishDate(),
                 schedule.getFrequency(),
-                schedule.getStatus());
+                schedule.getStatus(),
+                overdue);
     }
 
     private BoardDecisionResponse toBoardDecision(BoardDecision decision) {

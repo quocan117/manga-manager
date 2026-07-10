@@ -23,4 +23,5 @@ public class PublishSchedule {
     private LocalDateTime publishDate;
     private String frequency;
     private String status;
+    private Boolean overdueNotified = false;
 }

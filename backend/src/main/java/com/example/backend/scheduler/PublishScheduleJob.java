@@ -58,6 +58,13 @@ public class PublishScheduleJob {
                     .findFirstBySeriesSeriesIdAndStatusIgnoreCaseOrderByChapterNumberAsc(
                             series.getSeriesId(), READY_CHAPTER_STATUS);
             if (readyChapter.isEmpty()) {
+                if (!Boolean.TRUE.equals(schedule.getOverdueNotified())) {
+                    schedule.setOverdueNotified(true);
+                    publishScheduleRepository.save(schedule);
+                    notify(series.getTantouEditor(), "SCHEDULE_OVERDUE", schedule.getScheduleId(),
+                            "Lịch xuất bản của \"" + series.getTitle() + "\" đã quá hạn (" +
+                                    schedule.getPublishDate() + ") nhưng chưa có chapter nào được duyệt.");
+                }
                 continue;
             }
 
@@ -67,6 +74,7 @@ public class PublishScheduleJob {
             chapterRepository.save(chapter);
 
             schedule.setPublishDate(nextPublishDate);
+            schedule.setOverdueNotified(false);
             publishScheduleRepository.save(schedule);
 
             notify(series.getAuthor(), "CHAPTER_PUBLISHED", chapter.getChapterId(),
