@@ -83,7 +83,8 @@ public final class TantouEditorDtos {
             String seriesTitle,
             LocalDateTime publishDate,
             String frequency,
-            String status) {
+            String status,
+            boolean isOverdue) {
     }
 
     public record DossierResponse(
