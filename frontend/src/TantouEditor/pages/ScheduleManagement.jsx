@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { getSchedules, createSchedule } from "../../services/tantouService";
-import { getAllSeries } from "../../services/seriesService"; 
+import { getAllSeries } from "../../services/seriesService";
 export default function ScheduleManagement() {
   const [schedules, setSchedules] = useState([]);
   const [publishedSeries, setPublishedSeries] = useState([]);
@@ -33,7 +33,10 @@ export default function ScheduleManagement() {
     try {
       await createSchedule({
         seriesId: Number(form.seriesId),
-        publishDate: new Date(form.publishDate).toISOString(),
+        publishDate:
+          form.publishDate.length === 16
+            ? `${form.publishDate}:00`
+            : form.publishDate,
         frequency: form.frequency,
         status: "PLANNED",
       });
@@ -135,9 +138,15 @@ export default function ScheduleManagement() {
                       </td>
                       <td>
                         <span
-                          className={`badge ${s.status === "PLANNED" ? "bg-warning text-dark" : "bg-success"}`}
+                          className={`badge ${
+                            s.isOverdue
+                              ? "bg-danger"
+                              : s.status === "PLANNED"
+                                ? "bg-warning text-dark"
+                                : "bg-success"
+                          }`}
                         >
-                          {s.status}
+                          {s.isOverdue ? "⚠️ QUÁ HẠN" : s.status}
                         </span>
                       </td>
                     </tr>
