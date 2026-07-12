@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getChapterById } from "../../services/mangakaService";
+import { isValidHttpUrl } from "../../utils/urlValidator";
 import {
   submitChapterToEditor,
   getChapterRevisionNotes,
@@ -19,7 +20,7 @@ export default function ChapterEditorSubmission() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  
+
   useEffect(() => {
     fetchData();
   }, [chapterId]);
@@ -52,6 +53,7 @@ export default function ChapterEditorSubmission() {
   const isResubmit = chapter?.status === "REVISION_REQUESTED";
   const canSubmit = SUBMITTABLE_STATUSES.includes(chapter?.status);
   const currentNote = revisionNotes[currentNoteIndex];
+
   const handlePrevNote = () => {
     setCurrentNoteIndex((i) => Math.max(0, i - 1));
   };
@@ -63,8 +65,17 @@ export default function ChapterEditorSubmission() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+
     if (!manuscriptUrl.trim()) {
       setError("Vui lòng nhập link file gốc (Google Drive,...) trước khi gửi.");
+      return;
+    }
+
+    // Bắt buộc phải là URL http/https hợp lệ, không nhận text tùy ý
+    if (!isValidHttpUrl(manuscriptUrl)) {
+      setError(
+        "Link file gốc không hợp lệ. Vui lòng nhập đúng định dạng URL (bắt đầu bằng http:// hoặc https://).",
+      );
       return;
     }
     try {
@@ -95,26 +106,31 @@ export default function ChapterEditorSubmission() {
         <h2>
           Gửi file gốc Chapter {chapter?.chapterNumber ?? "?"} cho Biên tập
         </h2>
+
         <button className="btn btn-secondary" onClick={() => navigate(-1)}>
           Quay lại
         </button>
       </div>
+
       <div className="mb-3">
         <strong>Trạng thái hiện tại: </strong>
         <span className="badge bg-secondary">{chapter?.status || "DRAFT"}</span>
       </div>
+
       {isResubmit && (
         <div className="alert alert-warning">
           Biên tập đã yêu cầu chỉnh sửa chapter này. Xem các ảnh được đánh dấu
           bên dưới, chỉnh sửa lại file gốc, rồi gửi lại link mới cho biên tập.
         </div>
       )}
+
       {revisionNotes.length > 0 && currentNote && (
         <div className="card shadow-sm mb-4">
           <div className="card-header bg-white fw-bold d-flex justify-content-between align-items-center flex-wrap gap-2">
             <span>
               Các trang Biên tập yêu cầu chỉnh sửa ({revisionNotes.length})
             </span>
+
             <div className="d-flex align-items-center gap-2">
               <button
                 type="button"
@@ -124,9 +140,11 @@ export default function ChapterEditorSubmission() {
               >
                 ◀ Trang trước
               </button>
+
               <span className="small text-muted">
                 Trang {currentNoteIndex + 1}/{revisionNotes.length}
               </span>
+
               <button
                 type="button"
                 className="btn btn-sm btn-outline-secondary"
@@ -137,6 +155,7 @@ export default function ChapterEditorSubmission() {
               </button>
             </div>
           </div>
+
           <div className="card-body">
             <CanvasMarkupTool
               key={currentNote.id}
@@ -152,14 +171,16 @@ export default function ChapterEditorSubmission() {
           </div>
         </div>
       )}
+
       {canSubmit ? (
         <form onSubmit={handleSubmit} className="card shadow-sm">
           <div className="card-body">
             <label className="form-label fw-bold">
               Link file gốc chapter (Google Drive, OneDrive,...)
             </label>
+
             <input
-              type="text"
+              type="url"
               className="form-control mb-3"
               placeholder="https://..."
               value={manuscriptUrl}
@@ -167,10 +188,12 @@ export default function ChapterEditorSubmission() {
               disabled={submitting}
               required
             />
+
             <small className="text-muted d-block mb-3">
               Đây là thư mục/file lưu bản gốc chất lượng cao để Biên tập tải về
               kiểm tra, tách biệt với các ảnh preview đã upload khi tạo chapter.
             </small>
+
             {error && <div className="alert alert-danger py-2">{error}</div>}
             <button
               type="submit"
