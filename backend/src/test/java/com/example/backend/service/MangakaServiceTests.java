@@ -62,6 +62,8 @@ import com.example.backend.repository.UserRepository;
 @ExtendWith(MockitoExtension.class)
 class MangakaServiceTests {
     private static final String EMAIL = "mangaka@test.local";
+    private static final String STORYBOARD_URL = "https://drive.example.test/storyboards/series-20";
+    private static final String MANUSCRIPT_URL = "https://drive.example.test/chapters/chapter-1.psd";
 
     @Mock
     private UserRepository userRepository;
@@ -183,7 +185,7 @@ class MangakaServiceTests {
         when(mangaSeriesRepository.findById(20L)).thenReturn(Optional.of(series));
 
         ResponseStatusException exception = assertThrows(ResponseStatusException.class,
-                () -> service.submitSeries(20L, new SubmitSeriesReviewRequest("storyboard-url")));
+                () -> service.submitSeries(20L, new SubmitSeriesReviewRequest(STORYBOARD_URL)));
 
         assertSame(HttpStatus.FORBIDDEN, exception.getStatusCode());
         verify(mangaSeriesRepository, never()).save(any());
@@ -203,7 +205,7 @@ class MangakaServiceTests {
                 .thenReturn(0L);
         when(mangaSeriesRepository.save(series)).thenReturn(series);
 
-        var response = service.submitSeries(20L, new SubmitSeriesReviewRequest("storyboard-url"));
+        var response = service.submitSeries(20L, new SubmitSeriesReviewRequest(STORYBOARD_URL));
 
         assertEquals("PENDING_EDITOR", series.getStatus());
         assertEquals(editor, series.getTantouEditor());
@@ -227,7 +229,7 @@ class MangakaServiceTests {
                 .thenReturn(0L);
         when(mangaSeriesRepository.save(series)).thenReturn(series);
 
-        service.submitSeries(20L, new SubmitSeriesReviewRequest("storyboard-url"));
+        service.submitSeries(20L, new SubmitSeriesReviewRequest(STORYBOARD_URL));
 
         assertEquals(availableEditor, series.getTantouEditor());
     }
@@ -249,7 +251,7 @@ class MangakaServiceTests {
                 .thenReturn(1L);
         when(mangaSeriesRepository.save(series)).thenReturn(series);
 
-        service.submitSeries(20L, new SubmitSeriesReviewRequest("storyboard-url"));
+        service.submitSeries(20L, new SubmitSeriesReviewRequest(STORYBOARD_URL));
 
         assertTrue(List.of(firstEditor, secondEditor).contains(series.getTantouEditor()));
     }
@@ -266,11 +268,13 @@ class MangakaServiceTests {
         when(mangaSeriesRepository.findById(20L)).thenReturn(Optional.of(series));
         when(mangaSeriesRepository.save(series)).thenReturn(series);
 
-        var response = service.submitSeries(20L, new SubmitSeriesReviewRequest("updated-storyboard-url"));
+        String updatedStoryboardUrl = "https://drive.example.test/storyboards/series-20-v2";
+
+        var response = service.submitSeries(20L, new SubmitSeriesReviewRequest(updatedStoryboardUrl));
 
         assertEquals("TANTOU_REVIEW", series.getStatus());
         assertSame(editor, series.getTantouEditor());
-        assertEquals("updated-storyboard-url", series.getStoryboardUrl());
+        assertEquals(updatedStoryboardUrl, series.getStoryboardUrl());
         assertEquals("TANTOU_REVIEW", response.status());
         verify(userRepository, never())
                 .findByRoleRoleNameAndStatusOrderByUsernameAsc(eq("TANTOU_EDITOR"), eq("ACTIVE"));
@@ -281,6 +285,24 @@ class MangakaServiceTests {
         assertEquals(editor, notification.getUser());
         assertEquals("SERIES_RESUBMITTED", notification.getType());
         assertEquals(20L, notification.getReferenceId());
+    }
+
+    @Test
+    void submitSeriesRejectsInvalidStoryboardUrl() {
+        MangaSeries series = new MangaSeries();
+        series.setSeriesId(20L);
+        series.setAuthor(user(1L, EMAIL));
+        series.setStatus("DRAFT");
+        when(mangaSeriesRepository.findById(20L)).thenReturn(Optional.of(series));
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> service.submitSeries(20L, new SubmitSeriesReviewRequest("storyboard-url")));
+
+        assertSame(HttpStatus.BAD_REQUEST, exception.getStatusCode());
+        assertEquals("storyboardUrl must be a valid http(s) URL", exception.getReason());
+        verify(mangaSeriesRepository, never()).save(any());
+        verify(userRepository, never())
+                .findByRoleRoleNameAndStatusOrderByUsernameAsc(eq("TANTOU_EDITOR"), eq("ACTIVE"));
     }
 
     @Test
@@ -324,11 +346,11 @@ class MangakaServiceTests {
 
         var response = service.submitChapterToEditor(
                 30L,
-                new SubmitChapterToEditorRequest("drive/chapter-1.psd"));
+                new SubmitChapterToEditorRequest(MANUSCRIPT_URL));
 
         assertEquals("SUBMITTED_TO_EDITOR", chapter.getStatus());
-        assertEquals("drive/chapter-1.psd", chapter.getManuscriptUrl());
-        assertEquals("drive/chapter-1.psd", response.manuscriptUrl());
+        assertEquals(MANUSCRIPT_URL, chapter.getManuscriptUrl());
+        assertEquals(MANUSCRIPT_URL, response.manuscriptUrl());
 
         ArgumentCaptor<Notification> notificationCaptor = ArgumentCaptor.forClass(Notification.class);
         verify(notificationRepository).save(notificationCaptor.capture());
@@ -336,6 +358,30 @@ class MangakaServiceTests {
         assertEquals(editor, notification.getUser());
         assertEquals("NEW_CHAPTER_SUBMISSION", notification.getType());
         assertEquals(30L, notification.getReferenceId());
+    }
+
+    @Test
+    void submitChapterToEditorRejectsInvalidManuscriptUrl() {
+        User mangaka = user(1L, EMAIL);
+        User editor = tantouEditor(3L, "editor@manga.test");
+        MangaSeries series = new MangaSeries();
+        series.setSeriesId(20L);
+        series.setAuthor(mangaka);
+        series.setTantouEditor(editor);
+        Chapter chapter = new Chapter();
+        chapter.setChapterId(30L);
+        chapter.setSeries(series);
+        chapter.setTitle("Chapter 1");
+        chapter.setStatus("DRAFT");
+        when(chapterRepository.findById(30L)).thenReturn(Optional.of(chapter));
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> service.submitChapterToEditor(30L, new SubmitChapterToEditorRequest("chapter-1.psd")));
+
+        assertSame(HttpStatus.BAD_REQUEST, exception.getStatusCode());
+        assertEquals("manuscriptUrl must be a valid http(s) URL", exception.getReason());
+        verify(chapterRepository, never()).save(any());
+        verify(notificationRepository, never()).save(any());
     }
 
     @Test

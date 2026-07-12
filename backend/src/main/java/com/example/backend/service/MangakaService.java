@@ -2,6 +2,7 @@ package com.example.backend.service;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -194,7 +195,8 @@ public class MangakaService {
     @Transactional
     public SeriesResponse submitSeries(Long seriesId, SubmitSeriesReviewRequest request) {
         MangaSeries series = ownedSeries(seriesId);
-        series.setStoryboardUrl(request.storyboardUrl().trim());
+        String storyboardUrl = requireHttpUrl(request.storyboardUrl(), "storyboardUrl");
+        series.setStoryboardUrl(storyboardUrl);
 
         if (REVISION_REQUESTED_STATUS.equalsIgnoreCase(series.getStatus())
                 && series.getTantouEditor() != null) {
@@ -353,10 +355,7 @@ public class MangakaService {
             throw conflict("This series has no assigned tantou editor");
         }
 
-        String manuscriptUrl = blankToNull(request.manuscriptUrl());
-        if (manuscriptUrl == null) {
-            throw badRequest("manuscriptUrl is required");
-        }
+        String manuscriptUrl = requireHttpUrl(request.manuscriptUrl(), "manuscriptUrl");
 
         if (REVISION_REQUESTED_STATUS.equalsIgnoreCase(chapter.getStatus())) {
             chapterRevisionNoteRepository.deleteByChapterChapterId(chapterId);
@@ -702,6 +701,26 @@ public class MangakaService {
 
     private ResponseStatusException badRequest(String message) {
         return new ResponseStatusException(HttpStatus.BAD_REQUEST, message);
+    }
+
+    private String requireHttpUrl(String rawUrl, String fieldName) {
+        String value = blankToNull(rawUrl);
+        if (value == null) {
+            throw badRequest(fieldName + " is required");
+        }
+
+        try {
+            URI uri = URI.create(value);
+            String scheme = uri.getScheme();
+            if (scheme == null
+                    || uri.getHost() == null
+                    || (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme))) {
+                throw badRequest(fieldName + " must be a valid http(s) URL");
+            }
+        } catch (IllegalArgumentException exception) {
+            throw badRequest(fieldName + " must be a valid http(s) URL");
+        }
+        return value;
     }
 
     private ResponseStatusException conflict(String message) {
