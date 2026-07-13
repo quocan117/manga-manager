@@ -13,7 +13,7 @@ export default function ManageUsersPage() {
     username: "",
     email: "",
     password: "",
-    role: "MANGAKA", 
+    role: "MANGAKA",
   });
   useEffect(() => {
     fetchUsers();
@@ -43,7 +43,7 @@ export default function ManageUsersPage() {
     }
     try {
       setLoading(true);
-      await createUser(form); 
+      await createUser(form);
       alert(`Tạo tài khoản ${form.role} thành công!`);
       setForm({ username: "", email: "", password: "", role: "MANGAKA" });
       fetchUsers();
@@ -108,6 +108,7 @@ export default function ManageUsersPage() {
                 required
               />
             </div>
+            
             <div className="mb-3">
               <label className="form-label">Email liên hệ</label>
               <input
@@ -118,7 +119,12 @@ export default function ManageUsersPage() {
                 onChange={handleChange}
                 required
               />
+              <small className="text-muted">
+                Nhập đúng địa chỉ Gmail nếu muốn tài khoản này đăng nhập được
+                bằng Google
+              </small>
             </div>
+
             <div className="mb-3">
               <label className="form-label">Loại tài khoản</label>
               <select
@@ -128,9 +134,7 @@ export default function ManageUsersPage() {
                 onChange={handleChange}
               >
                 <option value="MANGAKA">Tác giả</option>
-                <option value="TANTOU_EDITOR">
-                  Biên tập viên 
-                </option>
+                <option value="TANTOU_EDITOR">Biên tập viên</option>
               </select>
             </div>
             <div className="mb-4">
@@ -165,7 +169,7 @@ export default function ManageUsersPage() {
                 <th>ID</th>
                 <th>Username</th>
                 <th>Email</th>
-                <th>Vai trò</th> 
+                <th>Vai trò</th>
                 <th>Trạng thái</th>
                 <th>Ngày tham gia</th>
                 <th>Hành động</th>
