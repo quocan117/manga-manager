@@ -17,6 +17,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.example.backend.dto.GoogleLoginRequest;
 import com.example.backend.dto.LoginRequest;
 import com.example.backend.model.Role;
 import com.example.backend.model.User;
@@ -31,6 +32,8 @@ class AuthServiceTests {
     private PasswordEncoder passwordEncoder;
     @Mock
     private JwtService jwtService;
+    @Mock
+    private GoogleTokenVerifier googleTokenVerifier;
 
     @InjectMocks
     private AuthService service;
@@ -85,5 +88,76 @@ class AuthServiceTests {
 
         assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
         verify(jwtService, never()).generateToken(user);
+    }
+
+    @Test
+    void googleLoginReturnsTokenForExistingActiveUser() {
+        User user = user("oda@manga.test", "ACTIVE");
+        user.setUserId(1L);
+        user.setUsername("Eiichiro Oda");
+        GoogleLoginRequest request = googleRequest("google-id-token");
+
+        when(googleTokenVerifier.verifyEmail("google-id-token")).thenReturn(user.getEmail());
+        when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        when(jwtService.generateToken(user)).thenReturn("jwt-token");
+
+        var response = service.googleLogin(request);
+
+        assertEquals("jwt-token", response.getToken());
+        assertEquals(1L, response.getUserId());
+        assertEquals("Eiichiro Oda", response.getUsername());
+        assertEquals("oda@manga.test", response.getEmail());
+        assertEquals("MANGAKA", response.getRole());
+        verify(passwordEncoder, never()).matches(org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    void googleLoginRejectsEmailThatWasNotCreated() {
+        GoogleLoginRequest request = googleRequest("google-id-token");
+
+        when(googleTokenVerifier.verifyEmail("google-id-token")).thenReturn("new-user@gmail.com");
+        when(userRepository.findByEmail("new-user@gmail.com")).thenReturn(Optional.empty());
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.googleLogin(request));
+
+        assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
+        assertEquals("Tài khoản Google này chưa được tạo trong hệ thống", exception.getReason());
+        verify(jwtService, never()).generateToken(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void googleLoginRejectsInactiveAccount() {
+        User user = user("oda@manga.test", "SUSPENDED");
+        GoogleLoginRequest request = googleRequest("google-id-token");
+
+        when(googleTokenVerifier.verifyEmail("google-id-token")).thenReturn(user.getEmail());
+        when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.googleLogin(request));
+
+        assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
+        assertEquals("Account is not active", exception.getReason());
+        verify(jwtService, never()).generateToken(user);
+    }
+
+    private GoogleLoginRequest googleRequest(String idToken) {
+        GoogleLoginRequest request = new GoogleLoginRequest();
+        request.setIdToken(idToken);
+        return request;
+    }
+
+    private User user(String email, String status) {
+        Role role = new Role();
+        role.setRoleName("MANGAKA");
+        User user = new User();
+        user.setEmail(email);
+        user.setStatus(status);
+        user.setRole(role);
+        return user;
     }
 }

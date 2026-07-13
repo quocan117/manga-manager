@@ -7,6 +7,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.example.backend.dto.GoogleLoginRequest;
 import com.example.backend.dto.LoginRequest;
 import com.example.backend.dto.LoginResponse;
 import com.example.backend.dto.RegisterRequest;
@@ -21,11 +22,17 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final GoogleTokenVerifier googleTokenVerifier;
 
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtService jwtService) {
+    public AuthService(
+            UserRepository userRepository,
+            PasswordEncoder passwordEncoder,
+            JwtService jwtService,
+            GoogleTokenVerifier googleTokenVerifier) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.googleTokenVerifier = googleTokenVerifier;
     }
 
     public void register(RegisterRequest request) {
@@ -53,14 +60,23 @@ public class AuthService {
             throw new RuntimeException("Incorrect Email or Password");
         }
 
-        if("DELETED".equalsIgnoreCase(user.getStatus())){
-            throw new RuntimeException("Account does not exist");
-        }
+        validateLoginStatus(user);
+        return createLoginResponse(user);
 
-        if (!isActive(user)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Account is not active");
-        }
+    }
 
+    public LoginResponse googleLogin(GoogleLoginRequest request) {
+        String email = googleTokenVerifier.verifyEmail(request == null ? null : request.getIdToken());
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Tài khoản Google này chưa được tạo trong hệ thống"));
+
+        validateLoginStatus(user);
+        return createLoginResponse(user);
+    }
+
+    private LoginResponse createLoginResponse(User user) {
         String token = jwtService.generateToken(user);
         return new LoginResponse(
                 token,
@@ -68,7 +84,16 @@ public class AuthService {
                 user.getUsername(),
                 user.getEmail(),
                 user.getRole().getRoleName());
+    }
 
+    private void validateLoginStatus(User user) {
+        if ("DELETED".equalsIgnoreCase(user.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Account does not exist");
+        }
+
+        if (!isActive(user)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Account is not active");
+        }
     }
 
     private boolean isActive(User user) {
