@@ -126,7 +126,7 @@ export default function TantouDashboard() {
   
   return (
     <div className="p-4 bg-light min-vh-100">
-      <h2 className="mb-4">📊 Báo Cáo Tiến Độ Studio (Real-time)</h2>
+      <h2 className="mb-4">📊 Báo Cáo Tiến Độ Studio</h2>
       {pendingAssignments.length > 0 && (
         <div className="card shadow-sm mb-5 border-0 border-start border-4 border-warning">
           <div className="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
@@ -212,7 +212,7 @@ export default function TantouDashboard() {
           </table>
         </div>
       </div>
-      <h2 className="mb-4">📝 Bản Thảo Cần Kiểm Duyệt (Pending)</h2>
+      <h2 className="mb-4">📝 Bản Thảo Cần Kiểm Duyệt</h2>
       <div className="row">
         {pendingSeries.map((series) => (
           <div className="col-md-4 mb-4" key={series.id}>

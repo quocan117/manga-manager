@@ -28,13 +28,8 @@ export default function ReviewSeriesPage() {
   const handleVote = async (seriesId, title, decisionType) => {
     const actionText =
       decisionType === "APPROVE" ? "DUYỆT XUẤT BẢN" : "YÊU CẦU SỬA/TỪ CHỐI";
-    const reason = window.prompt(
-      `Vui lòng nhập lý do cho quyết định ${actionText} truyện "${title}":`,
-      "",
-    );
-    if (reason === null) return;
     try {
-      await voteSeriesDecision(seriesId, decisionType, reason);
+      await voteSeriesDecision(seriesId, decisionType);
       alert(`Đã gửi quyết định: ${actionText} thành công!`);
       fetchReviewingSeries();
     } catch (error) {

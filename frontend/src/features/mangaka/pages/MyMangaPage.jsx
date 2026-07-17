@@ -164,9 +164,6 @@ export default function MyManga() {
                       <strong>{item.tantouEditorName}</strong>
                     </p>
                   )}
-                  <p>
-                    <strong>Ranking Score:</strong> {item.rankingScore ?? 0}
-                  </p>
                   <div className="d-flex gap-2 flex-wrap">
                     {canSubmit && (
                       <button

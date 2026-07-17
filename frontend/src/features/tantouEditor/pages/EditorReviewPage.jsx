@@ -86,7 +86,7 @@ export default function EditorReviewPage() {
                 className="btn btn-success w-100 mb-2 fw-bold"
                 onClick={() => handleAction(true)}
               >
-                ✅ Lập hồ sơ & Trình lên Hội đồng
+                ✅ Trình lên Hội đồng
               </button>
               <button
                 className="btn btn-outline-danger w-100"

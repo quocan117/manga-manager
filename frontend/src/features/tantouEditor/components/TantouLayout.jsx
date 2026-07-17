@@ -1,17 +1,21 @@
 import React from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../../../context/AuthContext";
+import { getNotifications } from "../../../services/tantouService";
+import useUnreadNotifications from "../../../hooks/useUnreadNotifications";
 import "../styles/TantouEditor.css";
 
 export default function TantouLayout() {
   const { user, logout } = useAuth();
+  const { unreadCount, refresh: loadUnread } =
+    useUnreadNotifications(getNotifications);
 
   const handleLogout = () => {
     if (window.confirm("Bạn có chắc chắn muốn đăng xuất?")) {
       logout();
     }
   };
-  
+
   return (
     <div className="tantou-layout-container">
       <aside className="tantou-sidebar">
@@ -21,7 +25,9 @@ export default function TantouLayout() {
             <br />
             EDITOR
           </h2>
-          {user && <p className="text-white-50 mb-0">Xin chào, {user.username}</p>}
+          {user && (
+            <p className="text-white-50 mb-0">Xin chào, {user.username}</p>
+          )}
         </div>
         <ul className="sidebar-menu">
           <li>
@@ -53,6 +59,9 @@ export default function TantouLayout() {
               }
             >
               <i className="fas fa-bell"></i> Thông Báo
+              {unreadCount > 0 && (
+                <span className="badge bg-danger ms-2">{unreadCount}</span>
+              )}
             </NavLink>
           </li>
         </ul>
@@ -63,7 +72,7 @@ export default function TantouLayout() {
         </div>
       </aside>
       <main className="tantou-main-content">
-        <Outlet />
+        <Outlet context={{ refreshUnreadCount: loadUnread }} />
       </main>
     </div>
   );

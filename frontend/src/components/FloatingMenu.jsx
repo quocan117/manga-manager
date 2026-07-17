@@ -1,12 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles/FloatingMenu.css";
-
-const categories = [
-  "Hành động", "Phiêu lưu", "Hài hước", "Tình cảm", "Siêu nhiên", 
-  "Kinh dị", "Học đường", "Lịch sử", "Âm nhạc", "Phép thuật", 
-  "Thể thao", "Đời thường", "Huyền bí", "Võ thuật", "Trinh thám"
-];
+import { GENRE_OPTIONS } from "../constants/genres";
 
 const FloatingMenu = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -78,7 +73,7 @@ const FloatingMenu = () => {
           </button>
           {showGenres && (
             <div className="floating-genres-grid">
-              {categories.map((cat, idx) => (
+              {GENRE_OPTIONS.map((cat, idx) => (
                 <span
                   key={idx}
                   onClick={() =>

@@ -1,11 +1,15 @@
 import React from "react";
 import { Outlet, NavLink } from "react-router-dom";
 import { useAuth } from "../../../context/AuthContext";
+import { getNotifications } from "../../../services/boardService";
+import useUnreadNotifications from "../../../hooks/useUnreadNotifications";
 import "../styles/EditorialBoard.css";
 
 const BoardLayout = () => {
   const { user, logout } = useAuth();
-  
+  const { unreadCount, refresh: loadUnread } =
+    useUnreadNotifications(getNotifications);
+
   const handleLogout = () => {
     logout();
   };
@@ -64,6 +68,9 @@ const BoardLayout = () => {
               className={({ isActive }) => (isActive ? "active" : "")}
             >
               🔔 Thông Báo
+              {unreadCount > 0 && (
+                <span className="badge bg-danger ms-2">{unreadCount}</span>
+              )}
             </NavLink>
           </li>
           <li style={{ marginTop: "auto", padding: "20px" }}>
@@ -74,7 +81,7 @@ const BoardLayout = () => {
         </ul>
       </div>
       <div className="main-board-content">
-        <Outlet />
+        <Outlet context={{ refreshUnreadCount: loadUnread }} />
       </div>
     </div>
   );

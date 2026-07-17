@@ -73,11 +73,14 @@ export default function ChapterReviewPage() {
   };
 
   if (loading) return <div className="p-4">Đang tải chapter...</div>;
-  
+
   return (
     <div className="p-4 bg-light min-vh-100">
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2>
+          {chapter?.seriesTitle && (
+            <div className="text-muted fs-6 mb-1">{chapter.seriesTitle}</div>
+          )}
           Duyệt Chapter {chapter?.chapterNumber ?? chapterId}
           {chapter?.title ? `: ${chapter.title}` : ""}
         </h2>

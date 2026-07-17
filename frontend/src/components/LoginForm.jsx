@@ -173,7 +173,7 @@ export default function LoginForm() {
         <GoogleLogin
           onSuccess={handleGoogleSuccess}
           onError={() => setErrorMessage("Đăng nhập bằng Google thất bại.")}
-          width="100%"
+          width={300}
         />
       </div>
     </div>

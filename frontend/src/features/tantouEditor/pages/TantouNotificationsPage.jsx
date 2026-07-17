@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useOutletContext } from "react-router-dom";
 import {
   getNotifications,
   markNotificationRead,
@@ -17,6 +17,7 @@ export default function TantouNotifications() {
   const [rejectingId, setRejectingId] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
   const navigate = useNavigate();
+  const { refreshUnreadCount } = useOutletContext() || {};
 
   useEffect(() => {
     fetchNotifications();
@@ -40,6 +41,7 @@ export default function TantouNotifications() {
       setNotifications((prev) =>
         prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)),
       );
+      refreshUnreadCount?.();
     } catch (error) {
       console.error("Lỗi đánh dấu đã đọc:", error);
     }
@@ -61,6 +63,7 @@ export default function TantouNotifications() {
           n.id === notification.id ? { ...n, isRead: true, accepted: true } : n,
         ),
       );
+      refreshUnreadCount?.();
       navigate(`/tantou/review/${seriesId}`);
     } catch (error) {
       console.error("Lỗi nhận hồ sơ:", error);
@@ -94,6 +97,7 @@ export default function TantouNotifications() {
           n.id === notification.id ? { ...n, isRead: true, rejected: true } : n,
         ),
       );
+      refreshUnreadCount?.();
     } catch (error) {
       console.error("Lỗi từ chối hồ sơ:", error);
       const message =

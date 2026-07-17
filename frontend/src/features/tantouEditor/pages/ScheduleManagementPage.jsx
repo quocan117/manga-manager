@@ -118,7 +118,7 @@ export default function ScheduleManagement() {
         <div className="col-md-8">
           <div className="card shadow-sm border-0">
             <div className="card-header bg-white fw-bold">
-              Danh Sách Lịch Phát Hành (Publish Schedule)
+              Danh Sách Lịch Phát Hành
             </div>
             <div className="card-body p-0">
               <table className="table table-hover mb-0">

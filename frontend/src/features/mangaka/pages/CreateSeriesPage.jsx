@@ -1,23 +1,43 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createSeriesWithCoverUpload } from "../../../services/mangakaService";
+import { GENRE_OPTIONS } from "../../../constants/genres";
 
 export default function CreateSeriesPage() {
   const navigate = useNavigate();
   const [form, setForm] = useState({
     title: "",
-    genres: "",
+    genres: [], 
     description: "",
     publicationType: "",
     artStyle: "",
   });
-
+  const [showGenreDropdown, setShowGenreDropdown] = useState(false);
   const [coverImageFile, setCoverImageFile] = useState(null);
   const [coverPreview, setCoverPreview] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const toggleGenre = (genre) => {
+    setForm((prev) => {
+      const isSelected = prev.genres.includes(genre);
+      return {
+        ...prev,
+        genres: isSelected
+          ? prev.genres.filter((g) => g !== genre)
+          : [...prev.genres, genre],
+      };
+    });
+  };
+
+  const removeGenre = (genre) => {
+    setForm((prev) => ({
+      ...prev,
+      genres: prev.genres.filter((g) => g !== genre),
+    }));
   };
 
   const handleCoverFileChange = (e) => {
@@ -32,13 +52,13 @@ export default function CreateSeriesPage() {
       alert("Vui lòng chọn ảnh bìa cho series!");
       return;
     }
+    if (form.genres.length === 0) {
+      alert("Vui lòng chọn ít nhất một thể loại!");
+      return;
+    }
     try {
       setLoading(true);
-      const genres = form.genres
-        .split(",")
-        .map((g) => g.trim())
-        .filter(Boolean);
-      await createSeriesWithCoverUpload({ ...form, genres }, coverImageFile);
+      await createSeriesWithCoverUpload({ ...form }, coverImageFile);
       alert("Tạo Series thành công!");
       navigate("/mangaka/manga");
     } catch (error) {
@@ -51,7 +71,7 @@ export default function CreateSeriesPage() {
       setLoading(false);
     }
   };
-  
+
   return (
     <div className="container">
       <div className="card shadow">
@@ -71,19 +91,73 @@ export default function CreateSeriesPage() {
                 required
               />
             </div>
+
             <div className="mb-3">
               <label className="form-label">Genres</label>
-              <input
-                type="text"
-                name="genres"
-                className="form-control"
-                placeholder="Action, Adventure, Fantasy"
-                value={form.genres}
-                onChange={handleChange}
-                required
-              />
-              <small className="text-muted">Ngăn cách bằng dấu phẩy</small>
+
+              <div className="position-relative">
+                <button
+                  type="button"
+                  className="form-select text-start"
+                  onClick={() => setShowGenreDropdown((prev) => !prev)}
+                >
+                  {form.genres.length > 0
+                    ? `${form.genres.length} thể loại đã chọn`
+                    : "-- Chọn thể loại --"}
+                </button>
+
+                {showGenreDropdown && (
+                  <div
+                    className="border rounded shadow-sm bg-white p-2 position-absolute w-100"
+                    style={{
+                      zIndex: 1000,
+                      maxHeight: "220px",
+                      overflowY: "auto",
+                    }}
+                  >
+                    {GENRE_OPTIONS.map((genre) => (
+                      <div className="form-check" key={genre}>
+                        <input
+                          type="checkbox"
+                          className="form-check-input"
+                          id={`genre-${genre}`}
+                          checked={form.genres.includes(genre)}
+                          onChange={() => toggleGenre(genre)}
+                        />
+                        <label
+                          className="form-check-label"
+                          htmlFor={`genre-${genre}`}
+                        >
+                          {genre}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {form.genres.length > 0 && (
+                <div className="mt-2 d-flex flex-wrap gap-2">
+                  {form.genres.map((genre) => (
+                    <span key={genre} className="badge bg-secondary">
+                      {genre}{" "}
+                      <button
+                        type="button"
+                        onClick={() => removeGenre(genre)}
+                        className="btn-close btn-close-white btn-sm ms-1"
+                        style={{ fontSize: "0.55rem" }}
+                        aria-label={`Remove ${genre}`}
+                      />
+                    </span>
+                  ))}
+                </div>
+              )}
+              <small className="text-muted d-block mt-1">
+                Chỉ chọn trong danh sách thể loại cố định để độc giả có thể tìm
+                thấy series khi lọc theo thể loại ở trang chủ.
+              </small>
             </div>
+
             <div className="mb-3 p-3 border rounded bg-light">
               <label className="form-label fw-bold">Ảnh bìa series</label>
               <input

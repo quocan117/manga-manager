@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useOutletContext } from "react-router-dom";
 import {
   getNotifications,
   markNotificationRead,
@@ -21,6 +21,7 @@ export default function Notification() {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
   const navigate = useNavigate();
+  const { refreshUnreadCount } = useOutletContext() || {};
 
   useEffect(() => {
     fetchNotifications();
@@ -48,6 +49,7 @@ export default function Notification() {
             n.id === notification.id ? { ...n, isRead: true } : n,
           ),
         );
+        refreshUnreadCount?.();
       } catch (error) {
         console.error("Lỗi đánh dấu đã đọc:", error);
       }
