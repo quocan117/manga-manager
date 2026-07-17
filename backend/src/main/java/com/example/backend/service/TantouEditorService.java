@@ -520,10 +520,13 @@ public class TantouEditorService {
                 .stream()
                 .map(this::toPageManuscript)
                 .toList();
+        MangaSeries series = chapter.getSeries();
         return new ChapterManuscriptResponse(
                 chapter.getChapterId(),
                 chapter.getChapterNumber(),
                 chapter.getTitle(),
+                series == null ? null : series.getSeriesId(),
+                series == null ? null : series.getTitle(),
                 chapter.getManuscriptUrl(),
                 chapter.getStatus(),
                 chapter.getReleaseDate(),

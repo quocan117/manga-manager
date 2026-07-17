@@ -35,6 +35,8 @@ public final class TantouEditorDtos {
             Long id,
             Integer chapterNumber,
             String title,
+            Long seriesId,
+            String seriesTitle,
             String manuscriptUrl,
             String status,
             LocalDateTime releaseDate,
