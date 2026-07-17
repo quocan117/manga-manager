@@ -2,9 +2,11 @@ import React, { useState, useEffect } from "react";
 import Navbar from "../components/Navbar";
 import "../styles/RankingPage.css";
 import FloatingMenu from "../components/FloatingMenu";
+
 const RankingPage = () => {
   const [seriesList, setSeriesList] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+
   useEffect(() => {
     const fetchRankingSeries = async () => {
       try {
@@ -31,6 +33,7 @@ const RankingPage = () => {
     };
     fetchRankingSeries();
   }, []);
+
   const rankedSeries = [...seriesList].sort((a, b) => {
     const totalLikesA =
       a.totalLikes ?? (a.chapters?.reduce((sum, ch) => sum + ch.likes, 0) || 0);
@@ -38,12 +41,14 @@ const RankingPage = () => {
       b.totalLikes ?? (b.chapters?.reduce((sum, ch) => sum + ch.likes, 0) || 0);
     return totalLikesB - totalLikesA;
   });
+
   const getRankBadge = (index) => {
     if (index === 0) return <span className="rank-badge gold">🏆 Top 1</span>;
     if (index === 1) return <span className="rank-badge silver">🥈 Top 2</span>;
     if (index === 2) return <span className="rank-badge bronze">🥉 Top 3</span>;
     return <span className="rank-badge normal">#{index + 1}</span>;
   };
+  
   return (
     <div className="ranking-container">
       <Navbar />

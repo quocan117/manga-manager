@@ -1,9 +1,11 @@
 import { useState } from "react";
 import CanvasMarkupTool from "./CanvasMarkupTool";
+
 export default function ChapterMarkupUploader({ onSaveNote, onSendAll }) {
   const [images, setImages] = useState([]); 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [sending, setSending] = useState(false);
+
   const handleAddFiles = (e) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
@@ -21,9 +23,11 @@ export default function ChapterMarkupUploader({ onSaveNote, onSendAll }) {
     });
     e.target.value = "";
   };
+
   const currentImage = images[currentIndex];
   const allFinalized =
     images.length > 0 && images.every((img) => img.finalized);
+
   const handlePersist = async (canvasJSON, previewImageUrl) => {
     const note = await onSaveNote(currentIndex, {
       imageFile: currentImage.file,
@@ -37,9 +41,11 @@ export default function ChapterMarkupUploader({ onSaveNote, onSendAll }) {
     );
     return { version: 1, status: "FINALIZED" };
   };
+
   const handleNext = () => {
     if (currentIndex < images.length - 1) setCurrentIndex((i) => i + 1);
   };
+
   const handleSendAll = async () => {
     setSending(true);
     try {
@@ -48,6 +54,7 @@ export default function ChapterMarkupUploader({ onSaveNote, onSendAll }) {
       setSending(false);
     }
   };
+  
   return (
     <div className="chapter-markup-uploader">
       <div className="mb-3 p-3 border rounded bg-light">

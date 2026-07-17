@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import * as fabric from "fabric";
 import { savePageDrawing, getPageDrawing } from "../services/drawingService";
 import "../styles/CanvasMarkup.css";
+
 const CanvasMarkupTool = ({
   pageId,
   backgroundImageUrl,
@@ -22,6 +23,7 @@ const CanvasMarkupTool = ({
   const [isDrawingMode, setIsDrawingMode] = useState(false);
   const [currentVersion, setCurrentVersion] = useState(0);
   const [drawingStatus, setDrawingStatus] = useState(null);
+
   // ---- Undo/Redo state ----
   const historyRef = useRef([]);
   const historyIndexRef = useRef(-1);
@@ -32,9 +34,11 @@ const CanvasMarkupTool = ({
   const isLocked = readOnly || drawingStatus === "FINALIZED";
   const shouldHideControls = isLocked && hideControls;
   const isLockedRef = useRef(isLocked);
+
   useEffect(() => {
     isLockedRef.current = isLocked;
   }, [isLocked]);
+
   const pushHistory = useCallback((fabricCanvas) => {
     if (isRestoringRef.current) return;
     const json = JSON.stringify(fabricCanvas.toJSON());
@@ -51,6 +55,7 @@ const CanvasMarkupTool = ({
     setCanUndo(historyIndexRef.current > 0);
     setCanRedo(false);
   }, []);
+
   const restoreFromHistory = useCallback(async (fabricCanvas, index) => {
     if (index < 0 || index >= historyRef.current.length) return;
     isRestoringRef.current = true;
@@ -62,17 +67,21 @@ const CanvasMarkupTool = ({
     setCanUndo(index > 0);
     setCanRedo(index < historyRef.current.length - 1);
   }, []);
+
   const handleUndo = () =>
     canvas &&
     !isLocked &&
     restoreFromHistory(canvas, historyIndexRef.current - 1);
+
   const handleRedo = () =>
     canvas &&
     !isLocked &&
     restoreFromHistory(canvas, historyIndexRef.current + 1);
+
   const handleDeleteSelected = () => {
     if (!canvas || isLocked) return;
     const activeObjects = canvas.getActiveObjects();
+
     if (activeObjects.length === 0) {
       alert(
         "Hãy chọn nét vẽ cần xóa trước (tắt chế độ vẽ rồi click vào nét vẽ).",
@@ -86,11 +95,13 @@ const CanvasMarkupTool = ({
     isRestoringRef.current = false;
     pushHistory(canvas);
   };
+
   const handleClearAll = () => {
     if (!canvas || isLocked) return;
     if (!window.confirm("Xóa toàn bộ nét đánh dấu mới trên trang này?")) return;
     isRestoringRef.current = true;
     const objects = canvas.getObjects();
+
     objects.forEach((obj) => {
       if (!obj.locked) {
         canvas.remove(obj);
@@ -100,17 +111,20 @@ const CanvasMarkupTool = ({
     isRestoringRef.current = false;
     pushHistory(canvas);
   };
+
   useEffect(() => {
     const initCanvas = new fabric.Canvas(canvasRef.current, {
       width: 800,
       height: 1200,
       isDrawingMode: false,
     });
+
     const brush = new fabric.PencilBrush(initCanvas);
     brush.color = "red";
     brush.width = 3;
     initCanvas.freeDrawingBrush = brush;
     setCanvas(initCanvas);
+
     const loadBackground = async () => {
       if (!backgroundImageUrl) return;
       const img = await fabric.Image.fromURL(backgroundImageUrl, {
@@ -127,6 +141,7 @@ const CanvasMarkupTool = ({
       initCanvas.backgroundImage = img;
       initCanvas.renderAll();
     };
+
     const setupCanvasData = async () => {
       isRestoringRef.current = true;
       try {
@@ -155,11 +170,13 @@ const CanvasMarkupTool = ({
       isRestoringRef.current = false;
       pushHistory(initCanvas);
     };
+
     setupCanvasData();
     const handleChange = () => pushHistory(initCanvas);
     initCanvas.on("object:added", handleChange);
     initCanvas.on("object:removed", handleChange);
     initCanvas.on("object:modified", handleChange);
+
     const handleKeyDown = (e) => {
       if (isLockedRef.current) return;
       const tag = document.activeElement?.tagName;
@@ -186,6 +203,7 @@ const CanvasMarkupTool = ({
       initCanvas.dispose();
     };
   }, [pageId, backgroundImageUrl, pushHistory, restoreFromHistory]);
+
   useEffect(() => {
     if (!canvas) return;
     if (isLocked) {
@@ -201,6 +219,7 @@ const CanvasMarkupTool = ({
     }
     canvas.renderAll();
   }, [isLocked, canvas]);
+
   const toggleDrawingMode = () => {
     if (isLocked) return;
     if (canvas) {
@@ -209,6 +228,7 @@ const CanvasMarkupTool = ({
       setIsDrawingMode(!isDrawingMode);
     }
   };
+
   const handleSave = async () => {
     if (!canvas || isLocked) return;
     const canvasJSON = canvas.toJSON();
@@ -229,6 +249,7 @@ const CanvasMarkupTool = ({
       alert("Lưu thất bại! " + (error.response?.data?.message || ""));
     }
   };
+
   return (
     <div className="canvas-markup-container">
       {!shouldHideControls && (
