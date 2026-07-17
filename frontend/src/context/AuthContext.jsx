@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
+
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
@@ -38,10 +39,15 @@ export function AuthProvider({ children }) {
     setToken(null);
   };
 
-  const value = { user, token, loading, isAuthenticated: !!token, login, logout };
-  return (
-    <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
-  );
+  const value = {
+    user,
+    token,
+    loading,
+    isAuthenticated: !!token,
+    login,
+    logout,
+  };
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

@@ -1,4 +1,5 @@
 const API_BASE_URL = "http://localhost:8080";
+
 export function resolveImageUrl(value, placeholder = null) {
   if (!value) return placeholder;
   if (
@@ -10,4 +11,5 @@ export function resolveImageUrl(value, placeholder = null) {
   }
   return `${API_BASE_URL}/covers/${value}`;
 }
+
 export default resolveImageUrl;

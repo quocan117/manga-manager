@@ -20,7 +20,6 @@ export default function LoginForm() {
   const { login: setAuth } = useAuth();
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-
   const redirectByRole = (role) => {
     switch (role) {
       case "MANGAKA":
@@ -110,7 +109,7 @@ export default function LoginForm() {
       setLoading(false);
     }
   };
-
+  
   return (
     <div className="card login-card">
       <h2 className="login-title">Manga Manager</h2>
@@ -163,7 +162,6 @@ export default function LoginForm() {
           {loading ? "Đang đăng nhập..." : "Đăng nhập"}
         </button>
       </form>
-
       <div className="d-flex align-items-center my-3">
         <hr className="flex-grow-1" />
         <span className="mx-2 text-muted" style={{ fontSize: "13px" }}>
@@ -171,7 +169,6 @@ export default function LoginForm() {
         </span>
         <hr className="flex-grow-1" />
       </div>
-
       <div className="d-flex justify-content-center">
         <GoogleLogin
           onSuccess={handleGoogleSuccess}

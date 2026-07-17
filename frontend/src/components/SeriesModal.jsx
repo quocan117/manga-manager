@@ -1,12 +1,15 @@
 import React, { useState } from "react";
 import "../styles/SeriesModal.css";
 import { likeChapter } from "../services/chapterService";
+
 const SeriesModal = ({ series, onClose }) => {
   const [userLikes, setUserLikes] = useState(() => {
     const savedLikes = localStorage.getItem("guest_liked_chapters");
     return savedLikes ? JSON.parse(savedLikes) : {};
   });
+
   const [filter, setFilter] = useState("");
+
   const handleToggleLike = async (chapterId) => {
     const sessionToken = localStorage.getItem("guest_session_token");
     if (userLikes[chapterId]) {
@@ -25,11 +28,13 @@ const SeriesModal = ({ series, onClose }) => {
       console.error("Lỗi gọi API Like:", error);
     }
   };
+
   if (!series) return null;
   const filteredChapters =
     filter === ""
       ? []
       : series.chapters.filter((c) => c.id.toString() === filter);
+      
   return (
     <div className="custom-modal-overlay" onClick={onClose}>
       <div

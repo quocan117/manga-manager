@@ -11,6 +11,7 @@ export const likeChapter = async (chapterId, sessionToken) => {
   });
   return response.ok;
 };
+
 export const chapterService = {
   createChapter: async (chapterData) => {
     const response = await api.post("/mangaka/chapters", chapterData);

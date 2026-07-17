@@ -6,19 +6,20 @@ import SeriesModal from "../components/SeriesModal";
 import FloatingMenu from "../components/FloatingMenu";
 import { getAllSeries } from "../services/seriesService";
 import "../styles/HomePage.css";
+
 const HomePage = () => {
-  // 1. QUẢN LÝ STATE & ROUTING
+
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [selectedSeries, setSelectedSeries] = useState(null);
   const [jumpPage, setJumpPage] = useState("");
   const [trendingSeries, setTrendingSeries] = useState([]);
-  // Trích xuất parameters từ URL
+
   const currentGenre = searchParams.get("genre");
   const searchQuery = searchParams.get("search");
   const isFiltering = currentGenre || searchQuery;
   const currentPage = parseInt(searchParams.get("page")) || 1;
-  //Gọi API lấy toàn bộ series hiển thị lên trang chủ
+
   useEffect(() => {
     const fetchSeries = async () => {
       try {
@@ -30,8 +31,7 @@ const HomePage = () => {
     };
     fetchSeries();
   }, []);
-  // 2. XỬ LÝ DỮ LIỆU
-  // Lấy Top 4 Series có lượt Like cao nhất
+
   const top4Series = [...trendingSeries]
     .sort((a, b) => {
       const totalA = a.chapters?.reduce((sum, ch) => sum + ch.likes, 0) || 0;
@@ -39,9 +39,10 @@ const HomePage = () => {
       return totalB - totalA;
     })
     .slice(0, 4);
-  // Xử lý Lọc & Tìm kiếm
+
   let filteredSeries = trendingSeries;
   let filterTitle = "";
+
   if (currentGenre) {
     filteredSeries = trendingSeries.filter((series) =>
       series.genres?.includes(currentGenre),
@@ -56,10 +57,10 @@ const HomePage = () => {
     );
     filterTitle = `🔍 Kết quả tìm kiếm: "${searchQuery}" (${filteredSeries.length} series)`;
   }
-  // Xử lý dữ liệu cho khu vực "Khám phá" (Loại trừ Top 4 và Phân trang)
+
   const ITEMS_PER_PAGE = 20;
   const top4Ids = top4Series.map((series) => series.id);
-  // Lấy các truyện còn lại (trừ top 4) và xếp mới nhất lên đầu
+
   const remainingSeries = trendingSeries
     .filter((series) => !top4Ids.includes(series.id))
     .sort((a, b) => b.id - a.id);
@@ -69,7 +70,7 @@ const HomePage = () => {
     startIndex,
     startIndex + ITEMS_PER_PAGE,
   );
-  // 3. CÁC HÀM XỬ LÝ SỰ KIỆN
+
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= totalPages) {
       const newParams = new URLSearchParams(searchParams);
@@ -78,6 +79,7 @@ const HomePage = () => {
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
+
   const handleJumpPage = (e) => {
     e.preventDefault();
     const pageNum = parseInt(jumpPage);
@@ -86,7 +88,7 @@ const HomePage = () => {
       setJumpPage("");
     }
   };
-  // 4. HIỂN THỊ GIAO DIỆN
+
   return (
     <div className="home-container">
       <Navbar />

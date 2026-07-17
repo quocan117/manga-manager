@@ -1,41 +1,47 @@
-// Áp dụng Fetch API (Exercise 10) thông qua api.js thay vì axios.
-// api.js đã tự động gắn Authorization header từ localStorage nên
-// không cần hàm authHeader() thủ công nữa.
 import api from "./api";
+
 export const getMySeries = async () => {
   const response = await api.get("/mangaka/my-series");
   return response.data;
 };
+
 export const submitSeriesReview = async (seriesId, storyboardUrl) => {
   const response = await api.post(`/mangaka/series/${seriesId}/submit`, {
     storyboardUrl,
   });
   return response.data;
 };
+
 export const getSeriesChapters = async (seriesId) => {
   const response = await api.get(`/mangaka/series/${seriesId}/chapters`);
   return response.data;
 };
+
 export const createPage = async (data) => {
   const response = await api.post("/mangaka/pages", data);
   return response.data;
 };
+
 export const getAssistants = async () => {
   const response = await api.get("/mangaka/assistants");
   return response.data;
 };
+
 export const assignTask = async (data) => {
   const response = await api.post("/mangaka/tasks", data);
   return response.data;
 };
+
 export const getChapterTasks = async (chapterId) => {
   const response = await api.get(`/mangaka/chapters/${chapterId}/tasks`);
   return response.data;
 };
+
 export const getChapterSubmissions = async (chapterId) => {
   const response = await api.get(`/mangaka/chapters/${chapterId}/submissions`);
   return response.data;
 };
+
 export const reviewSubmission = async (submissionId, decision, reviewNote) => {
   const response = await api.patch(
     `/mangaka/submissions/${submissionId}/review`,
@@ -43,14 +49,17 @@ export const reviewSubmission = async (submissionId, decision, reviewNote) => {
   );
   return response.data;
 };
+
 export const getRankings = async () => {
   const response = await api.get("/mangaka/rankings");
   return response.data;
 };
+
 export const getNotifications = async () => {
   const response = await api.get("/mangaka/notifications");
   return response.data;
 };
+
 export const markNotificationRead = async (notificationId) => {
   const response = await api.patch(
     `/mangaka/notifications/${notificationId}/read`,
@@ -58,18 +67,22 @@ export const markNotificationRead = async (notificationId) => {
   );
   return response.data;
 };
+
 export const getChapterPages = async (chapterId) => {
   const response = await api.get(`/mangaka/chapters/${chapterId}/pages`);
   return response.data;
 };
+
 export const createAssistant = async (assistantData) => {
   const response = await api.post("/mangaka/assistants", assistantData);
   return response.data;
 };
+
 export const getChapterById = async (chapterId) => {
   const response = await api.get(`/mangaka/chapters/${chapterId}`);
   return response.data;
 };
+
 export const createSeriesWithCoverUpload = async (form, coverImageFile) => {
   const formData = new FormData();
   formData.append("title", form.title);
@@ -90,6 +103,7 @@ export const updateAssistantStatus = async (assistantId, status) => {
   );
   return response.data;
 };
+
 export const deleteAssistant = async (assistantId) => {
   const response = await api.delete(`/mangaka/assistants/${assistantId}`);
   return response.data;

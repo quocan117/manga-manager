@@ -1,4 +1,5 @@
 const API_BASE_URL = "http://localhost:8080";
+
 function buildHeaders(isFormData, customHeaders = {}) {
   const headers = { ...customHeaders };
   if (!isFormData && !headers["Content-Type"]) {
@@ -13,13 +14,32 @@ function buildHeaders(isFormData, customHeaders = {}) {
   }
   return headers;
 }
-async function request(method, url, body, customHeaders) {
+
+async function request(method, url, body, config = {}) {
   const isFormData = body instanceof FormData;
-  const response = await fetch(`${API_BASE_URL}${url}`, {
+  let fullUrl = `${API_BASE_URL}${url}`;
+
+  if (config.params) {
+    const searchParams = new URLSearchParams();
+
+    Object.entries(config.params).forEach(([key, value]) => {
+      if (value !== null && value !== undefined) {
+        searchParams.append(key, value);
+      }
+    });
+
+    const queryString = searchParams.toString();
+    if (queryString) {
+      fullUrl += `?${queryString}`;
+    }
+  }
+
+  const response = await fetch(fullUrl, {
     method,
-    headers: buildHeaders(isFormData, customHeaders),
+    headers: buildHeaders(isFormData, config.headers),
     body: body ? (isFormData ? body : JSON.stringify(body)) : undefined,
   });
+
   const text = await response.text();
   let data = null;
 
@@ -42,17 +62,21 @@ async function request(method, url, body, customHeaders) {
     const error = new Error(
       (data && data.message) || `Yêu cầu thất bại (HTTP ${response.status})`,
     );
-    error.response = { data, status: response.status };
+    error.response = {
+      data,
+      status: response.status,
+    };
     throw error;
   }
   return { data };
 }
 
 const api = {
-  get: (url, config) => request("GET", url, null, config?.headers),
-  post: (url, body, config) => request("POST", url, body, config?.headers),
-  put: (url, body, config) => request("PUT", url, body, config?.headers),
-  patch: (url, body, config) => request("PATCH", url, body, config?.headers),
-  delete: (url, config) => request("DELETE", url, null, config?.headers),
+  get: (url, config) => request("GET", url, null, config),
+  post: (url, body, config) => request("POST", url, body, config),
+  put: (url, body, config) => request("PUT", url, body, config),
+  patch: (url, body, config) => request("PATCH", url, body, config),
+  delete: (url, config) => request("DELETE", url, null, config),
 };
+
 export default api;
