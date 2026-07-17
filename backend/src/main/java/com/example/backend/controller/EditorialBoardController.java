@@ -3,17 +3,27 @@ package com.example.backend.controller;
 import com.example.backend.dto.EditorialBoardDtos.CreateUserRequest;
 import com.example.backend.dto.EditorialBoardDtos.BoardDecisionRequest;
 import com.example.backend.dto.EditorialBoardDtos.BoardDecisionResponse;
+import com.example.backend.dto.EditorialBoardDtos.ImportReaderFeedbackRequest;
+import com.example.backend.dto.EditorialBoardDtos.ReaderFeedbackImportResponse;
+import com.example.backend.dto.EditorialBoardDtos.ReaderVoteResponse;
 import com.example.backend.dto.EditorialBoardDtos.ReviewSeriesResponse;
+import com.example.backend.dto.EditorialBoardDtos.SeriesVoteSummaryResponse;
 import com.example.backend.dto.EditorialBoardDtos.UpdateUserRequest;
 import com.example.backend.dto.EditorialBoardDtos.UserResponse;
+import com.example.backend.dto.MangakaDtos.NotificationResponse;
+import com.example.backend.dto.MangakaDtos.RankingResponse;
 import com.example.backend.dto.ReviewRegistrationRequest;
+import com.example.backend.dto.TantouEditorDtos.ScheduleResponse;
 import com.example.backend.model.RegistrationRequest;
 import com.example.backend.service.EditorialBoardService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
+
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -51,6 +61,59 @@ public class EditorialBoardController {
     @GetMapping("/series/{id}/decisions")
     public List<BoardDecisionResponse> getSeriesDecisions(@PathVariable Long id) {
         return service.getSeriesDecisions(id);
+    }
+
+    @PreAuthorize("hasRole('EDITORIAL_BOARD')")
+    @GetMapping("/publish-schedules")
+    public List<ScheduleResponse> getPublishSchedules() {
+        return service.getPublishSchedules();
+    }
+
+    @PreAuthorize("hasRole('EDITORIAL_BOARD')")
+    @GetMapping("/reader-votes")
+    public List<ReaderVoteResponse> getReaderVotes(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
+        return service.getReaderVotes(from, to);
+    }
+
+    @PreAuthorize("hasRole('EDITORIAL_BOARD')")
+    @GetMapping("/reader-votes/summary")
+    public List<SeriesVoteSummaryResponse> getReaderVoteSummary(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
+        return service.getReaderVoteSummary(from, to);
+    }
+
+    @PreAuthorize("hasRole('EDITORIAL_BOARD')")
+    @PostMapping("/reader-feedback-imports")
+    public List<ReaderFeedbackImportResponse> importReaderFeedback(
+            @Valid @RequestBody ImportReaderFeedbackRequest request) {
+        return service.importReaderFeedback(request);
+    }
+
+    @PreAuthorize("hasRole('EDITORIAL_BOARD')")
+    @GetMapping("/reader-feedback-imports")
+    public List<ReaderFeedbackImportResponse> getReaderFeedbackImports() {
+        return service.getReaderFeedbackImports();
+    }
+
+    @PreAuthorize("hasRole('EDITORIAL_BOARD')")
+    @GetMapping("/rankings")
+    public List<RankingResponse> getRankings() {
+        return service.getRankings();
+    }
+
+    @PreAuthorize("hasRole('EDITORIAL_BOARD')")
+    @GetMapping("/notifications")
+    public List<NotificationResponse> getNotifications() {
+        return service.getNotifications();
+    }
+
+    @PreAuthorize("hasRole('EDITORIAL_BOARD')")
+    @PatchMapping("/notifications/{id}/read")
+    public NotificationResponse markNotificationRead(@PathVariable Long id) {
+        return service.markNotificationRead(id);
     }
 
     @PreAuthorize("hasRole('EDITORIAL_BOARD')")

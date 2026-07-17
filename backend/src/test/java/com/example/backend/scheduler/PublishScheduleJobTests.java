@@ -2,6 +2,7 @@ package com.example.backend.scheduler;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -37,7 +38,7 @@ class PublishScheduleJobTests {
     private NotificationRepository notificationRepository;
 
     @Test
-    void publishesEarliestSubmittedChapterAndMovesWeeklySchedule() {
+    void publishesEarliestApprovedChapterAndMovesWeeklySchedule() {
         PublishScheduleJob job = new PublishScheduleJob(
                 publishScheduleRepository, chapterRepository, notificationRepository);
         LocalDateTime dueDate = LocalDateTime.now().minusDays(1);
@@ -48,7 +49,7 @@ class PublishScheduleJobTests {
         when(publishScheduleRepository.findByStatusIgnoreCaseAndPublishDateLessThanEqualOrderByPublishDateAsc(
                 eq("PLANNED"), any(LocalDateTime.class))).thenReturn(List.of(schedule));
         when(chapterRepository.findFirstBySeriesSeriesIdAndStatusIgnoreCaseOrderByChapterNumberAsc(
-                10L, "SUBMITTED_TO_EDITOR")).thenReturn(Optional.of(chapter));
+                10L, "APPROVED")).thenReturn(Optional.of(chapter));
 
         job.publishDueChapters();
 
@@ -77,14 +78,21 @@ class PublishScheduleJobTests {
         when(publishScheduleRepository.findByStatusIgnoreCaseAndPublishDateLessThanEqualOrderByPublishDateAsc(
                 eq("PLANNED"), any(LocalDateTime.class))).thenReturn(List.of(schedule));
         when(chapterRepository.findFirstBySeriesSeriesIdAndStatusIgnoreCaseOrderByChapterNumberAsc(
-                10L, "SUBMITTED_TO_EDITOR")).thenReturn(Optional.empty());
+                10L, "APPROVED")).thenReturn(Optional.empty());
 
         job.publishDueChapters();
 
         assertEquals(dueDate, schedule.getPublishDate());
+        assertTrue(schedule.getOverdueNotified());
         verify(chapterRepository, never()).save(any());
-        verify(publishScheduleRepository, never()).save(any());
-        verify(notificationRepository, never()).save(any());
+        verify(publishScheduleRepository).save(schedule);
+
+        ArgumentCaptor<Notification> notificationCaptor = ArgumentCaptor.forClass(Notification.class);
+        verify(notificationRepository).save(notificationCaptor.capture());
+        Notification notification = notificationCaptor.getValue();
+        assertEquals(series.getTantouEditor(), notification.getUser());
+        assertEquals("SCHEDULE_OVERDUE", notification.getType());
+        assertEquals(20L, notification.getReferenceId());
     }
 
     private MangaSeries series(Long id) {
@@ -92,6 +100,7 @@ class PublishScheduleJobTests {
         series.setSeriesId(id);
         series.setTitle("Series " + id);
         series.setAuthor(user(1L, "author@manga.test"));
+        series.setTantouEditor(user(2L, "tantou@manga.test"));
         return series;
     }
 
@@ -111,7 +120,7 @@ class PublishScheduleJobTests {
         chapter.setSeries(series);
         chapter.setChapterNumber(chapterNumber);
         chapter.setTitle("Chapter " + chapterNumber);
-        chapter.setStatus("SUBMITTED_TO_EDITOR");
+        chapter.setStatus("APPROVED");
         return chapter;
     }
 

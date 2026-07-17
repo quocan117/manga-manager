@@ -5,6 +5,7 @@ import java.util.List;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 public final class EditorialBoardDtos {
@@ -72,5 +73,36 @@ public final class EditorialBoardDtos {
                         long requiredVotes,
                         String currentUserDecision,
                         List<BoardDecisionResponse> decisions) {
+        }
+
+        public record ReaderVoteResponse(
+                        Long likeId,
+                        Long seriesId,
+                        String seriesTitle,
+                        Integer chapterNumber,
+                        String chapterTitle,
+                        String guestSessionToken,
+                        LocalDateTime likedAt) {
+        }
+
+        public record SeriesVoteSummaryResponse(
+                        Long seriesId,
+                        String seriesTitle,
+                        long voteCount) {
+        }
+
+        public record ImportReaderFeedbackRequest(
+                        @NotBlank String period,
+                        @NotNull LocalDateTime periodStart,
+                        @NotNull LocalDateTime periodEnd) {
+        }
+
+        public record ReaderFeedbackImportResponse(
+                        Long id,
+                        Long seriesId,
+                        String seriesTitle,
+                        String period,
+                        Integer voteCount,
+                        LocalDateTime importedAt) {
         }
 }

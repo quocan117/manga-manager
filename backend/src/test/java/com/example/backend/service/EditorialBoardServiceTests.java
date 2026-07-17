@@ -2,13 +2,17 @@ package com.example.backend.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
+import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,15 +26,22 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.example.backend.dto.EditorialBoardDtos.BoardDecisionRequest;
 import com.example.backend.dto.EditorialBoardDtos.CreateUserRequest;
+import com.example.backend.dto.EditorialBoardDtos.ImportReaderFeedbackRequest;
 import com.example.backend.model.BoardDecision;
 import com.example.backend.model.MangaSeries;
+import com.example.backend.model.ReaderFeedbackImport;
 import com.example.backend.model.Role;
+import com.example.backend.model.SeriesRanking;
 import com.example.backend.model.User;
 import com.example.backend.repository.BoardDecisionRepository;
+import com.example.backend.repository.ChapterLikeLogRepository;
 import com.example.backend.repository.MangaSeriesRepository;
 import com.example.backend.repository.NotificationRepository;
+import com.example.backend.repository.PublishScheduleRepository;
+import com.example.backend.repository.ReaderFeedbackImportRepository;
 import com.example.backend.repository.RegistrationRequestRepository;
 import com.example.backend.repository.RoleRepository;
+import com.example.backend.repository.SeriesRankingRepository;
 import com.example.backend.repository.UserRepository;
 
 @ExtendWith(MockitoExtension.class)
@@ -51,6 +62,14 @@ class EditorialBoardServiceTests {
     private BoardDecisionRepository boardDecisionRepository;
     @Mock
     private NotificationRepository notificationRepository;
+    @Mock
+    private PublishScheduleRepository publishScheduleRepository;
+    @Mock
+    private ChapterLikeLogRepository chapterLikeLogRepository;
+    @Mock
+    private SeriesRankingRepository seriesRankingRepository;
+    @Mock
+    private ReaderFeedbackImportRepository readerFeedbackImportRepository;
 
     @InjectMocks
     private EditorialBoardService service;
@@ -153,6 +172,49 @@ class EditorialBoardServiceTests {
         verify(mangaSeriesRepository).save(series);
     }
 
+    @Test
+    void importReaderFeedbackCalculatesRankingsFromReaderLikes() {
+        User board = user(1L, "Editorial Board One", BOARD_EMAIL, role("EDITORIAL_BOARD"));
+        MangaSeries firstSeries = series(5L, "Five Votes", "Published");
+        MangaSeries secondSeries = series(6L, "Ten Votes", "Published");
+        LocalDateTime from = LocalDateTime.of(2026, 7, 1, 0, 0);
+        LocalDateTime to = LocalDateTime.of(2026, 7, 8, 0, 0);
+
+        when(userRepository.findByEmail(BOARD_EMAIL)).thenReturn(Optional.of(board));
+        when(chapterLikeLogRepository.countVotesBySeriesBetween(from, to))
+                .thenReturn(List.of(voteCount(5L, "Five Votes", 5L), voteCount(6L, "Ten Votes", 10L)));
+        when(mangaSeriesRepository.findById(5L)).thenReturn(Optional.of(firstSeries));
+        when(mangaSeriesRepository.findById(6L)).thenReturn(Optional.of(secondSeries));
+        when(readerFeedbackImportRepository.findBySeriesSeriesIdAndPeriod(anyLong(), anyString()))
+                .thenReturn(Optional.empty());
+        when(seriesRankingRepository.findBySeriesSeriesIdAndPeriod(anyLong(), anyString()))
+                .thenReturn(Optional.empty());
+        when(readerFeedbackImportRepository.save(any(ReaderFeedbackImport.class))).thenAnswer(invocation -> {
+            ReaderFeedbackImport saved = invocation.getArgument(0);
+            saved.setImportId(saved.getSeries().getSeriesId() + 100L);
+            return saved;
+        });
+
+        var response = service.importReaderFeedback(new ImportReaderFeedbackRequest(
+                "2026-W27", from, to));
+
+        assertEquals(2, response.size());
+        assertEquals(6L, response.get(0).seriesId());
+        assertEquals(10, response.get(0).voteCount());
+        assertEquals(5L, response.get(1).seriesId());
+        assertEquals(5, response.get(1).voteCount());
+
+        ArgumentCaptor<SeriesRanking> rankingCaptor = ArgumentCaptor.forClass(SeriesRanking.class);
+        verify(seriesRankingRepository, org.mockito.Mockito.times(2)).save(rankingCaptor.capture());
+        List<SeriesRanking> rankings = rankingCaptor.getAllValues();
+        assertEquals(6L, rankings.get(0).getSeries().getSeriesId());
+        assertEquals(1, rankings.get(0).getRankingPosition());
+        assertEquals(10, rankings.get(0).getVoteCount());
+        assertEquals(5L, rankings.get(1).getSeries().getSeriesId());
+        assertEquals(2, rankings.get(1).getRankingPosition());
+        assertEquals(5, rankings.get(1).getVoteCount());
+    }
+
     private User user(Long id, String username, String email, Role role) {
         User user = new User();
         user.setUserId(id);
@@ -176,5 +238,24 @@ class EditorialBoardServiceTests {
         series.setGenre("Action, Drama");
         series.setAuthor(user(20L, "Author", "author@manga.test", role("MANGAKA")));
         return series;
+    }
+
+    private ChapterLikeLogRepository.SeriesVoteCount voteCount(Long seriesId, String title, Long count) {
+        return new ChapterLikeLogRepository.SeriesVoteCount() {
+            @Override
+            public Long getSeriesId() {
+                return seriesId;
+            }
+
+            @Override
+            public String getSeriesTitle() {
+                return title;
+            }
+
+            @Override
+            public Long getVoteCount() {
+                return count;
+            }
+        };
     }
 }

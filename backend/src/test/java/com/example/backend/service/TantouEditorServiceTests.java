@@ -259,8 +259,11 @@ class TantouEditorServiceTests {
     @Test
     void createsPublishSchedule() {
         MangaSeries series = series(10L);
+        User board = user(9L, "board@manga.test");
         LocalDateTime publishDate = LocalDateTime.now().plusDays(7);
         when(mangaSeriesRepository.findById(10L)).thenReturn(Optional.of(series));
+        when(userRepository.findByRoleRoleNameAndStatusOrderByUsernameAsc("EDITORIAL_BOARD", "ACTIVE"))
+                .thenReturn(List.of(board));
         when(scheduleRepository.save(any(PublishSchedule.class))).thenAnswer(invocation -> {
             PublishSchedule schedule = invocation.getArgument(0);
             schedule.setScheduleId(60L);
@@ -274,6 +277,40 @@ class TantouEditorServiceTests {
         assertEquals(10L, response.seriesId());
         assertEquals("WEEKLY", response.frequency());
         assertEquals("PLANNED", response.status());
+
+        ArgumentCaptor<Notification> notificationCaptor = ArgumentCaptor.forClass(Notification.class);
+        verify(notificationRepository).save(notificationCaptor.capture());
+        Notification notification = notificationCaptor.getValue();
+        assertEquals(board, notification.getUser());
+        assertEquals("NEW_PUBLISH_SCHEDULE", notification.getType());
+        assertEquals(60L, notification.getReferenceId());
+    }
+
+    @Test
+    void updatePublishScheduleNotifiesBoard() {
+        MangaSeries series = series(10L);
+        User board = user(9L, "board@manga.test");
+        PublishSchedule schedule = schedule(60L, series, LocalDateTime.now().plusDays(5));
+        LocalDateTime newPublishDate = LocalDateTime.now().plusDays(14);
+        when(scheduleRepository.findById(60L)).thenReturn(Optional.of(schedule));
+        when(mangaSeriesRepository.findById(10L)).thenReturn(Optional.of(series));
+        when(userRepository.findByRoleRoleNameAndStatusOrderByUsernameAsc("EDITORIAL_BOARD", "ACTIVE"))
+                .thenReturn(List.of(board));
+        when(scheduleRepository.save(schedule)).thenReturn(schedule);
+
+        var response = service.updateSchedule(
+                60L,
+                new ScheduleRequest(10L, newPublishDate, "MONTHLY", "PLANNED"));
+
+        assertEquals("MONTHLY", response.frequency());
+        assertEquals(newPublishDate, response.publishDate());
+
+        ArgumentCaptor<Notification> notificationCaptor = ArgumentCaptor.forClass(Notification.class);
+        verify(notificationRepository).save(notificationCaptor.capture());
+        Notification notification = notificationCaptor.getValue();
+        assertEquals(board, notification.getUser());
+        assertEquals("NEW_PUBLISH_SCHEDULE", notification.getType());
+        assertEquals(60L, notification.getReferenceId());
     }
 
     @Test

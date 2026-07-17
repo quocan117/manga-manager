@@ -3,22 +3,39 @@ package com.example.backend.service;
 import com.example.backend.dto.EditorialBoardDtos.CreateUserRequest;
 import com.example.backend.dto.EditorialBoardDtos.BoardDecisionRequest;
 import com.example.backend.dto.EditorialBoardDtos.BoardDecisionResponse;
+import com.example.backend.dto.EditorialBoardDtos.ImportReaderFeedbackRequest;
+import com.example.backend.dto.EditorialBoardDtos.ReaderFeedbackImportResponse;
+import com.example.backend.dto.EditorialBoardDtos.ReaderVoteResponse;
 import com.example.backend.dto.EditorialBoardDtos.ReviewSeriesResponse;
+import com.example.backend.dto.EditorialBoardDtos.SeriesVoteSummaryResponse;
 import com.example.backend.dto.EditorialBoardDtos.UpdateUserRequest;
 import com.example.backend.dto.EditorialBoardDtos.UserResponse;
+import com.example.backend.dto.MangakaDtos.NotificationResponse;
+import com.example.backend.dto.MangakaDtos.RankingResponse;
 import com.example.backend.dto.ReviewRegistrationRequest;
+import com.example.backend.dto.TantouEditorDtos.ScheduleResponse;
 import com.example.backend.model.BoardDecision;
+import com.example.backend.model.Chapter;
+import com.example.backend.model.ChapterLikeLog;
+import com.example.backend.model.GuestAccessLog;
 import com.example.backend.model.MangaSeries;
 import com.example.backend.model.RegistrationRequest;
+import com.example.backend.model.ReaderFeedbackImport;
 import com.example.backend.model.Role;
+import com.example.backend.model.SeriesRanking;
 import com.example.backend.model.User;
 import com.example.backend.model.Notification;
 import com.example.backend.repository.BoardDecisionRepository;
+import com.example.backend.repository.ChapterLikeLogRepository;
 import com.example.backend.repository.MangaSeriesRepository;
 import com.example.backend.repository.RegistrationRequestRepository;
+import com.example.backend.repository.ReaderFeedbackImportRepository;
 import com.example.backend.repository.RoleRepository;
+import com.example.backend.repository.SeriesRankingRepository;
 import com.example.backend.repository.UserRepository;
 import com.example.backend.repository.NotificationRepository;
+import com.example.backend.repository.PublishScheduleRepository;
+import com.example.backend.model.PublishSchedule;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.http.HttpStatus;
@@ -27,6 +44,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
@@ -56,6 +74,10 @@ public class EditorialBoardService {
     private final MangaSeriesRepository mangaSeriesRepository;
     private final BoardDecisionRepository boardDecisionRepository;
     private final NotificationRepository notificationRepository;
+    private final PublishScheduleRepository publishScheduleRepository;
+    private final ChapterLikeLogRepository chapterLikeLogRepository;
+    private final SeriesRankingRepository seriesRankingRepository;
+    private final ReaderFeedbackImportRepository readerFeedbackImportRepository;
 
     public EditorialBoardService(
             RegistrationRequestRepository requestRepository,
@@ -64,7 +86,11 @@ public class EditorialBoardService {
             PasswordEncoder passwordEncoder,
             MangaSeriesRepository mangaSeriesRepository,
             BoardDecisionRepository boardDecisionRepository,
-            NotificationRepository notificationRepository) {
+            NotificationRepository notificationRepository,
+            PublishScheduleRepository publishScheduleRepository,
+            ChapterLikeLogRepository chapterLikeLogRepository,
+            SeriesRankingRepository seriesRankingRepository,
+            ReaderFeedbackImportRepository readerFeedbackImportRepository) {
         this.requestRepository = requestRepository;
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
@@ -72,6 +98,10 @@ public class EditorialBoardService {
         this.mangaSeriesRepository = mangaSeriesRepository;
         this.boardDecisionRepository = boardDecisionRepository;
         this.notificationRepository = notificationRepository;
+        this.publishScheduleRepository = publishScheduleRepository;
+        this.chapterLikeLogRepository = chapterLikeLogRepository;
+        this.seriesRankingRepository = seriesRankingRepository;
+        this.readerFeedbackImportRepository = readerFeedbackImportRepository;
     }
 
     public List<RegistrationRequest> getAllRequests() {
@@ -108,6 +138,83 @@ public class EditorialBoardService {
                 .stream()
                 .map(this::toBoardDecisionResponse)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<ScheduleResponse> getPublishSchedules() {
+        return publishScheduleRepository.findAllByOrderByPublishDateAsc()
+                .stream()
+                .map(this::toScheduleResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<ReaderVoteResponse> getReaderVotes(LocalDateTime from, LocalDateTime to) {
+        validatePeriodRange(from, to);
+        return chapterLikeLogRepository.findByLikedAtBetweenOrderByLikedAtDesc(from, to)
+                .stream()
+                .map(this::toReaderVoteResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<SeriesVoteSummaryResponse> getReaderVoteSummary(LocalDateTime from, LocalDateTime to) {
+        validatePeriodRange(from, to);
+        return sortedVoteCounts(from, to)
+                .stream()
+                .map(voteCount -> new SeriesVoteSummaryResponse(
+                        voteCount.getSeriesId(),
+                        voteCount.getSeriesTitle(),
+                        voteCount.getVoteCount() == null ? 0L : voteCount.getVoteCount()))
+                .toList();
+    }
+
+    @Transactional
+    public List<ReaderFeedbackImportResponse> importReaderFeedback(ImportReaderFeedbackRequest request) {
+        validatePeriodRange(request.periodStart(), request.periodEnd());
+        String period = request.period().trim();
+        User boardUser = currentEditorialBoard();
+        LocalDateTime now = LocalDateTime.now();
+        List<ChapterLikeLogRepository.SeriesVoteCount> voteCounts = sortedVoteCounts(
+                request.periodStart(), request.periodEnd());
+
+        return voteCounts.stream()
+                .map(voteCount -> saveReaderFeedbackImport(voteCount, period, boardUser, now,
+                        voteCounts.indexOf(voteCount) + 1))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<ReaderFeedbackImportResponse> getReaderFeedbackImports() {
+        return readerFeedbackImportRepository.findAllByOrderByImportedAtDesc()
+                .stream()
+                .map(this::toReaderFeedbackImportResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<RankingResponse> getRankings() {
+        return seriesRankingRepository.findAllByOrderByCalculatedAtDesc()
+                .stream()
+                .map(this::toRankingResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<NotificationResponse> getNotifications() {
+        return notificationRepository.findByUserEmailOrderByCreatedAtDesc(currentEmail())
+                .stream()
+                .map(this::toNotificationResponse)
+                .toList();
+    }
+
+    @Transactional
+    public NotificationResponse markNotificationRead(Long notificationId) {
+        Notification notification = notificationRepository
+                .findByNotificationIdAndUserEmail(notificationId, currentEmail())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Notification not found"));
+        notification.setIsRead(true);
+        return toNotificationResponse(notificationRepository.save(notification));
     }
 
     @Transactional
@@ -288,9 +395,68 @@ public class EditorialBoardService {
         return requestRepository.save(request);
     }
 
+    private ReaderFeedbackImportResponse saveReaderFeedbackImport(
+            ChapterLikeLogRepository.SeriesVoteCount voteCount,
+            String period,
+            User boardUser,
+            LocalDateTime calculatedAt,
+            int rankingPosition) {
+        MangaSeries series = mangaSeriesRepository.findById(voteCount.getSeriesId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Series not found"));
+        int votes = Math.toIntExact(voteCount.getVoteCount() == null ? 0L : voteCount.getVoteCount());
+
+        ReaderFeedbackImport feedbackImport = readerFeedbackImportRepository
+                .findBySeriesSeriesIdAndPeriod(series.getSeriesId(), period)
+                .orElseGet(ReaderFeedbackImport::new);
+        feedbackImport.setSeries(series);
+        feedbackImport.setImportedBy(boardUser);
+        feedbackImport.setPeriod(period);
+        feedbackImport.setVoteCount(votes);
+        feedbackImport.setAvgScore((float) votes);
+        feedbackImport.setSourceNote("Tổng hợp tự động từ lượt thích độc giả");
+        feedbackImport.setImportedAt(calculatedAt);
+        ReaderFeedbackImport savedImport = readerFeedbackImportRepository.save(feedbackImport);
+
+        SeriesRanking ranking = seriesRankingRepository
+                .findBySeriesSeriesIdAndPeriod(series.getSeriesId(), period)
+                .orElseGet(SeriesRanking::new);
+        ranking.setSeries(series);
+        ranking.setRankingPosition(rankingPosition);
+        ranking.setScore((float) votes);
+        ranking.setVoteCount(votes);
+        ranking.setPeriod(period);
+        ranking.setCalculatedAt(calculatedAt);
+        seriesRankingRepository.save(ranking);
+
+        return toReaderFeedbackImportResponse(savedImport);
+    }
+
+    private List<ChapterLikeLogRepository.SeriesVoteCount> sortedVoteCounts(LocalDateTime from, LocalDateTime to) {
+        return chapterLikeLogRepository.countVotesBySeriesBetween(from, to)
+                .stream()
+                .sorted(Comparator
+                        .comparing(ChapterLikeLogRepository.SeriesVoteCount::getVoteCount,
+                                Comparator.nullsLast(Comparator.reverseOrder()))
+                        .thenComparing(ChapterLikeLogRepository.SeriesVoteCount::getSeriesTitle,
+                                Comparator.nullsLast(String::compareToIgnoreCase)))
+                .toList();
+    }
+
+    private void validatePeriodRange(LocalDateTime from, LocalDateTime to) {
+        if (from == null || to == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "from and to are required");
+        }
+        if (!from.isBefore(to)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "periodStart must be before periodEnd");
+        }
+    }
+
+    private String currentEmail() {
+        return SecurityContextHolder.getContext().getAuthentication().getName();
+    }
+
     private User currentEditorialBoard() {
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        return userRepository.findByEmail(email)
+        return userRepository.findByEmail(currentEmail())
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.UNAUTHORIZED, "Editorial board user not found"));
     }
@@ -476,6 +642,69 @@ public class EditorialBoardService {
                 decision.getDecisionType(),
                 decision.getReason(),
                 decision.getDecisionDate());
+    }
+
+    private ScheduleResponse toScheduleResponse(PublishSchedule schedule) {
+        MangaSeries series = schedule.getSeries();
+        boolean overdue = "PLANNED".equalsIgnoreCase(schedule.getStatus())
+                && schedule.getPublishDate() != null
+                && schedule.getPublishDate().isBefore(LocalDateTime.now());
+        return new ScheduleResponse(
+                schedule.getScheduleId(),
+                series == null ? null : series.getSeriesId(),
+                series == null ? null : series.getTitle(),
+                schedule.getPublishDate(),
+                schedule.getFrequency(),
+                schedule.getStatus(),
+                overdue);
+    }
+
+    private ReaderVoteResponse toReaderVoteResponse(ChapterLikeLog likeLog) {
+        Chapter chapter = likeLog.getChapter();
+        MangaSeries series = chapter == null ? null : chapter.getSeries();
+        GuestAccessLog guestLog = likeLog.getGuestLog();
+        return new ReaderVoteResponse(
+                likeLog.getLikeId(),
+                series == null ? null : series.getSeriesId(),
+                series == null ? null : series.getTitle(),
+                chapter == null ? null : chapter.getChapterNumber(),
+                chapter == null ? null : chapter.getTitle(),
+                guestLog == null ? null : guestLog.getSessionToken(),
+                likeLog.getLikedAt());
+    }
+
+    private ReaderFeedbackImportResponse toReaderFeedbackImportResponse(ReaderFeedbackImport feedbackImport) {
+        MangaSeries series = feedbackImport.getSeries();
+        return new ReaderFeedbackImportResponse(
+                feedbackImport.getImportId(),
+                series == null ? null : series.getSeriesId(),
+                series == null ? null : series.getTitle(),
+                feedbackImport.getPeriod(),
+                feedbackImport.getVoteCount(),
+                feedbackImport.getImportedAt());
+    }
+
+    private RankingResponse toRankingResponse(SeriesRanking ranking) {
+        MangaSeries series = ranking.getSeries();
+        return new RankingResponse(
+                ranking.getRankingId(),
+                series == null ? null : series.getSeriesId(),
+                series == null ? null : series.getTitle(),
+                ranking.getRankingPosition(),
+                ranking.getScore(),
+                ranking.getVoteCount(),
+                ranking.getPeriod(),
+                ranking.getCalculatedAt());
+    }
+
+    private NotificationResponse toNotificationResponse(Notification notification) {
+        return new NotificationResponse(
+                notification.getNotificationId(),
+                notification.getType(),
+                notification.getReferenceId(),
+                notification.getMessage(),
+                notification.getIsRead(),
+                notification.getCreatedAt());
     }
 
     private List<String> parseGenres(String genre) {

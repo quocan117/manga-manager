@@ -212,6 +212,18 @@ public class TantouEditorService {
         notificationRepository.save(n);
     }
 
+    private void notifyBoardNewSchedule(PublishSchedule schedule) {
+        MangaSeries series = schedule.getSeries();
+        String message = "Lịch xuất bản mới cho \"" + (series == null ? "" : series.getTitle())
+                + "\": chu kỳ " + schedule.getFrequency() + ", phát hành lúc " + schedule.getPublishDate();
+        List<User> boardMembers = userRepository.findByRoleRoleNameAndStatusOrderByUsernameAsc(
+                "EDITORIAL_BOARD", "ACTIVE");
+        if (boardMembers == null) {
+            return;
+        }
+        boardMembers.forEach(board -> notify(board, "NEW_PUBLISH_SCHEDULE", schedule.getScheduleId(), message));
+    }
+
     @Transactional(readOnly = true)
     public List<CommentResponse> getPageComments(Long pageId) {
         page(pageId);
@@ -274,7 +286,9 @@ public class TantouEditorService {
     public ScheduleResponse createSchedule(ScheduleRequest request) {
         PublishSchedule schedule = new PublishSchedule();
         applyScheduleRequest(schedule, request);
-        return toScheduleResponse(scheduleRepository.save(schedule));
+        PublishSchedule savedSchedule = scheduleRepository.save(schedule);
+        notifyBoardNewSchedule(savedSchedule);
+        return toScheduleResponse(savedSchedule);
     }
 
     @Transactional
@@ -282,7 +296,9 @@ public class TantouEditorService {
         PublishSchedule schedule = scheduleRepository.findById(scheduleId)
                 .orElseThrow(() -> notFound("Schedule not found"));
         applyScheduleRequest(schedule, request);
-        return toScheduleResponse(scheduleRepository.save(schedule));
+        PublishSchedule savedSchedule = scheduleRepository.save(schedule);
+        notifyBoardNewSchedule(savedSchedule);
+        return toScheduleResponse(savedSchedule);
     }
 
     @Transactional
