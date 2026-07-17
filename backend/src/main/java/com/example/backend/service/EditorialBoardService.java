@@ -14,6 +14,7 @@ import com.example.backend.dto.MangakaDtos.NotificationResponse;
 import com.example.backend.dto.MangakaDtos.RankingResponse;
 import com.example.backend.dto.ReviewRegistrationRequest;
 import com.example.backend.dto.TantouEditorDtos.ScheduleResponse;
+import com.example.backend.dto.EditorialBoardDtos.SeriesTotalVotesResponse;
 import com.example.backend.model.BoardDecision;
 import com.example.backend.model.Chapter;
 import com.example.backend.model.ChapterLikeLog;
@@ -193,10 +194,29 @@ public class EditorialBoardService {
     }
 
     @Transactional(readOnly = true)
-    public List<RankingResponse> getRankings() {
-        return seriesRankingRepository.findAllByOrderByCalculatedAtDesc()
-                .stream()
+    public List<RankingResponse> getRankings(String period) {
+        List<SeriesRanking> source = (period == null || period.isBlank())
+                ? seriesRankingRepository.findAllByOrderByCalculatedAtDesc()
+                : seriesRankingRepository.findByPeriodOrderByRankingPositionAsc(period.trim());
+        return source.stream()
                 .map(this::toRankingResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<String> getRankingPeriods() {
+        return seriesRankingRepository.findDistinctPeriods();
+    }
+
+    @Transactional(readOnly = true)
+    public List<SeriesTotalVotesResponse> getSeriesTotalVotes() {
+        return seriesRankingRepository.sumVotesAllPeriodsGroupBySeries()
+                .stream()
+                .map(v -> new SeriesTotalVotesResponse(
+                        v.getSeriesId(),
+                        v.getSeriesTitle(),
+                        v.getTotalVotes() == null ? 0L : v.getTotalVotes()))
+                .sorted(Comparator.comparingLong(SeriesTotalVotesResponse::totalVotes).reversed())
                 .toList();
     }
 

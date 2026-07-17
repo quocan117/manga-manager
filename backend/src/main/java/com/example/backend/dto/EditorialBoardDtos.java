@@ -105,4 +105,10 @@ public final class EditorialBoardDtos {
                         Integer voteCount,
                         LocalDateTime importedAt) {
         }
+
+        public record SeriesTotalVotesResponse(
+                Long seriesId,
+                String seriesTitle,
+                long totalVotes) {
+        }
 }

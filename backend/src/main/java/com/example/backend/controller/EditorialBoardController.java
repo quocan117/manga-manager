@@ -14,6 +14,7 @@ import com.example.backend.dto.MangakaDtos.NotificationResponse;
 import com.example.backend.dto.MangakaDtos.RankingResponse;
 import com.example.backend.dto.ReviewRegistrationRequest;
 import com.example.backend.dto.TantouEditorDtos.ScheduleResponse;
+import com.example.backend.dto.EditorialBoardDtos.SeriesTotalVotesResponse;
 import com.example.backend.model.RegistrationRequest;
 import com.example.backend.service.EditorialBoardService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -100,8 +101,18 @@ public class EditorialBoardController {
 
     @PreAuthorize("hasRole('EDITORIAL_BOARD')")
     @GetMapping("/rankings")
-    public List<RankingResponse> getRankings() {
-        return service.getRankings();
+    public List<RankingResponse> getRankings(@RequestParam(required = false) String period) {
+        return service.getRankings(period);
+    }
+    @PreAuthorize("hasRole('EDITORIAL_BOARD')")
+    @GetMapping("/rankings/periods")
+    public List<String> getRankingPeriods() {
+        return service.getRankingPeriods();
+    }
+    @PreAuthorize("hasRole('EDITORIAL_BOARD')")
+    @GetMapping("/rankings/total-votes")
+    public List<SeriesTotalVotesResponse> getSeriesTotalVotes() {
+        return service.getSeriesTotalVotes();
     }
 
     @PreAuthorize("hasRole('EDITORIAL_BOARD')")
