@@ -3,6 +3,7 @@ import {
   getReviewingSeries,
   voteSeriesDecision,
 } from "../../../services/boardService";
+import { formatDateTime } from "../../../utils/formatDate";
 import "../styles/EditorialBoard.css";
 
 export default function ReviewSeriesPage() {
@@ -46,7 +47,7 @@ export default function ReviewSeriesPage() {
         <h2>Đang tải dữ liệu...</h2>
       </div>
     );
-    
+
   return (
     <div className="tab-content">
       <h2 className="mb-4">📝 Xét Duyệt Tác Phẩm Mới</h2>
@@ -63,6 +64,7 @@ export default function ReviewSeriesPage() {
               <th>Bìa</th>
               <th>Tên Series</th>
               <th>Tác giả</th>
+              <th>Hội đồng phụ trách</th>
               <th>Tiến độ bỏ phiếu</th>
               <th>Quyết định của bạn</th>
               <th>Hành động</th>
@@ -71,7 +73,7 @@ export default function ReviewSeriesPage() {
           <tbody>
             {seriesList.length === 0 ? (
               <tr>
-                <td colSpan="7" className="text-center py-4 text-muted">
+                <td colSpan="8" className="text-center py-4 text-muted">
                   Hiện không có tác phẩm nào đang chờ duyệt.
                 </td>
               </tr>
@@ -104,14 +106,44 @@ export default function ReviewSeriesPage() {
                   </td>
                   <td>{series.author}</td>
                   <td>
+                    {series.assignedBoardMembers?.length > 0 ? (
+                      <div style={{ fontSize: "0.85rem" }}>
+                        {series.assignedBoardMembers.map((member) => (
+                          <div
+                            key={member.boardMemberId}
+                            className="mb-1"
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                            }}
+                          >
+                            <span>👤 {member.boardMemberName}</span>
+                            <small className="text-muted">
+                              Nhận lúc: {formatDateTime(member.assignedAt)}
+                            </small>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-muted fst-italic">
+                        Chưa phân công
+                      </span>
+                    )}
+                  </td>
+                  <td>
                     <div style={{ fontSize: "0.9rem" }}>
                       <span className="text-success">
-                        Duyệt: {series.approveVotes}/{series.requiredVotes}
+                        Duyệt: {series.approveVotes}/{series.totalBoardMembers}
                       </span>
                       <br />
                       <span className="text-danger">
-                        Từ chối: {series.rejectVotes}/{series.requiredVotes}
+                        Từ chối: {series.rejectVotes}/{series.totalBoardMembers}
                       </span>
+                      <br />
+                      <small className="text-muted">
+                        (Cần {series.requiredVotes}/{series.totalBoardMembers}{" "}
+                        phiếu đồng thuận để quyết định)
+                      </small>
                     </div>
                   </td>
                   <td>
@@ -121,31 +153,41 @@ export default function ReviewSeriesPage() {
                       >
                         {series.currentUserDecision}
                       </span>
-                    ) : (
+                    ) : series.currentUserAssigned ? (
                       <span className="text-muted fst-italic">
                         Chưa bỏ phiếu
+                      </span>
+                    ) : (
+                      <span className="text-muted fst-italic">
+                        Không thuộc ban thẩm định này
                       </span>
                     )}
                   </td>
                   <td>
-                    <div className="d-flex gap-2">
-                      <button
-                        className="btn-approve-sm"
-                        onClick={() =>
-                          handleVote(series.id, series.title, "APPROVE")
-                        }
-                      >
-                        ✅ Duyệt
-                      </button>
-                      <button
-                        className="btn-reject-sm"
-                        onClick={() =>
-                          handleVote(series.id, series.title, "REJECT")
-                        }
-                      >
-                        ❌ Từ chối
-                      </button>
-                    </div>
+                    {series.currentUserAssigned ? (
+                      <div className="d-flex gap-2">
+                        <button
+                          className="btn-approve-sm"
+                          onClick={() =>
+                            handleVote(series.id, series.title, "APPROVE")
+                          }
+                        >
+                          ✅ Duyệt
+                        </button>
+                        <button
+                          className="btn-reject-sm"
+                          onClick={() =>
+                            handleVote(series.id, series.title, "REJECT")
+                          }
+                        >
+                          ❌ Từ chối
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-muted fst-italic">
+                        Không có quyền bỏ phiếu
+                      </span>
+                    )}
                   </td>
                 </tr>
               ))
