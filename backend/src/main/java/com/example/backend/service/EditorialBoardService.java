@@ -59,8 +59,10 @@ import java.util.Comparator;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 @Service
@@ -76,6 +78,7 @@ public class EditorialBoardService {
     private static final String APPROVE_DECISION = "APPROVE";
     private static final String REJECT_DECISION = "REJECT";
     private static final String CANCEL_DECISION = "CANCEL";
+    private static final int BOARD_PANEL_SIZE = 3;
 
     private static final Set<String> MANAGED_ROLES = Set.of(
             "MANGAKA", "ASSISTANT", "TANTOU_EDITOR", BOARD_ROLE);
@@ -139,6 +142,7 @@ public class EditorialBoardService {
                 .toList();
     }
 
+    @Transactional
     public List<ReviewSeriesResponse> getReviewingSeries() {
         User currentUser = currentEditorialBoard();
         return mangaSeriesRepository.findByStatusIgnoreCaseOrderBySubmittedAtDesc(REVIEWING_SERIES_STATUS)
@@ -155,6 +159,7 @@ public class EditorialBoardService {
                 .toList();
     }
 
+    @Transactional
     public ReviewSeriesResponse getSeriesReview(Long seriesId) {
         User currentUser = currentEditorialBoard();
         MangaSeries series = mangaSeriesRepository.findById(seriesId)
@@ -166,7 +171,7 @@ public class EditorialBoardService {
         if (!mangaSeriesRepository.existsById(seriesId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Series not found");
         }
-        return boardDecisionRepository.findBySeriesSeriesIdOrderByDecisionDateDesc(seriesId)
+        return boardDecisionRepository.findPanelDecisionsBySeriesIdOrderByDecisionDateDesc(seriesId)
                 .stream()
                 .map(this::toBoardDecisionResponse)
                 .toList();
@@ -351,13 +356,13 @@ public class EditorialBoardService {
         if (!REVIEWING_SERIES_STATUS.equalsIgnoreCase(series.getStatus())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Only reviewing series can be voted on");
         }
-        ensureBoardAssignments(series);
+        assignBoardPanel(series);
         if (seriesBoardAssignmentRepository
                 .findBySeriesSeriesIdAndBoardMemberUserId(seriesId, boardMember.getUserId())
                 .isEmpty()) {
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
-                    "You are not assigned to vote on this series");
+                    "Ban khong thuoc ban tham dinh duoc phan cong cho tac pham nay");
         }
 
         String decisionType = normalizeBoardDecision(request.decisionType(), false);
@@ -563,15 +568,18 @@ public class EditorialBoardService {
         }
     }
 
-    private List<SeriesBoardAssignment> ensureBoardAssignments(MangaSeries series) {
-        if (series == null || series.getSeriesId() == null
-                || !REVIEWING_SERIES_STATUS.equalsIgnoreCase(series.getStatus())) {
+    @Transactional
+    public List<SeriesBoardAssignment> assignBoardPanel(MangaSeries series) {
+        if (series == null || series.getSeriesId() == null) {
             return List.of();
         }
         List<SeriesBoardAssignment> existing = seriesBoardAssignmentRepository
                 .findBySeriesSeriesIdOrderByAssignedAtAsc(series.getSeriesId());
         if (!existing.isEmpty()) {
             return existing;
+        }
+        if (!REVIEWING_SERIES_STATUS.equalsIgnoreCase(series.getStatus())) {
+            return List.of();
         }
 
         List<User> activeBoardMembers = new ArrayList<>(userRepository
@@ -580,15 +588,24 @@ public class EditorialBoardService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "No active editorial board member is available");
         }
 
-        Collections.shuffle(activeBoardMembers);
-        int participantCount = activeBoardMembers.size();
-        if (participantCount > 1 && participantCount % 2 == 0) {
-            participantCount -= 1;
+        if (activeBoardMembers.size() > BOARD_PANEL_SIZE) {
+            List<Long> boardMemberIds = activeBoardMembers.stream()
+                    .map(User::getUserId)
+                    .toList();
+            Map<Long, Long> assignmentCounts = new HashMap<>();
+            seriesBoardAssignmentRepository.countAssignmentsByBoardMemberIds(boardMemberIds)
+                    .forEach(count -> assignmentCounts.put(
+                            count.getBoardMemberId(), count.getAssignmentCount()));
+
+            // Shuffle first so members with the same workload are selected randomly.
+            Collections.shuffle(activeBoardMembers);
+            activeBoardMembers.sort(Comparator.comparingLong(
+                    member -> assignmentCounts.getOrDefault(member.getUserId(), 0L)));
         }
 
         LocalDateTime now = LocalDateTime.now();
         List<SeriesBoardAssignment> created = activeBoardMembers.stream()
-                .limit(participantCount)
+                .limit(BOARD_PANEL_SIZE)
                 .map(boardMember -> {
                     SeriesBoardAssignment assignment = new SeriesBoardAssignment();
                     assignment.setSeries(series);
@@ -721,7 +738,7 @@ public class EditorialBoardService {
 
     private long requiredVotes(Long seriesId) {
         long assignedBoardMembers = totalAssignedBoardMembers(seriesId);
-        return Math.max(1, assignedBoardMembers / 2 + 1);
+        return assignedBoardMembers == 0 ? 0 : assignedBoardMembers / 2 + 1;
     }
 
     private long totalEligibleBoardMembers() {
@@ -729,20 +746,11 @@ public class EditorialBoardService {
     }
 
     private long totalAssignedBoardMembers(Long seriesId) {
-        long assigned = seriesBoardAssignmentRepository.countBySeriesSeriesId(seriesId);
-        return assigned > 0 ? assigned : effectiveBoardMemberCount();
-    }
-
-    private long effectiveBoardMemberCount() {
-        long activeBoardMembers = totalEligibleBoardMembers();
-        if (activeBoardMembers > 1 && activeBoardMembers % 2 == 0) {
-            return activeBoardMembers - 1;
-        }
-        return activeBoardMembers;
+        return seriesBoardAssignmentRepository.countBySeriesSeriesId(seriesId);
     }
 
     private long countDecisions(Long seriesId, String decisionType) {
-        return boardDecisionRepository.countBySeriesSeriesIdAndDecisionTypeIgnoreCase(seriesId, decisionType);
+        return boardDecisionRepository.countPanelDecisionsBySeriesIdAndDecisionType(seriesId, decisionType);
     }
 
     private String normalizeStatus(String status, String defaultStatus) {
@@ -785,12 +793,17 @@ public class EditorialBoardService {
     }
 
     private ReviewSeriesResponse toReviewSeriesResponse(MangaSeries series, User currentUser) {
-        List<SeriesBoardAssignment> assignments = ensureBoardAssignments(series);
+        List<SeriesBoardAssignment> assignments = assignBoardPanel(series);
         List<BoardDecisionResponse> decisions = boardDecisionRepository
-                .findBySeriesSeriesIdOrderByDecisionDateDesc(series.getSeriesId())
+                .findPanelDecisionsBySeriesIdOrderByDecisionDateDesc(series.getSeriesId())
                 .stream()
                 .map(this::toBoardDecisionResponse)
                 .toList();
+        boolean currentUserAssigned = assignments.stream()
+                .map(SeriesBoardAssignment::getBoardMember)
+                .anyMatch(boardMember -> boardMember != null
+                        && currentUser.getUserId() != null
+                        && currentUser.getUserId().equals(boardMember.getUserId()));
         String currentUserDecision = decisions.stream()
                 .filter(decision -> currentUser.getUserId() != null
                         && currentUser.getUserId().equals(decision.boardMemberId()))
@@ -817,6 +830,7 @@ public class EditorialBoardService {
                 totalAssignedBoardMembers(series.getSeriesId()),
                 requiredVotes(series.getSeriesId()),
                 currentUserDecision,
+                currentUserAssigned,
                 decisions,
                 editor == null ? null : editor.getUserId(),
                 editor == null ? null : editor.getUsername(),

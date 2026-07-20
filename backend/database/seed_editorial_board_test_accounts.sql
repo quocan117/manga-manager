@@ -25,7 +25,11 @@ INSERT INTO @EditorialBoardUsers (username, email)
 VALUES
     (N'Editorial Board 1', 'editorial1@manga.test'),
     (N'Editorial Board 2', 'editorial2@manga.test'),
-    (N'Editorial Board 3', 'editorial3@manga.test');
+    (N'Editorial Board 3', 'editorial3@manga.test'),
+    (N'Editorial Board 4', 'editorial4@manga.test'),
+    (N'Editorial Board 5', 'editorial5@manga.test'),
+    (N'Editorial Board 6', 'editorial6@manga.test'),
+    (N'Editorial Board 7', 'editorial7@manga.test');
 
 MERGE users AS target
 USING @EditorialBoardUsers AS source
@@ -45,5 +49,13 @@ COMMIT TRANSACTION;
 SELECT users.username, users.email, users.status, roles.role_name
 FROM users
 JOIN roles ON roles.role_id = users.role_id
-WHERE users.email IN ('editorial1@manga.test', 'editorial2@manga.test', 'editorial3@manga.test')
+WHERE users.email IN (
+    'editorial1@manga.test',
+    'editorial2@manga.test',
+    'editorial3@manga.test',
+    'editorial4@manga.test',
+    'editorial5@manga.test',
+    'editorial6@manga.test',
+    'editorial7@manga.test'
+)
 ORDER BY users.email;

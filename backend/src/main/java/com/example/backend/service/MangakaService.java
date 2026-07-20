@@ -64,7 +64,6 @@ import com.example.backend.repository.BoardDecisionRepository;
 import com.example.backend.repository.MangaSeriesRepository;
 import com.example.backend.repository.NotificationRepository;
 import com.example.backend.repository.RoleRepository;
-import com.example.backend.repository.SeriesBoardAssignmentRepository;
 import com.example.backend.repository.SeriesFileRepository;
 import com.example.backend.repository.SeriesRankingRepository;
 import com.example.backend.repository.SubmissionRepository;
@@ -107,7 +106,6 @@ public class MangakaService {
     private final PasswordEncoder passwordEncoder;
     private final MangaSeriesRepository mangaSeriesRepository;
     private final BoardDecisionRepository boardDecisionRepository;
-    private final SeriesBoardAssignmentRepository seriesBoardAssignmentRepository;
     private final ChapterRepository chapterRepository;
     private final ChapterRevisionNoteRepository chapterRevisionNoteRepository;
     private final ChapterPageRepository chapterPageRepository;
@@ -132,7 +130,6 @@ public class MangakaService {
             PasswordEncoder passwordEncoder,
             MangaSeriesRepository mangaSeriesRepository,
             BoardDecisionRepository boardDecisionRepository,
-            SeriesBoardAssignmentRepository seriesBoardAssignmentRepository,
             ChapterRepository chapterRepository,
             ChapterRevisionNoteRepository chapterRevisionNoteRepository,
             ChapterPageRepository chapterPageRepository,
@@ -146,7 +143,6 @@ public class MangakaService {
         this.passwordEncoder = passwordEncoder;
         this.mangaSeriesRepository = mangaSeriesRepository;
         this.boardDecisionRepository = boardDecisionRepository;
-        this.seriesBoardAssignmentRepository = seriesBoardAssignmentRepository;
         this.chapterRepository = chapterRepository;
         this.chapterRevisionNoteRepository = chapterRevisionNoteRepository;
         this.chapterPageRepository = chapterPageRepository;
@@ -241,7 +237,6 @@ public class MangakaService {
         if (REVISION_REQUESTED_STATUS.equalsIgnoreCase(series.getStatus())
                 && series.getTantouEditor() != null) {
             boardDecisionRepository.deleteBySeriesSeriesId(series.getSeriesId());
-            seriesBoardAssignmentRepository.deleteBySeriesSeriesId(series.getSeriesId());
             series.setStatus(TANTOU_REVIEW_STATUS);
             mangaSeriesRepository.save(series);
             notify(series.getTantouEditor(), "SERIES_RESUBMITTED", series.getSeriesId(),

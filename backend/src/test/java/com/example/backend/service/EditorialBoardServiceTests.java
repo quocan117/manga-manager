@@ -2,15 +2,21 @@ package com.example.backend.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.AfterEach;
@@ -23,6 +29,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.example.backend.dto.EditorialBoardDtos.BoardDecisionRequest;
 import com.example.backend.dto.EditorialBoardDtos.CreateUserRequest;
@@ -43,6 +51,7 @@ import com.example.backend.repository.ReaderFeedbackImportRepository;
 import com.example.backend.repository.RegistrationRequestRepository;
 import com.example.backend.repository.RoleRepository;
 import com.example.backend.repository.SeriesBoardAssignmentRepository;
+import com.example.backend.repository.SeriesBoardAssignmentRepository.BoardMemberAssignmentCount;
 import com.example.backend.repository.SeriesEditorRejectionRepository;
 import com.example.backend.repository.SeriesFileRepository;
 import com.example.backend.repository.SeriesRankingRepository;
@@ -161,7 +170,7 @@ class EditorialBoardServiceTests {
         when(userRepository.findByEmail(BOARD_EMAIL)).thenReturn(Optional.of(board));
         when(mangaSeriesRepository.findById(5L)).thenReturn(Optional.of(series));
         when(seriesBoardAssignmentRepository.findBySeriesSeriesIdOrderByAssignedAtAsc(5L))
-                .thenReturn(List.of());
+                .thenReturn(List.of(), List.of(assignment));
         when(userRepository.findByRoleRoleNameAndStatusOrderByUsernameAsc("EDITORIAL_BOARD", "ACTIVE"))
                 .thenReturn(List.of(board));
         when(seriesBoardAssignmentRepository.save(any(SeriesBoardAssignment.class))).thenReturn(assignment);
@@ -177,12 +186,12 @@ class EditorialBoardServiceTests {
         });
         when(userRepository.countByRoleRoleNameAndStatus("EDITORIAL_BOARD", "ACTIVE")).thenReturn(1L);
         when(userRepository.countByRoleRoleNameAndStatus("TANTOU_EDITOR", "ACTIVE")).thenReturn(1L);
-        when(boardDecisionRepository.countBySeriesSeriesIdAndDecisionTypeIgnoreCase(5L, "APPROVE"))
+        when(boardDecisionRepository.countPanelDecisionsBySeriesIdAndDecisionType(5L, "APPROVE"))
                 .thenReturn(1L);
-        when(boardDecisionRepository.countBySeriesSeriesIdAndDecisionTypeIgnoreCase(5L, "REJECT"))
+        when(boardDecisionRepository.countPanelDecisionsBySeriesIdAndDecisionType(5L, "REJECT"))
                 .thenReturn(0L);
         when(mangaSeriesRepository.save(series)).thenReturn(series);
-        when(boardDecisionRepository.findBySeriesSeriesIdOrderByDecisionDateDesc(5L))
+        when(boardDecisionRepository.findPanelDecisionsBySeriesIdOrderByDecisionDateDesc(5L))
                 .thenReturn(List.of(decision));
 
         var response = service.voteSeries(5L, new BoardDecisionRequest("APPROVE", "Ready"));
@@ -192,7 +201,84 @@ class EditorialBoardServiceTests {
         assertEquals(1L, response.approveVotes());
         assertEquals(1L, response.requiredVotes());
         assertEquals("APPROVE", response.currentUserDecision());
+        assertTrue(response.currentUserAssigned());
         verify(mangaSeriesRepository).save(series);
+    }
+
+    @Test
+    void assignsThreeBoardMembersWithTheLowestPreviousWorkload() {
+        MangaSeries series = series(5L, "Submitted Series", "REVIEWING");
+        User boardOne = user(1L, "Board One", "board1@manga.test", role("EDITORIAL_BOARD"));
+        User boardTwo = user(2L, "Board Two", "board2@manga.test", role("EDITORIAL_BOARD"));
+        User boardThree = user(3L, "Board Three", "board3@manga.test", role("EDITORIAL_BOARD"));
+        User boardFour = user(4L, "Board Four", "board4@manga.test", role("EDITORIAL_BOARD"));
+        User boardFive = user(5L, "Board Five", "board5@manga.test", role("EDITORIAL_BOARD"));
+
+        when(seriesBoardAssignmentRepository.findBySeriesSeriesIdOrderByAssignedAtAsc(5L))
+                .thenReturn(List.of());
+        when(userRepository.findByRoleRoleNameAndStatusOrderByUsernameAsc("EDITORIAL_BOARD", "ACTIVE"))
+                .thenReturn(List.of(boardOne, boardTwo, boardThree, boardFour, boardFive));
+        when(seriesBoardAssignmentRepository.countAssignmentsByBoardMemberIds(any()))
+                .thenReturn(List.of(
+                        assignmentCount(1L, 5L),
+                        assignmentCount(2L, 0L),
+                        assignmentCount(3L, 1L),
+                        assignmentCount(4L, 0L),
+                        assignmentCount(5L, 2L)));
+        when(seriesBoardAssignmentRepository.save(any(SeriesBoardAssignment.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        List<SeriesBoardAssignment> panel = service.assignBoardPanel(series);
+
+        assertEquals(3, panel.size());
+        Set<Long> selectedIds = panel.stream()
+                .map(assignment -> assignment.getBoardMember().getUserId())
+                .collect(Collectors.toSet());
+        assertEquals(Set.of(2L, 3L, 4L), selectedIds);
+        verify(seriesBoardAssignmentRepository, times(3)).save(any(SeriesBoardAssignment.class));
+    }
+
+    @Test
+    void boardMemberOutsideAssignedPanelCannotVote() {
+        User currentBoard = user(1L, "Board One", BOARD_EMAIL, role("EDITORIAL_BOARD"));
+        User assignedBoard = user(2L, "Board Two", "board2@manga.test", role("EDITORIAL_BOARD"));
+        MangaSeries series = series(5L, "Submitted Series", "REVIEWING");
+        SeriesBoardAssignment assignment = new SeriesBoardAssignment();
+        assignment.setSeries(series);
+        assignment.setBoardMember(assignedBoard);
+        assignment.setAssignedAt(LocalDateTime.now());
+
+        when(userRepository.findByEmail(BOARD_EMAIL)).thenReturn(Optional.of(currentBoard));
+        when(mangaSeriesRepository.findById(5L)).thenReturn(Optional.of(series));
+        when(seriesBoardAssignmentRepository.findBySeriesSeriesIdOrderByAssignedAtAsc(5L))
+                .thenReturn(List.of(assignment));
+        when(seriesBoardAssignmentRepository.findBySeriesSeriesIdAndBoardMemberUserId(5L, 1L))
+                .thenReturn(Optional.empty());
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.voteSeries(5L, new BoardDecisionRequest("APPROVE", "Ready")));
+
+        assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
+    }
+
+    @Test
+    void existingBoardPanelIsKeptUnchanged() {
+        MangaSeries series = series(5L, "Submitted Series", "REVIEWING");
+        User assignedBoard = user(2L, "Board Two", "board2@manga.test", role("EDITORIAL_BOARD"));
+        SeriesBoardAssignment assignment = new SeriesBoardAssignment();
+        assignment.setSeries(series);
+        assignment.setBoardMember(assignedBoard);
+        assignment.setAssignedAt(LocalDateTime.now());
+        when(seriesBoardAssignmentRepository.findBySeriesSeriesIdOrderByAssignedAtAsc(5L))
+                .thenReturn(List.of(assignment));
+
+        List<SeriesBoardAssignment> panel = service.assignBoardPanel(series);
+
+        assertEquals(List.of(assignment), panel);
+        verify(userRepository, never())
+                .findByRoleRoleNameAndStatusOrderByUsernameAsc("EDITORIAL_BOARD", "ACTIVE");
+        verify(seriesBoardAssignmentRepository, never()).save(any(SeriesBoardAssignment.class));
     }
 
     @Test
@@ -277,6 +363,20 @@ class EditorialBoardServiceTests {
 
             @Override
             public Long getVoteCount() {
+                return count;
+            }
+        };
+    }
+
+    private BoardMemberAssignmentCount assignmentCount(Long boardMemberId, long count) {
+        return new BoardMemberAssignmentCount() {
+            @Override
+            public Long getBoardMemberId() {
+                return boardMemberId;
+            }
+
+            @Override
+            public long getAssignmentCount() {
                 return count;
             }
         };

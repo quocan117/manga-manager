@@ -85,6 +85,7 @@ public final class EditorialBoardDtos {
                         long totalBoardMembers,
                         long requiredVotes,
                         String currentUserDecision,
+                        boolean currentUserAssigned,
                         List<BoardDecisionResponse> decisions,
                         Long tantouEditorId,
                         String tantouEditorName,

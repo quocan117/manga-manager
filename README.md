@@ -38,7 +38,11 @@ editor1@manga.test
 Editorial_Board:<br>
 editorial1@manga.test<br>
 editorial2@manga.test<br>
-editorial3@manga.test
+editorial3@manga.test<br>
+editorial4@manga.test<br>
+editorial5@manga.test<br>
+editorial6@manga.test<br>
+editorial7@manga.test
 
 
 <h3>Mật khẩu chung: Mangaka@123</h3>

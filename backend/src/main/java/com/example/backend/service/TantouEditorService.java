@@ -98,6 +98,7 @@ public class TantouEditorService {
     private final SeriesFileRepository seriesFileRepository;
     private final SeriesEditorRejectionRepository seriesEditorRejectionRepository;
     private final MangakaService mangakaService;
+    private final EditorialBoardService editorialBoardService;
 
     @Value("${manga.upload.chapter-revision-note-root:}")
     private String chapterRevisionNoteUploadRootOverride;
@@ -116,7 +117,8 @@ public class TantouEditorService {
             NotificationRepository notificationRepository,
             SeriesFileRepository seriesFileRepository,
             SeriesEditorRejectionRepository seriesEditorRejectionRepository,
-            MangakaService mangakaService) {
+            MangakaService mangakaService,
+            EditorialBoardService editorialBoardService) {
         this.mangaSeriesRepository = mangaSeriesRepository;
         this.chapterRepository = chapterRepository;
         this.chapterRevisionNoteRepository = chapterRevisionNoteRepository;
@@ -131,6 +133,7 @@ public class TantouEditorService {
         this.seriesFileRepository = seriesFileRepository;
         this.seriesEditorRejectionRepository = seriesEditorRejectionRepository;
         this.mangakaService = mangakaService;
+        this.editorialBoardService = editorialBoardService;
     }
 
     @Transactional(readOnly = true)
@@ -194,6 +197,7 @@ public class TantouEditorService {
         }
         series.setStatus(BOARD_REVIEW_STATUS);
         mangaSeriesRepository.save(series);
+        editorialBoardService.assignBoardPanel(series);
         createSeriesLevelComment(series, note, "CONTENT", "RESOLVED");
         notify(series.getAuthor(), "SUBMITTED_TO_BOARD", seriesId,
                 "Hồ sơ series \"" + series.getTitle() + "\" đã được trình lên Hội đồng Biên tập");

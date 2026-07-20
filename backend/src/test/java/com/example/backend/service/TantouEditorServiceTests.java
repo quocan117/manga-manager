@@ -91,6 +91,8 @@ class TantouEditorServiceTests {
     private SeriesEditorRejectionRepository seriesEditorRejectionRepository;
     @Mock
     private MangakaService mangakaService;
+    @Mock
+    private EditorialBoardService editorialBoardService;
 
     private TantouEditorService service;
 
@@ -110,7 +112,8 @@ class TantouEditorServiceTests {
                 notificationRepository,
                 seriesFileRepository,
                 seriesEditorRejectionRepository,
-                mangakaService);
+                mangakaService,
+                editorialBoardService);
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(EMAIL, null, List.of()));
     }
@@ -316,6 +319,7 @@ class TantouEditorServiceTests {
         assertEquals("REVIEWING", series.getStatus());
         assertEquals("REVIEWING", response.series().status());
         verify(mangaSeriesRepository).save(series);
+        verify(editorialBoardService).assignBoardPanel(series);
         verify(commentRepository).save(any(ReviewComment.class));
     }
 
