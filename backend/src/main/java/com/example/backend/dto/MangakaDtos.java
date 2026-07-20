@@ -28,6 +28,18 @@ public final class MangakaDtos {
     public record SubmitSeriesReviewRequest(@NotBlank String storyboardUrl) {
     }
 
+    public record UploadedFileResponse(
+            Long id,
+            Long seriesId,
+            String fileName,
+            String originalFileName,
+            String fileUrl,
+            String contentType,
+            Long fileSize,
+            String fileType,
+            LocalDateTime uploadedAt) {
+    }
+
     public record CreateChapterRequest(
             @NotNull Long seriesId,
             @NotNull @Positive Integer chapterNumber,
@@ -78,7 +90,8 @@ public final class MangakaDtos {
             String status,
             String storyboardUrl,
             LocalDateTime submittedAt,
-            Float rankingScore) {
+            Float rankingScore,
+            List<UploadedFileResponse> uploadedFiles) {
     }
 
     public record AssistantResponse(Long id, String username, String email, String status,
@@ -119,7 +132,23 @@ public final class MangakaDtos {
             Float areaX,
             Float areaY,
             Float areaWidth,
-            Float areaHeight) {
+            Float areaHeight,
+            List<UploadedFileResponse> sourceFiles) {
+    }
+
+    public record AssistantParticipationResponse(
+            Long id,
+            String username,
+            String email,
+            String status,
+            LocalDateTime createdAt,
+            String avatarUrl,
+            long totalTasks,
+            long assignedTasks,
+            long inProgressTasks,
+            long submittedTasks,
+            long approvedTasks,
+            long revisionRequestedTasks) {
     }
 
     public record SubmissionResponse(

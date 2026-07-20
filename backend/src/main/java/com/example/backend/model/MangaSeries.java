@@ -50,6 +50,8 @@ public class MangaSeries {
     @Column(name = "editor_assigned_at")
     private LocalDateTime editorAssignedAt;
 
+    private Boolean editorAssignmentLocked;
+
     public LocalDateTime getEditorAssignedAt() {
         return editorAssignedAt;
     }

@@ -13,6 +13,9 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
 
     List<Task> findByChapterSeriesSeriesIdOrderByDueDateAsc(Long seriesId);
 
+    List<Task> findByChapterSeriesSeriesIdAndAssignedByEmailOrderByCreatedAtDesc(
+            Long seriesId, String assignedByEmail);
+
     List<Task> findByChapterChapterIdOrderByDueDateAsc(Long chapterId);
 
     List<Task> findAllByOrderByDueDateAsc();

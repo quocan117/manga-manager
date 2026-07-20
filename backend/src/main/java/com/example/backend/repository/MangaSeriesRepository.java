@@ -19,6 +19,20 @@ public interface MangaSeriesRepository extends JpaRepository<MangaSeries, Long> 
 
     Optional<MangaSeries> findBySeriesIdAndStatusIgnoreCase(Long seriesId, String status);
 
+    @Query("""
+            select distinct series from MangaSeries series
+            where lower(series.status) = lower(:seriesStatus)
+              and exists (
+                    select chapter from Chapter chapter
+                    where chapter.series = series
+                      and lower(chapter.status) = lower(:chapterStatus)
+              )
+            order by series.createdAt desc
+            """)
+    List<MangaSeries> findPublicSeriesWithPublishedChaptersOrderByCreatedAtDesc(
+            @Param("seriesStatus") String seriesStatus,
+            @Param("chapterStatus") String chapterStatus);
+
     List<MangaSeries> findByAuthorEmailOrderByCreatedAtDesc(String email);
 
     long countByTantouEditorUserIdAndStatusIn(Long editorId, Collection<String> statuses);

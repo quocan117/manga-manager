@@ -29,6 +29,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.example.backend.dto.ChapterRevisionNoteResponse;
 import com.example.backend.dto.MangakaDtos.AssignTaskRequest;
+import com.example.backend.dto.MangakaDtos.AssistantParticipationResponse;
 import com.example.backend.dto.MangakaDtos.AssistantResponse;
 import com.example.backend.dto.MangakaDtos.CreateAssistantRequest;
 import com.example.backend.dto.MangakaDtos.ChapterResponse;
@@ -45,21 +46,26 @@ import com.example.backend.dto.MangakaDtos.SubmitChapterToEditorRequest;
 import com.example.backend.dto.MangakaDtos.SubmitSeriesReviewRequest;
 import com.example.backend.dto.MangakaDtos.TaskResponse;
 import com.example.backend.dto.MangakaDtos.UpdateAssistantStatusRequest;
+import com.example.backend.dto.MangakaDtos.UploadedFileResponse;
 import com.example.backend.model.Chapter;
 import com.example.backend.model.ChapterPage;
 import com.example.backend.model.ChapterRevisionNote;
 import com.example.backend.model.MangaSeries;
 import com.example.backend.model.Notification;
 import com.example.backend.model.Role;
+import com.example.backend.model.SeriesFile;
 import com.example.backend.model.Submission;
 import com.example.backend.model.Task;
 import com.example.backend.model.User;
 import com.example.backend.repository.ChapterPageRepository;
 import com.example.backend.repository.ChapterRepository;
 import com.example.backend.repository.ChapterRevisionNoteRepository;
+import com.example.backend.repository.BoardDecisionRepository;
 import com.example.backend.repository.MangaSeriesRepository;
 import com.example.backend.repository.NotificationRepository;
 import com.example.backend.repository.RoleRepository;
+import com.example.backend.repository.SeriesBoardAssignmentRepository;
+import com.example.backend.repository.SeriesFileRepository;
 import com.example.backend.repository.SeriesRankingRepository;
 import com.example.backend.repository.SubmissionRepository;
 import com.example.backend.repository.TaskRepository;
@@ -84,6 +90,7 @@ public class MangakaService {
             "DRAFT", TANTOU_REVIEW_STATUS, REVISION_REQUESTED_STATUS);
     private static final long MAX_PAGE_IMAGE_SIZE_BYTES = 5L * 1024 * 1024;
     private static final long MAX_COVER_IMAGE_SIZE_BYTES = 5L * 1024 * 1024;
+    private static final long MAX_SERIES_FILE_SIZE_BYTES = 20L * 1024 * 1024;
     private static final Set<String> PAGE_IMAGE_CONTENT_TYPES = Set.of(
             "image/jpeg", "image/png", "image/webp", "image/gif");
     private static final Set<String> COVER_IMAGE_CONTENT_TYPES = Set.of(
@@ -92,17 +99,22 @@ public class MangakaService {
             ".jpg", ".jpeg", ".png", ".webp", ".gif");
     private static final Set<String> COVER_IMAGE_EXTENSIONS = Set.of(
             ".jpg", ".jpeg", ".png", ".webp", ".gif");
+    private static final Set<String> SERIES_FILE_EXTENSIONS = Set.of(
+            ".jpg", ".jpeg", ".png", ".webp", ".gif", ".pdf", ".txt", ".md", ".doc", ".docx", ".zip");
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final MangaSeriesRepository mangaSeriesRepository;
+    private final BoardDecisionRepository boardDecisionRepository;
+    private final SeriesBoardAssignmentRepository seriesBoardAssignmentRepository;
     private final ChapterRepository chapterRepository;
     private final ChapterRevisionNoteRepository chapterRevisionNoteRepository;
     private final ChapterPageRepository chapterPageRepository;
     private final TaskRepository taskRepository;
     private final SubmissionRepository submissionRepository;
     private final SeriesRankingRepository seriesRankingRepository;
+    private final SeriesFileRepository seriesFileRepository;
     private final NotificationRepository notificationRepository;
 
     @Value("${manga.upload.page-image-root:}")
@@ -111,28 +123,37 @@ public class MangakaService {
     @Value("${manga.upload.cover-image-root:}")
     private String coverImageUploadRootOverride;
 
+    @Value("${manga.upload.series-file-root:}")
+    private String seriesFileUploadRootOverride;
+
     public MangakaService(
             UserRepository userRepository,
             RoleRepository roleRepository,
             PasswordEncoder passwordEncoder,
             MangaSeriesRepository mangaSeriesRepository,
+            BoardDecisionRepository boardDecisionRepository,
+            SeriesBoardAssignmentRepository seriesBoardAssignmentRepository,
             ChapterRepository chapterRepository,
             ChapterRevisionNoteRepository chapterRevisionNoteRepository,
             ChapterPageRepository chapterPageRepository,
             TaskRepository taskRepository,
             SubmissionRepository submissionRepository,
             SeriesRankingRepository seriesRankingRepository,
+            SeriesFileRepository seriesFileRepository,
             NotificationRepository notificationRepository) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
         this.mangaSeriesRepository = mangaSeriesRepository;
+        this.boardDecisionRepository = boardDecisionRepository;
+        this.seriesBoardAssignmentRepository = seriesBoardAssignmentRepository;
         this.chapterRepository = chapterRepository;
         this.chapterRevisionNoteRepository = chapterRevisionNoteRepository;
         this.chapterPageRepository = chapterPageRepository;
         this.taskRepository = taskRepository;
         this.submissionRepository = submissionRepository;
         this.seriesRankingRepository = seriesRankingRepository;
+        this.seriesFileRepository = seriesFileRepository;
         this.notificationRepository = notificationRepository;
     }
 
@@ -148,6 +169,7 @@ public class MangakaService {
         series.setPublicationType(blankToNull(request.publicationType()));
         series.setArtStyle(blankToNull(request.artStyle()));
         series.setStatus("DRAFT");
+        series.setEditorAssignmentLocked(false);
         series.setCreatedAt(LocalDateTime.now());
         return toSeriesResponse(mangaSeriesRepository.save(series));
     }
@@ -194,12 +216,32 @@ public class MangakaService {
 
     @Transactional
     public SeriesResponse submitSeries(Long seriesId, SubmitSeriesReviewRequest request) {
+        return submitSeriesInternal(seriesId, request.storyboardUrl(), List.of());
+    }
+
+    @Transactional
+    public SeriesResponse submitSeriesWithFiles(Long seriesId, String storyboardUrl, List<MultipartFile> files) {
+        return submitSeriesInternal(seriesId, storyboardUrl, files);
+    }
+
+    private SeriesResponse submitSeriesInternal(Long seriesId, String rawStoryboardUrl, List<MultipartFile> files) {
         MangaSeries series = ownedSeries(seriesId);
-        String storyboardUrl = requireHttpUrl(request.storyboardUrl(), "storyboardUrl");
+        User mangaka = series.getAuthor();
+        List<SeriesFile> savedFiles = storeSeriesFiles(series, mangaka, files, "SERIES_SUBMISSION");
+        String storyboardUrl = blankToNull(rawStoryboardUrl);
+        if (storyboardUrl != null) {
+            storyboardUrl = requireHttpUrl(storyboardUrl, "storyboardUrl");
+        } else if (!savedFiles.isEmpty()) {
+            storyboardUrl = savedFiles.get(0).getFileUrl();
+        } else {
+            throw badRequest("storyboardUrl or at least one uploaded file is required");
+        }
         series.setStoryboardUrl(storyboardUrl);
 
         if (REVISION_REQUESTED_STATUS.equalsIgnoreCase(series.getStatus())
                 && series.getTantouEditor() != null) {
+            boardDecisionRepository.deleteBySeriesSeriesId(series.getSeriesId());
+            seriesBoardAssignmentRepository.deleteBySeriesSeriesId(series.getSeriesId());
             series.setStatus(TANTOU_REVIEW_STATUS);
             mangaSeriesRepository.save(series);
             notify(series.getTantouEditor(), "SERIES_RESUBMITTED", series.getSeriesId(),
@@ -211,6 +253,7 @@ public class MangakaService {
         User assignedEditor = getEditorWithLeastWorkload(null);
         series.setTantouEditor(assignedEditor);
         series.setStatus(PENDING_EDITOR_STATUS);
+        series.setEditorAssignmentLocked(false);
         series.setEditorAssignedAt(LocalDateTime.now());
 
         mangaSeriesRepository.save(series);
@@ -387,6 +430,28 @@ public class MangakaService {
         return userRepository.findByRoleRoleNameAndCreatedByOrderByUsernameAsc(ASSISTANT_ROLE, mangaka)
                 .stream()
                 .map(this::toAssistantResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<AssistantParticipationResponse> getSeriesAssistants(Long seriesId) {
+        ownedSeries(seriesId);
+        List<Task> tasks = taskRepository.findByChapterSeriesSeriesIdAndAssignedByEmailOrderByCreatedAtDesc(
+                seriesId, currentEmail());
+        return tasks.stream()
+                .map(Task::getAssignedTo)
+                .filter(Objects::nonNull)
+                .distinct()
+                .map(assistant -> toAssistantParticipationResponse(assistant, tasks))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<UploadedFileResponse> getSeriesFiles(Long seriesId) {
+        ownedSeries(seriesId);
+        return seriesFileRepository.findBySeriesSeriesIdOrderByUploadedAtDesc(seriesId)
+                .stream()
+                .map(this::toUploadedFileResponse)
                 .toList();
     }
 
@@ -631,7 +696,11 @@ public class MangakaService {
         return new SeriesResponse(
                 series.getSeriesId(), series.getTitle(), genres, series.getCoverImage(),
                 series.getDescription(), series.getStatus(), series.getStoryboardUrl(),
-                series.getSubmittedAt(), series.getRankingScore());
+                series.getSubmittedAt(), series.getRankingScore(),
+                seriesFileRepository.findBySeriesSeriesIdOrderByUploadedAtDesc(series.getSeriesId())
+                        .stream()
+                        .map(this::toUploadedFileResponse)
+                        .toList());
     }
 
     private TaskResponse toTaskResponse(Task task) {
@@ -645,13 +714,40 @@ public class MangakaService {
                 assistant == null ? null : assistant.getUsername(),
                 task.getTaskType(), task.getTitle(), task.getDescription(), task.getOriginalFileUrl(), task.getStatus(),
                 task.getDueDate(), task.getAreaX(), task.getAreaY(),
-                task.getAreaWidth(), task.getAreaHeight());
+                task.getAreaWidth(), task.getAreaHeight(),
+                sourceFiles(task));
     }
 
     private AssistantResponse toAssistantResponse(User user) {
         return new AssistantResponse(
                 user.getUserId(), user.getUsername(), user.getEmail(), user.getStatus(),
                 user.getCreatedAt(), user.getAvatarUrl());
+    }
+
+    private AssistantParticipationResponse toAssistantParticipationResponse(User assistant, List<Task> seriesTasks) {
+        List<Task> assistantTasks = seriesTasks.stream()
+                .filter(task -> task.getAssignedTo() != null
+                        && Objects.equals(task.getAssignedTo().getUserId(), assistant.getUserId()))
+                .toList();
+        return new AssistantParticipationResponse(
+                assistant.getUserId(),
+                assistant.getUsername(),
+                assistant.getEmail(),
+                assistant.getStatus(),
+                assistant.getCreatedAt(),
+                assistant.getAvatarUrl(),
+                assistantTasks.size(),
+                countTasks(assistantTasks, "ASSIGNED"),
+                countTasks(assistantTasks, "IN_PROGRESS"),
+                countTasks(assistantTasks, "SUBMITTED"),
+                countTasks(assistantTasks, "APPROVED"),
+                countTasks(assistantTasks, "REVISION_REQUESTED"));
+    }
+
+    private long countTasks(List<Task> tasks, String status) {
+        return tasks.stream()
+                .filter(task -> task.getStatus() != null && status.equalsIgnoreCase(task.getStatus()))
+                .count();
     }
 
     private ChapterResponse toChapterResponse(Chapter chapter) {
@@ -693,6 +789,31 @@ public class MangakaService {
         return new NotificationResponse(
                 notification.getNotificationId(), notification.getType(), notification.getReferenceId(),
                 notification.getMessage(), notification.getIsRead(), notification.getCreatedAt());
+    }
+
+    private List<UploadedFileResponse> sourceFiles(Task task) {
+        MangaSeries series = task.getChapter() == null ? null : task.getChapter().getSeries();
+        if (series == null || series.getSeriesId() == null) {
+            return List.of();
+        }
+        return seriesFileRepository.findBySeriesSeriesIdOrderByUploadedAtDesc(series.getSeriesId())
+                .stream()
+                .map(this::toUploadedFileResponse)
+                .toList();
+    }
+
+    private UploadedFileResponse toUploadedFileResponse(SeriesFile file) {
+        MangaSeries series = file.getSeries();
+        return new UploadedFileResponse(
+                file.getFileId(),
+                series == null ? null : series.getSeriesId(),
+                file.getFileName(),
+                file.getOriginalFileName(),
+                file.getFileUrl(),
+                file.getContentType(),
+                file.getFileSize(),
+                file.getFileType(),
+                file.getUploadedAt());
     }
 
     private ResponseStatusException notFound(String message) {
@@ -789,6 +910,61 @@ public class MangakaService {
         return "series/" + fileName;
     }
 
+    private List<SeriesFile> storeSeriesFiles(
+            MangaSeries series,
+            User uploadedBy,
+            List<MultipartFile> files,
+            String fileType) {
+        if (files == null || files.isEmpty()) {
+            return List.of();
+        }
+
+        List<MultipartFile> presentFiles = files.stream()
+                .filter(file -> file != null && !file.isEmpty())
+                .toList();
+        if (presentFiles.isEmpty()) {
+            return List.of();
+        }
+
+        presentFiles.forEach(this::validateSeriesFile);
+        Path uploadRoot = seriesFileUploadRoot().resolve("series-" + series.getSeriesId()).normalize();
+        try {
+            Files.createDirectories(uploadRoot);
+        } catch (IOException exception) {
+            throw new ResponseStatusException(
+                    HttpStatus.INTERNAL_SERVER_ERROR, "Could not create series file folder", exception);
+        }
+
+        List<SeriesFile> savedFiles = new ArrayList<>();
+        for (MultipartFile file : presentFiles) {
+            String fileName = seriesFileName(series.getSeriesId(), file.getOriginalFilename());
+            Path target = uploadRoot.resolve(fileName).normalize();
+            if (!target.startsWith(uploadRoot)) {
+                throw badRequest("Invalid series file name");
+            }
+
+            try (InputStream inputStream = file.getInputStream()) {
+                Files.copy(inputStream, target, StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException exception) {
+                throw new ResponseStatusException(
+                        HttpStatus.INTERNAL_SERVER_ERROR, "Could not save series file", exception);
+            }
+
+            SeriesFile seriesFile = new SeriesFile();
+            seriesFile.setSeries(series);
+            seriesFile.setUploadedBy(uploadedBy);
+            seriesFile.setFileName(fileName);
+            seriesFile.setOriginalFileName(blankToNull(file.getOriginalFilename()));
+            seriesFile.setFileUrl("series-files/series-" + series.getSeriesId() + "/" + fileName);
+            seriesFile.setContentType(blankToNull(file.getContentType()));
+            seriesFile.setFileSize(file.getSize());
+            seriesFile.setFileType(fileType);
+            seriesFile.setUploadedAt(LocalDateTime.now());
+            savedFiles.add(seriesFileRepository.save(seriesFile));
+        }
+        return savedFiles;
+    }
+
     private void validatePageImage(MultipartFile image) {
         if (image == null || image.isEmpty()) {
             throw badRequest("Image file cannot be empty");
@@ -819,6 +995,21 @@ public class MangakaService {
         }
     }
 
+    private void validateSeriesFile(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw badRequest("Series file cannot be empty");
+        }
+        if (file.getSize() > MAX_SERIES_FILE_SIZE_BYTES) {
+            throw new ResponseStatusException(
+                    HttpStatus.PAYLOAD_TOO_LARGE, "Each series file must be 20MB or smaller");
+        }
+
+        String extension = fileExtension(file.getOriginalFilename());
+        if (!SERIES_FILE_EXTENSIONS.contains(extension)) {
+            throw badRequest("Only image, PDF, text, Word, or ZIP files are allowed");
+        }
+    }
+
     private String pageImageFileName(Long chapterId, int pageNumber, String originalFilename) {
         String extension = fileExtension(originalFilename);
         if (!PAGE_IMAGE_EXTENSIONS.contains(extension)) {
@@ -833,6 +1024,14 @@ public class MangakaService {
             throw badRequest("Only JPG, PNG, WEBP, or GIF cover images are allowed");
         }
         return "series-cover-" + UUID.randomUUID() + extension;
+    }
+
+    private String seriesFileName(Long seriesId, String originalFilename) {
+        String extension = fileExtension(originalFilename);
+        if (!SERIES_FILE_EXTENSIONS.contains(extension)) {
+            throw badRequest("Only image, PDF, text, Word, or ZIP files are allowed");
+        }
+        return "series-" + seriesId + "-file-" + UUID.randomUUID() + extension;
     }
 
     private String fileExtension(String originalFilename) {
@@ -860,6 +1059,14 @@ public class MangakaService {
         }
 
         return Path.of("uploads/covers").toAbsolutePath().normalize();
+    }
+
+    private Path seriesFileUploadRoot() {
+        if (seriesFileUploadRootOverride != null && !seriesFileUploadRootOverride.isBlank()) {
+            return Path.of(seriesFileUploadRootOverride).toAbsolutePath().normalize();
+        }
+
+        return Path.of("uploads/series-files").toAbsolutePath().normalize();
     }
 
     private List<String> parseGenreValues(List<String> genreValues) {
@@ -891,10 +1098,14 @@ public class MangakaService {
     }
 
     public User getEditorWithLeastWorkload(Long excludeEditorId) {
+        return getEditorWithLeastWorkloadExcluding(excludeEditorId == null ? Set.of() : Set.of(excludeEditorId));
+    }
+
+    public User getEditorWithLeastWorkloadExcluding(Set<Long> excludeEditorIds) {
         List<User> editors = userRepository.findByRoleRoleNameAndStatusOrderByUsernameAsc("TANTOU_EDITOR", "ACTIVE");
 
-        if (excludeEditorId != null) {
-            editors.removeIf(e -> e.getUserId().equals(excludeEditorId));
+        if (excludeEditorIds != null && !excludeEditorIds.isEmpty()) {
+            editors.removeIf(e -> excludeEditorIds.contains(e.getUserId()));
         }
 
         if (editors.isEmpty()) {

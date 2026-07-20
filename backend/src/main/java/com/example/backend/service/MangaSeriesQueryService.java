@@ -37,13 +37,17 @@ public class MangaSeriesQueryService {
                                 .findBySeriesIdAndStatusIgnoreCase(seriesId, PUBLISHED_SERIES_STATUS)
                                 .orElseThrow(() -> new ResponseStatusException(
                                                 HttpStatus.NOT_FOUND, "Manga series not found"));
-
-                return toResponse(series);
+                MangaSeriesDetailResponse response = toResponse(series);
+                if (response.getChapters().isEmpty()) {
+                        throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Manga series not found");
+                }
+                return response;
         }
 
         public List<MangaSeriesDetailResponse> getAll() {
                 return mangaSeriesRepository
-                                .findByStatusIgnoreCaseOrderByCreatedAtDesc(PUBLISHED_SERIES_STATUS)
+                                .findPublicSeriesWithPublishedChaptersOrderByCreatedAtDesc(
+                                                PUBLISHED_SERIES_STATUS, PUBLISHED_CHAPTER_STATUS)
                                 .stream()
                                 .map(this::toResponse)
                                 .toList();
@@ -72,8 +76,20 @@ public class MangaSeriesQueryService {
                                 parseGenres(series.getGenre()),
                                 series.getCoverImage(),
                                 series.getDescription(),
-                                series.getStatus(),
+                                readerStatus(series, chapters),
                                 chapters);
+        }
+
+        private String readerStatus(MangaSeries series, List<ChapterSummaryResponse> chapters) {
+                String status = series.getStatus();
+                if (status != null) {
+                        String normalized = status.trim().toUpperCase();
+                        if ("FINISH".equals(normalized) || "FINISHED".equals(normalized)
+                                        || "COMPLETED".equals(normalized)) {
+                                return "Finish";
+                        }
+                }
+                return chapters.isEmpty() ? "Coming soon" : "Publishing";
         }
 
         private List<String> parseGenres(String genre) {

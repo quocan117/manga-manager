@@ -3,6 +3,8 @@ package com.example.backend.dto;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import com.example.backend.dto.MangakaDtos.UploadedFileResponse;
+
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -47,6 +49,17 @@ public final class EditorialBoardDtos {
                         String reason) {
         }
 
+        public record AssignEditorRequest(
+                        @NotNull Long editorId) {
+        }
+
+        public record BoardMemberAssignmentResponse(
+                        Long boardMemberId,
+                        String boardMemberName,
+                        String boardMemberEmail,
+                        LocalDateTime assignedAt) {
+        }
+
         public record BoardDecisionResponse(
                         Long id,
                         Long seriesId,
@@ -72,7 +85,19 @@ public final class EditorialBoardDtos {
                         long totalBoardMembers,
                         long requiredVotes,
                         String currentUserDecision,
-                        List<BoardDecisionResponse> decisions) {
+                        List<BoardDecisionResponse> decisions,
+                        Long tantouEditorId,
+                        String tantouEditorName,
+                        String tantouEditorEmail,
+                        Boolean editorAssignmentLocked,
+                        long editorRejectCount,
+                        long totalActiveEditors,
+                        String publicationType,
+                        String artStyle,
+                        LocalDateTime createdAt,
+                        long totalEligibleBoardMembers,
+                        List<BoardMemberAssignmentResponse> assignedBoardMembers,
+                        List<UploadedFileResponse> uploadedFiles) {
         }
 
         public record ReaderVoteResponse(

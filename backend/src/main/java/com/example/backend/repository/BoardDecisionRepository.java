@@ -12,4 +12,6 @@ public interface BoardDecisionRepository extends JpaRepository<BoardDecision, Lo
     Optional<BoardDecision> findBySeriesSeriesIdAndBoardMemberUserId(Long seriesId, Long boardMemberId);
 
     long countBySeriesSeriesIdAndDecisionTypeIgnoreCase(Long seriesId, String decisionType);
+
+    void deleteBySeriesSeriesId(Long seriesId);
 }

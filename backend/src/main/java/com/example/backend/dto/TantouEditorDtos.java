@@ -3,6 +3,8 @@ package com.example.backend.dto;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import com.example.backend.dto.MangakaDtos.UploadedFileResponse;
+
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -21,7 +23,8 @@ public final class TantouEditorDtos {
             String status,
             String storyboardUrl,
             LocalDateTime createdAt,
-            LocalDateTime submittedAt) {
+            LocalDateTime submittedAt,
+            List<UploadedFileResponse> uploadedFiles) {
     }
 
     public record ManuscriptResponse(

@@ -20,18 +20,21 @@ import com.example.backend.dto.DrawingDtos.DrawingResponse;
 import com.example.backend.dto.DrawingDtos.RevisionResponse;
 import com.example.backend.dto.DrawingDtos.SaveDrawingRequest;
 import com.example.backend.dto.DrawingDtos.VersionRequest;
+import com.example.backend.dto.MangakaDtos.UploadedFileResponse;
 import com.example.backend.model.Chapter;
 import com.example.backend.model.ChapterPage;
 import com.example.backend.model.MangaSeries;
 import com.example.backend.model.Notification;
 import com.example.backend.model.PageDrawing;
 import com.example.backend.model.PageDrawingRevision;
+import com.example.backend.model.SeriesFile;
 import com.example.backend.model.Submission;
 import com.example.backend.model.Task;
 import com.example.backend.model.User;
 import com.example.backend.repository.NotificationRepository;
 import com.example.backend.repository.PageDrawingRepository;
 import com.example.backend.repository.PageDrawingRevisionRepository;
+import com.example.backend.repository.SeriesFileRepository;
 import com.example.backend.repository.SubmissionRepository;
 import com.example.backend.repository.TaskRepository;
 import com.example.backend.repository.UserRepository;
@@ -57,6 +60,7 @@ public class AssistantService {
     private final PageDrawingRevisionRepository revisionRepository;
     private final UserRepository userRepository;
     private final NotificationRepository notificationRepository;
+    private final SeriesFileRepository seriesFileRepository;
     private final ObjectMapper objectMapper;
 
     public AssistantService(
@@ -66,6 +70,7 @@ public class AssistantService {
             PageDrawingRevisionRepository revisionRepository,
             UserRepository userRepository,
             NotificationRepository notificationRepository,
+            SeriesFileRepository seriesFileRepository,
             ObjectMapper objectMapper) {
         this.taskRepository = taskRepository;
         this.submissionRepository = submissionRepository;
@@ -73,6 +78,7 @@ public class AssistantService {
         this.revisionRepository = revisionRepository;
         this.userRepository = userRepository;
         this.notificationRepository = notificationRepository;
+        this.seriesFileRepository = seriesFileRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -387,7 +393,32 @@ public class AssistantService {
                 task.getAreaWidth(),
                 task.getAreaHeight(),
                 task.getCreatedAt(),
-                latestSubmission);
+                latestSubmission,
+                sourceFiles(series));
+    }
+
+    private List<UploadedFileResponse> sourceFiles(MangaSeries series) {
+        if (series == null || series.getSeriesId() == null) {
+            return List.of();
+        }
+        return seriesFileRepository.findBySeriesSeriesIdOrderByUploadedAtDesc(series.getSeriesId())
+                .stream()
+                .map(this::toUploadedFileResponse)
+                .toList();
+    }
+
+    private UploadedFileResponse toUploadedFileResponse(SeriesFile file) {
+        MangaSeries series = file.getSeries();
+        return new UploadedFileResponse(
+                file.getFileId(),
+                series == null ? null : series.getSeriesId(),
+                file.getFileName(),
+                file.getOriginalFileName(),
+                file.getFileUrl(),
+                file.getContentType(),
+                file.getFileSize(),
+                file.getFileType(),
+                file.getUploadedAt());
     }
 
     private SubmissionResponse toSubmissionResponse(Submission submission) {

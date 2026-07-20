@@ -1,6 +1,9 @@
 package com.example.backend.dto;
 
 import java.time.LocalDateTime;
+import java.util.List;
+
+import com.example.backend.dto.MangakaDtos.UploadedFileResponse;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -32,7 +35,8 @@ public class AssistantDtos {
             Float areaWidth,
             Float areaHeight,
             LocalDateTime createdAt,
-            SubmissionResponse latestSubmission) {
+            SubmissionResponse latestSubmission,
+            List<UploadedFileResponse> sourceFiles) {
     }
 
     public record SubmitTaskRequest(

@@ -17,6 +17,7 @@ import com.example.backend.model.User;
 import com.example.backend.repository.ChapterRepository;
 import com.example.backend.repository.NotificationRepository;
 import com.example.backend.repository.PublishScheduleRepository;
+import com.example.backend.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -36,11 +37,13 @@ class PublishScheduleJobTests {
     private ChapterRepository chapterRepository;
     @Mock
     private NotificationRepository notificationRepository;
+    @Mock
+    private UserRepository userRepository;
 
     @Test
     void publishesEarliestApprovedChapterAndMovesWeeklySchedule() {
         PublishScheduleJob job = new PublishScheduleJob(
-                publishScheduleRepository, chapterRepository, notificationRepository);
+                publishScheduleRepository, chapterRepository, notificationRepository, userRepository);
         LocalDateTime dueDate = LocalDateTime.now().minusDays(1);
         MangaSeries series = series(10L);
         PublishSchedule schedule = schedule(20L, series, dueDate, "WEEKLY");
@@ -70,7 +73,7 @@ class PublishScheduleJobTests {
     @Test
     void skipsDueScheduleWhenNoChapterIsReady() {
         PublishScheduleJob job = new PublishScheduleJob(
-                publishScheduleRepository, chapterRepository, notificationRepository);
+                publishScheduleRepository, chapterRepository, notificationRepository, userRepository);
         LocalDateTime dueDate = LocalDateTime.now().minusDays(1);
         MangaSeries series = series(10L);
         PublishSchedule schedule = schedule(20L, series, dueDate, "MONTHLY");

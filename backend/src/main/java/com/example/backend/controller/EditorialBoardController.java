@@ -1,6 +1,7 @@
 package com.example.backend.controller;
 
 import com.example.backend.dto.EditorialBoardDtos.CreateUserRequest;
+import com.example.backend.dto.EditorialBoardDtos.AssignEditorRequest;
 import com.example.backend.dto.EditorialBoardDtos.BoardDecisionRequest;
 import com.example.backend.dto.EditorialBoardDtos.BoardDecisionResponse;
 import com.example.backend.dto.EditorialBoardDtos.ImportReaderFeedbackRequest;
@@ -14,6 +15,7 @@ import com.example.backend.dto.MangakaDtos.NotificationResponse;
 import com.example.backend.dto.MangakaDtos.RankingResponse;
 import com.example.backend.dto.ReviewRegistrationRequest;
 import com.example.backend.dto.TantouEditorDtos.ScheduleResponse;
+import com.example.backend.dto.TantouEditorDtos.ScheduleRequest;
 import com.example.backend.dto.EditorialBoardDtos.SeriesTotalVotesResponse;
 import com.example.backend.model.RegistrationRequest;
 import com.example.backend.service.EditorialBoardService;
@@ -53,6 +55,12 @@ public class EditorialBoardController {
     }
 
     @PreAuthorize("hasRole('EDITORIAL_BOARD')")
+    @GetMapping("/series/editor-assignment-required")
+    public List<ReviewSeriesResponse> getEditorAssignmentRequiredSeries() {
+        return service.getEditorAssignmentRequiredSeries();
+    }
+
+    @PreAuthorize("hasRole('EDITORIAL_BOARD')")
     @GetMapping("/series/{id}/review")
     public ReviewSeriesResponse getSeriesReview(@PathVariable Long id) {
         return service.getSeriesReview(id);
@@ -68,6 +76,26 @@ public class EditorialBoardController {
     @GetMapping("/publish-schedules")
     public List<ScheduleResponse> getPublishSchedules() {
         return service.getPublishSchedules();
+    }
+
+    @PreAuthorize("hasRole('EDITORIAL_BOARD')")
+    @PostMapping("/publish-schedules")
+    public ScheduleResponse createPublishSchedule(@Valid @RequestBody ScheduleRequest request) {
+        return service.createSchedule(request);
+    }
+
+    @PreAuthorize("hasRole('EDITORIAL_BOARD')")
+    @PutMapping("/publish-schedules/{scheduleId}")
+    public ScheduleResponse updatePublishSchedule(
+            @PathVariable Long scheduleId,
+            @Valid @RequestBody ScheduleRequest request) {
+        return service.updateSchedule(scheduleId, request);
+    }
+
+    @PreAuthorize("hasRole('EDITORIAL_BOARD')")
+    @DeleteMapping("/publish-schedules/{scheduleId}")
+    public void deletePublishSchedule(@PathVariable Long scheduleId) {
+        service.deleteSchedule(scheduleId);
     }
 
     @PreAuthorize("hasRole('EDITORIAL_BOARD')")
@@ -133,6 +161,14 @@ public class EditorialBoardController {
             @PathVariable Long id,
             @Valid @RequestBody BoardDecisionRequest request) {
         return service.voteSeries(id, request);
+    }
+
+    @PreAuthorize("hasRole('EDITORIAL_BOARD')")
+    @PatchMapping("/series/{id}/assign-editor")
+    public ReviewSeriesResponse assignEditor(
+            @PathVariable Long id,
+            @Valid @RequestBody AssignEditorRequest request) {
+        return service.assignEditor(id, request);
     }
 
     @PreAuthorize("hasRole('EDITORIAL_BOARD')")

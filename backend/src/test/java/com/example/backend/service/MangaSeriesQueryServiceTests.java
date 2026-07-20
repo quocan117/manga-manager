@@ -40,7 +40,8 @@ class MangaSeriesQueryServiceTests {
         MangaSeries series = series(10L, "Haikyuu!!", "Published");
         Chapter chapter = chapter(20L, series, "PUBLISHED");
 
-        when(mangaSeriesRepository.findByStatusIgnoreCaseOrderByCreatedAtDesc("Published"))
+        when(mangaSeriesRepository.findPublicSeriesWithPublishedChaptersOrderByCreatedAtDesc(
+                "Published", "PUBLISHED"))
                 .thenReturn(List.of(series));
         when(chapterRepository.findBySeriesSeriesIdAndStatusIgnoreCaseOrderByChapterNumberAsc(
                 10L, "PUBLISHED"))
@@ -51,10 +52,11 @@ class MangaSeriesQueryServiceTests {
 
         assertEquals(1, response.size());
         assertEquals("Haikyuu!!", response.get(0).getTitle());
-        assertEquals("Published", response.get(0).getStatus());
+        assertEquals("Publishing", response.get(0).getStatus());
         assertEquals(1, response.get(0).getChapters().size());
         assertEquals(33L, response.get(0).getChapters().get(0).getLikes());
-        verify(mangaSeriesRepository).findByStatusIgnoreCaseOrderByCreatedAtDesc("Published");
+        verify(mangaSeriesRepository).findPublicSeriesWithPublishedChaptersOrderByCreatedAtDesc(
+                "Published", "PUBLISHED");
     }
 
     @Test

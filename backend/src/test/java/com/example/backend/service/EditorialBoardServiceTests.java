@@ -31,6 +31,7 @@ import com.example.backend.model.BoardDecision;
 import com.example.backend.model.MangaSeries;
 import com.example.backend.model.ReaderFeedbackImport;
 import com.example.backend.model.Role;
+import com.example.backend.model.SeriesBoardAssignment;
 import com.example.backend.model.SeriesRanking;
 import com.example.backend.model.User;
 import com.example.backend.repository.BoardDecisionRepository;
@@ -41,6 +42,9 @@ import com.example.backend.repository.PublishScheduleRepository;
 import com.example.backend.repository.ReaderFeedbackImportRepository;
 import com.example.backend.repository.RegistrationRequestRepository;
 import com.example.backend.repository.RoleRepository;
+import com.example.backend.repository.SeriesBoardAssignmentRepository;
+import com.example.backend.repository.SeriesEditorRejectionRepository;
+import com.example.backend.repository.SeriesFileRepository;
 import com.example.backend.repository.SeriesRankingRepository;
 import com.example.backend.repository.UserRepository;
 
@@ -70,6 +74,12 @@ class EditorialBoardServiceTests {
     private SeriesRankingRepository seriesRankingRepository;
     @Mock
     private ReaderFeedbackImportRepository readerFeedbackImportRepository;
+    @Mock
+    private SeriesFileRepository seriesFileRepository;
+    @Mock
+    private SeriesEditorRejectionRepository seriesEditorRejectionRepository;
+    @Mock
+    private SeriesBoardAssignmentRepository seriesBoardAssignmentRepository;
 
     @InjectMocks
     private EditorialBoardService service;
@@ -143,9 +153,21 @@ class EditorialBoardServiceTests {
         decision.setSeries(series);
         decision.setBoardMember(board);
         decision.setDecisionType("APPROVE");
+        SeriesBoardAssignment assignment = new SeriesBoardAssignment();
+        assignment.setSeries(series);
+        assignment.setBoardMember(board);
+        assignment.setAssignedAt(LocalDateTime.now());
 
         when(userRepository.findByEmail(BOARD_EMAIL)).thenReturn(Optional.of(board));
         when(mangaSeriesRepository.findById(5L)).thenReturn(Optional.of(series));
+        when(seriesBoardAssignmentRepository.findBySeriesSeriesIdOrderByAssignedAtAsc(5L))
+                .thenReturn(List.of());
+        when(userRepository.findByRoleRoleNameAndStatusOrderByUsernameAsc("EDITORIAL_BOARD", "ACTIVE"))
+                .thenReturn(List.of(board));
+        when(seriesBoardAssignmentRepository.save(any(SeriesBoardAssignment.class))).thenReturn(assignment);
+        when(seriesBoardAssignmentRepository.findBySeriesSeriesIdAndBoardMemberUserId(5L, 1L))
+                .thenReturn(Optional.of(assignment));
+        when(seriesBoardAssignmentRepository.countBySeriesSeriesId(5L)).thenReturn(1L);
         when(boardDecisionRepository.findBySeriesSeriesIdAndBoardMemberUserId(5L, 1L))
                 .thenReturn(Optional.empty());
         when(boardDecisionRepository.save(any(BoardDecision.class))).thenAnswer(invocation -> {
@@ -154,6 +176,7 @@ class EditorialBoardServiceTests {
             return saved;
         });
         when(userRepository.countByRoleRoleNameAndStatus("EDITORIAL_BOARD", "ACTIVE")).thenReturn(1L);
+        when(userRepository.countByRoleRoleNameAndStatus("TANTOU_EDITOR", "ACTIVE")).thenReturn(1L);
         when(boardDecisionRepository.countBySeriesSeriesIdAndDecisionTypeIgnoreCase(5L, "APPROVE"))
                 .thenReturn(1L);
         when(boardDecisionRepository.countBySeriesSeriesIdAndDecisionTypeIgnoreCase(5L, "REJECT"))

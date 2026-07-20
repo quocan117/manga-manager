@@ -51,9 +51,12 @@ import com.example.backend.model.User;
 import com.example.backend.repository.ChapterPageRepository;
 import com.example.backend.repository.ChapterRepository;
 import com.example.backend.repository.ChapterRevisionNoteRepository;
+import com.example.backend.repository.BoardDecisionRepository;
 import com.example.backend.repository.MangaSeriesRepository;
 import com.example.backend.repository.NotificationRepository;
 import com.example.backend.repository.RoleRepository;
+import com.example.backend.repository.SeriesBoardAssignmentRepository;
+import com.example.backend.repository.SeriesFileRepository;
 import com.example.backend.repository.SeriesRankingRepository;
 import com.example.backend.repository.SubmissionRepository;
 import com.example.backend.repository.TaskRepository;
@@ -74,6 +77,10 @@ class MangakaServiceTests {
     @Mock
     private MangaSeriesRepository mangaSeriesRepository;
     @Mock
+    private BoardDecisionRepository boardDecisionRepository;
+    @Mock
+    private SeriesBoardAssignmentRepository seriesBoardAssignmentRepository;
+    @Mock
     private ChapterRepository chapterRepository;
     @Mock
     private ChapterRevisionNoteRepository chapterRevisionNoteRepository;
@@ -85,6 +92,8 @@ class MangakaServiceTests {
     private SubmissionRepository submissionRepository;
     @Mock
     private SeriesRankingRepository seriesRankingRepository;
+    @Mock
+    private SeriesFileRepository seriesFileRepository;
     @Mock
     private NotificationRepository notificationRepository;
 

@@ -37,6 +37,7 @@ import com.example.backend.model.User;
 import com.example.backend.repository.NotificationRepository;
 import com.example.backend.repository.PageDrawingRepository;
 import com.example.backend.repository.PageDrawingRevisionRepository;
+import com.example.backend.repository.SeriesFileRepository;
 import com.example.backend.repository.SubmissionRepository;
 import com.example.backend.repository.TaskRepository;
 import com.example.backend.repository.UserRepository;
@@ -58,6 +59,8 @@ class AssistantServiceTests {
     private UserRepository userRepository;
     @Mock
     private NotificationRepository notificationRepository;
+    @Mock
+    private SeriesFileRepository seriesFileRepository;
 
     private AssistantService service;
     private ObjectMapper objectMapper;
@@ -72,6 +75,7 @@ class AssistantServiceTests {
                 revisionRepository,
                 userRepository,
                 notificationRepository,
+                seriesFileRepository,
                 objectMapper);
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(EMAIL, null, List.of()));

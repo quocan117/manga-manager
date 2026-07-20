@@ -8,6 +8,7 @@ import com.example.backend.model.User;
 import com.example.backend.repository.ChapterRepository;
 import com.example.backend.repository.NotificationRepository;
 import com.example.backend.repository.PublishScheduleRepository;
+import com.example.backend.repository.UserRepository;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,14 +27,17 @@ public class PublishScheduleJob {
     private final PublishScheduleRepository publishScheduleRepository;
     private final ChapterRepository chapterRepository;
     private final NotificationRepository notificationRepository;
+    private final UserRepository userRepository;
 
     public PublishScheduleJob(
             PublishScheduleRepository publishScheduleRepository,
             ChapterRepository chapterRepository,
-            NotificationRepository notificationRepository) {
+            NotificationRepository notificationRepository,
+            UserRepository userRepository) {
         this.publishScheduleRepository = publishScheduleRepository;
         this.chapterRepository = chapterRepository;
         this.notificationRepository = notificationRepository;
+        this.userRepository = userRepository;
     }
 
     @Scheduled(fixedRateString = "${manga.publish-schedule.scan-rate-ms:60000}")
@@ -61,6 +65,9 @@ public class PublishScheduleJob {
                 if (!Boolean.TRUE.equals(schedule.getOverdueNotified())) {
                     schedule.setOverdueNotified(true);
                     publishScheduleRepository.save(schedule);
+                    notifyEditorialBoard("SCHEDULE_OVERDUE", schedule.getScheduleId(),
+                            "Publish schedule for \"" + series.getTitle() + "\" is overdue ("
+                                    + schedule.getPublishDate() + ") but no approved chapter is ready.");
                     notify(series.getTantouEditor(), "SCHEDULE_OVERDUE", schedule.getScheduleId(),
                             "Lịch xuất bản của \"" + series.getTitle() + "\" đã quá hạn (" +
                                     schedule.getPublishDate() + ") nhưng chưa có chapter nào được duyệt.");
@@ -113,5 +120,14 @@ public class PublishScheduleJob {
         notification.setIsRead(false);
         notification.setCreatedAt(LocalDateTime.now());
         notificationRepository.save(notification);
+    }
+
+    private void notifyEditorialBoard(String type, Long referenceId, String message) {
+        List<User> boardMembers = userRepository.findByRoleRoleNameAndStatusOrderByUsernameAsc(
+                "EDITORIAL_BOARD", "ACTIVE");
+        if (boardMembers == null) {
+            return;
+        }
+        boardMembers.forEach(user -> notify(user, type, referenceId, message));
     }
 }

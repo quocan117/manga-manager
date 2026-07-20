@@ -20,6 +20,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.example.backend.dto.ChapterRevisionNoteResponse;
 import com.example.backend.dto.MangakaDtos.AssignTaskRequest;
+import com.example.backend.dto.MangakaDtos.AssistantParticipationResponse;
 import com.example.backend.dto.MangakaDtos.AssistantResponse;
 import com.example.backend.dto.MangakaDtos.CreateAssistantRequest;
 import com.example.backend.dto.MangakaDtos.ChapterResponse;
@@ -35,6 +36,7 @@ import com.example.backend.dto.MangakaDtos.SubmissionResponse;
 import com.example.backend.dto.MangakaDtos.SubmitChapterToEditorRequest;
 import com.example.backend.dto.MangakaDtos.SubmitSeriesReviewRequest;
 import com.example.backend.dto.MangakaDtos.TaskResponse;
+import com.example.backend.dto.MangakaDtos.UploadedFileResponse;
 import com.example.backend.service.MangakaService;
 import com.example.backend.dto.MangakaDtos.UpdateAssistantStatusRequest;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -88,6 +90,24 @@ public class MangakaController {
             @PathVariable Long seriesId,
             @Valid @RequestBody SubmitSeriesReviewRequest request) {
         return service.submitSeries(seriesId, request);
+    }
+
+    @PostMapping(value = "/series/{seriesId}/submit", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public SeriesResponse submitSeriesWithFiles(
+            @PathVariable Long seriesId,
+            @RequestParam(required = false) String storyboardUrl,
+            @RequestParam(value = "files", required = false) List<MultipartFile> files) {
+        return service.submitSeriesWithFiles(seriesId, storyboardUrl, files);
+    }
+
+    @GetMapping("/series/{seriesId}/files")
+    public List<UploadedFileResponse> getSeriesFiles(@PathVariable Long seriesId) {
+        return service.getSeriesFiles(seriesId);
+    }
+
+    @GetMapping("/series/{seriesId}/assistants")
+    public List<AssistantParticipationResponse> getSeriesAssistants(@PathVariable Long seriesId) {
+        return service.getSeriesAssistants(seriesId);
     }
 
     @PostMapping("/chapters")
