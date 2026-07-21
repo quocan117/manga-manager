@@ -42,5 +42,8 @@ public class SeriesFile {
     @Column(columnDefinition = "NVARCHAR(50)")
     private String fileType;
 
+    @Column(nullable = false)
+    private Boolean active = true;
+
     private LocalDateTime uploadedAt;
 }

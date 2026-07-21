@@ -741,10 +741,9 @@ public class TantouEditorService {
                 series.getCoverImage(),
                 series.getDescription(),
                 series.getStatus(),
-                series.getStoryboardUrl(),
                 series.getCreatedAt(),
                 series.getSubmittedAt(),
-                seriesFileRepository.findBySeriesSeriesIdOrderByUploadedAtDesc(series.getSeriesId())
+                seriesFileRepository.findBySeriesSeriesIdAndActiveTrueOrderByUploadedAtDesc(series.getSeriesId())
                         .stream()
                         .map(this::toUploadedFileResponse)
                         .toList());
@@ -757,10 +756,11 @@ public class TantouEditorService {
                 series == null ? null : series.getSeriesId(),
                 file.getFileName(),
                 file.getOriginalFileName(),
-                file.getFileUrl(),
+                SeriesFileSupport.downloadUrl(file),
                 file.getContentType(),
                 file.getFileSize(),
                 file.getFileType(),
+                SeriesFileSupport.isPreviewable(file),
                 file.getUploadedAt());
     }
 

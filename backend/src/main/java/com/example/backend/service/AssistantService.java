@@ -401,7 +401,7 @@ public class AssistantService {
         if (series == null || series.getSeriesId() == null) {
             return List.of();
         }
-        return seriesFileRepository.findBySeriesSeriesIdOrderByUploadedAtDesc(series.getSeriesId())
+        return seriesFileRepository.findBySeriesSeriesIdAndActiveTrueOrderByUploadedAtDesc(series.getSeriesId())
                 .stream()
                 .map(this::toUploadedFileResponse)
                 .toList();
@@ -414,10 +414,11 @@ public class AssistantService {
                 series == null ? null : series.getSeriesId(),
                 file.getFileName(),
                 file.getOriginalFileName(),
-                file.getFileUrl(),
+                SeriesFileSupport.downloadUrl(file),
                 file.getContentType(),
                 file.getFileSize(),
                 file.getFileType(),
+                SeriesFileSupport.isPreviewable(file),
                 file.getUploadedAt());
     }
 

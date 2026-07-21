@@ -34,7 +34,6 @@ import com.example.backend.dto.MangakaDtos.ReviewSubmissionRequest;
 import com.example.backend.dto.MangakaDtos.SeriesResponse;
 import com.example.backend.dto.MangakaDtos.SubmissionResponse;
 import com.example.backend.dto.MangakaDtos.SubmitChapterToEditorRequest;
-import com.example.backend.dto.MangakaDtos.SubmitSeriesReviewRequest;
 import com.example.backend.dto.MangakaDtos.TaskResponse;
 import com.example.backend.dto.MangakaDtos.UploadedFileResponse;
 import com.example.backend.service.MangakaService;
@@ -85,19 +84,11 @@ public class MangakaController {
         return service.getSeriesChapters(seriesId);
     }
 
-    @PostMapping("/series/{seriesId}/submit")
-    public SeriesResponse submitSeries(
-            @PathVariable Long seriesId,
-            @Valid @RequestBody SubmitSeriesReviewRequest request) {
-        return service.submitSeries(seriesId, request);
-    }
-
     @PostMapping(value = "/series/{seriesId}/submit", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public SeriesResponse submitSeriesWithFiles(
             @PathVariable Long seriesId,
-            @RequestParam(required = false) String storyboardUrl,
             @RequestParam(value = "files", required = false) List<MultipartFile> files) {
-        return service.submitSeriesWithFiles(seriesId, storyboardUrl, files);
+        return service.submitSeriesWithFiles(seriesId, files);
     }
 
     @GetMapping("/series/{seriesId}/files")

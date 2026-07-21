@@ -42,9 +42,6 @@ public class MangaSeries {
     private LocalDateTime createdAt;
     private String artStyle;
 
-    @Column(columnDefinition = "NVARCHAR(MAX)")
-    private String storyboardUrl;
-
     private LocalDateTime submittedAt;
 
     @Column(name = "editor_assigned_at")

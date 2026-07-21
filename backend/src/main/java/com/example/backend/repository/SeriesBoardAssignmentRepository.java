@@ -14,6 +14,8 @@ public interface SeriesBoardAssignmentRepository extends JpaRepository<SeriesBoa
 
     Optional<SeriesBoardAssignment> findBySeriesSeriesIdAndBoardMemberUserId(Long seriesId, Long boardMemberId);
 
+    boolean existsBySeriesSeriesIdAndBoardMemberEmailIgnoreCase(Long seriesId, String email);
+
     long countBySeriesSeriesId(Long seriesId);
 
     @Query("""

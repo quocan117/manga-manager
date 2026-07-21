@@ -13,12 +13,6 @@ BEGIN
     ALTER TABLE guest_access_logs ALTER COLUMN user_agent NVARCHAR(MAX) NULL;
 END;
 
-IF OBJECT_ID('manga_series', 'U') IS NOT NULL
-   AND COL_LENGTH('manga_series', 'storyboard_url') IS NOT NULL
-BEGIN
-    ALTER TABLE manga_series ALTER COLUMN storyboard_url NVARCHAR(MAX) NULL;
-END;
-
 IF OBJECT_ID('registration_requests', 'U') IS NOT NULL
    AND COL_LENGTH('registration_requests', 'portfolio_url') IS NOT NULL
 BEGIN

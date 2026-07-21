@@ -43,7 +43,6 @@ import com.example.backend.dto.MangakaDtos.ReviewSubmissionRequest;
 import com.example.backend.dto.MangakaDtos.SeriesResponse;
 import com.example.backend.dto.MangakaDtos.SubmissionResponse;
 import com.example.backend.dto.MangakaDtos.SubmitChapterToEditorRequest;
-import com.example.backend.dto.MangakaDtos.SubmitSeriesReviewRequest;
 import com.example.backend.dto.MangakaDtos.TaskResponse;
 import com.example.backend.dto.MangakaDtos.UpdateAssistantStatusRequest;
 import com.example.backend.dto.MangakaDtos.UploadedFileResponse;
@@ -90,6 +89,9 @@ public class MangakaService {
     private static final long MAX_PAGE_IMAGE_SIZE_BYTES = 5L * 1024 * 1024;
     private static final long MAX_COVER_IMAGE_SIZE_BYTES = 5L * 1024 * 1024;
     private static final long MAX_SERIES_FILE_SIZE_BYTES = 20L * 1024 * 1024;
+    private static final long MAX_ZIP_FILE_SIZE_BYTES = 100L * 1024 * 1024;
+    private static final long MAX_SERIES_SUBMISSION_SIZE_BYTES = 200L * 1024 * 1024;
+    private static final int MAX_SERIES_FILES_PER_SUBMISSION = 20;
     private static final Set<String> PAGE_IMAGE_CONTENT_TYPES = Set.of(
             "image/jpeg", "image/png", "image/webp", "image/gif");
     private static final Set<String> COVER_IMAGE_CONTENT_TYPES = Set.of(
@@ -211,31 +213,22 @@ public class MangakaService {
     }
 
     @Transactional
-    public SeriesResponse submitSeries(Long seriesId, SubmitSeriesReviewRequest request) {
-        return submitSeriesInternal(seriesId, request.storyboardUrl(), List.of());
+    public SeriesResponse submitSeriesWithFiles(Long seriesId, List<MultipartFile> files) {
+        return submitSeriesInternal(seriesId, files);
     }
 
-    @Transactional
-    public SeriesResponse submitSeriesWithFiles(Long seriesId, String storyboardUrl, List<MultipartFile> files) {
-        return submitSeriesInternal(seriesId, storyboardUrl, files);
-    }
-
-    private SeriesResponse submitSeriesInternal(Long seriesId, String rawStoryboardUrl, List<MultipartFile> files) {
+    private SeriesResponse submitSeriesInternal(Long seriesId, List<MultipartFile> files) {
         MangaSeries series = ownedSeries(seriesId);
         User mangaka = series.getAuthor();
-        List<SeriesFile> savedFiles = storeSeriesFiles(series, mangaka, files, "SERIES_SUBMISSION");
-        String storyboardUrl = blankToNull(rawStoryboardUrl);
-        if (storyboardUrl != null) {
-            storyboardUrl = requireHttpUrl(storyboardUrl, "storyboardUrl");
-        } else if (!savedFiles.isEmpty()) {
-            storyboardUrl = savedFiles.get(0).getFileUrl();
-        } else {
-            throw badRequest("storyboardUrl or at least one uploaded file is required");
+        List<MultipartFile> submissionFiles = requireSeriesSubmissionFiles(files);
+        boolean resubmission = REVISION_REQUESTED_STATUS.equalsIgnoreCase(series.getStatus())
+                && series.getTantouEditor() != null;
+        if (resubmission) {
+            seriesFileRepository.deactivateActiveFiles(seriesId, "SERIES_SUBMISSION");
         }
-        series.setStoryboardUrl(storyboardUrl);
+        storeSeriesFiles(series, mangaka, submissionFiles, "SERIES_SUBMISSION");
 
-        if (REVISION_REQUESTED_STATUS.equalsIgnoreCase(series.getStatus())
-                && series.getTantouEditor() != null) {
+        if (resubmission) {
             boardDecisionRepository.deleteBySeriesSeriesId(series.getSeriesId());
             series.setStatus(TANTOU_REVIEW_STATUS);
             mangaSeriesRepository.save(series);
@@ -444,7 +437,7 @@ public class MangakaService {
     @Transactional(readOnly = true)
     public List<UploadedFileResponse> getSeriesFiles(Long seriesId) {
         ownedSeries(seriesId);
-        return seriesFileRepository.findBySeriesSeriesIdOrderByUploadedAtDesc(seriesId)
+        return seriesFileRepository.findBySeriesSeriesIdAndActiveTrueOrderByUploadedAtDesc(seriesId)
                 .stream()
                 .map(this::toUploadedFileResponse)
                 .toList();
@@ -690,9 +683,9 @@ public class MangakaService {
                         .toList();
         return new SeriesResponse(
                 series.getSeriesId(), series.getTitle(), genres, series.getCoverImage(),
-                series.getDescription(), series.getStatus(), series.getStoryboardUrl(),
+                series.getDescription(), series.getStatus(),
                 series.getSubmittedAt(), series.getRankingScore(),
-                seriesFileRepository.findBySeriesSeriesIdOrderByUploadedAtDesc(series.getSeriesId())
+                seriesFileRepository.findBySeriesSeriesIdAndActiveTrueOrderByUploadedAtDesc(series.getSeriesId())
                         .stream()
                         .map(this::toUploadedFileResponse)
                         .toList());
@@ -791,7 +784,7 @@ public class MangakaService {
         if (series == null || series.getSeriesId() == null) {
             return List.of();
         }
-        return seriesFileRepository.findBySeriesSeriesIdOrderByUploadedAtDesc(series.getSeriesId())
+        return seriesFileRepository.findBySeriesSeriesIdAndActiveTrueOrderByUploadedAtDesc(series.getSeriesId())
                 .stream()
                 .map(this::toUploadedFileResponse)
                 .toList();
@@ -804,10 +797,11 @@ public class MangakaService {
                 series == null ? null : series.getSeriesId(),
                 file.getFileName(),
                 file.getOriginalFileName(),
-                file.getFileUrl(),
+                SeriesFileSupport.downloadUrl(file),
                 file.getContentType(),
                 file.getFileSize(),
                 file.getFileType(),
+                SeriesFileSupport.isPreviewable(file),
                 file.getUploadedAt());
     }
 
@@ -954,6 +948,7 @@ public class MangakaService {
             seriesFile.setContentType(blankToNull(file.getContentType()));
             seriesFile.setFileSize(file.getSize());
             seriesFile.setFileType(fileType);
+            seriesFile.setActive(true);
             seriesFile.setUploadedAt(LocalDateTime.now());
             savedFiles.add(seriesFileRepository.save(seriesFile));
         }
@@ -994,15 +989,44 @@ public class MangakaService {
         if (file == null || file.isEmpty()) {
             throw badRequest("Series file cannot be empty");
         }
-        if (file.getSize() > MAX_SERIES_FILE_SIZE_BYTES) {
-            throw new ResponseStatusException(
-                    HttpStatus.PAYLOAD_TOO_LARGE, "Each series file must be 20MB or smaller");
-        }
 
         String extension = fileExtension(file.getOriginalFilename());
         if (!SERIES_FILE_EXTENSIONS.contains(extension)) {
             throw badRequest("Only image, PDF, text, Word, or ZIP files are allowed");
         }
+
+        long maximumSize = ".zip".equals(extension)
+                ? MAX_ZIP_FILE_SIZE_BYTES
+                : MAX_SERIES_FILE_SIZE_BYTES;
+        if (file.getSize() > maximumSize) {
+            throw new ResponseStatusException(
+                    HttpStatus.PAYLOAD_TOO_LARGE,
+                    ".zip".equals(extension)
+                            ? "Each ZIP series file must be 100MB or smaller"
+                            : "Each series file must be 20MB or smaller");
+        }
+    }
+
+    private List<MultipartFile> requireSeriesSubmissionFiles(List<MultipartFile> files) {
+        List<MultipartFile> presentFiles = files == null
+                ? List.of()
+                : files.stream()
+                        .filter(file -> file != null && !file.isEmpty())
+                        .toList();
+        if (presentFiles.isEmpty()) {
+            throw badRequest("Vui lòng đính kèm ít nhất 1 file hồ sơ");
+        }
+        if (presentFiles.size() > MAX_SERIES_FILES_PER_SUBMISSION) {
+            throw badRequest("A series submission can contain at most 20 files");
+        }
+        presentFiles.forEach(this::validateSeriesFile);
+        long totalSize = presentFiles.stream().mapToLong(MultipartFile::getSize).sum();
+        if (totalSize > MAX_SERIES_SUBMISSION_SIZE_BYTES) {
+            throw new ResponseStatusException(
+                    HttpStatus.PAYLOAD_TOO_LARGE,
+                    "A series submission must be 200MB or smaller in total");
+        }
+        return presentFiles;
     }
 
     private String pageImageFileName(Long chapterId, int pageNumber, String originalFilename) {

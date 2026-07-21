@@ -823,7 +823,6 @@ public class EditorialBoardService {
                 series.getCoverImage(),
                 series.getDescription(),
                 series.getStatus(),
-                series.getStoryboardUrl(),
                 series.getSubmittedAt(),
                 countDecisions(series.getSeriesId(), APPROVE_DECISION),
                 countDecisions(series.getSeriesId(), REJECT_DECISION),
@@ -845,7 +844,7 @@ public class EditorialBoardService {
                 assignments.stream()
                         .map(this::toBoardMemberAssignmentResponse)
                         .toList(),
-                seriesFileRepository.findBySeriesSeriesIdOrderByUploadedAtDesc(series.getSeriesId())
+                seriesFileRepository.findBySeriesSeriesIdAndActiveTrueOrderByUploadedAtDesc(series.getSeriesId())
                         .stream()
                         .map(this::toUploadedFileResponse)
                         .toList());
@@ -880,10 +879,11 @@ public class EditorialBoardService {
                 series == null ? null : series.getSeriesId(),
                 file.getFileName(),
                 file.getOriginalFileName(),
-                file.getFileUrl(),
+                SeriesFileSupport.downloadUrl(file),
                 file.getContentType(),
                 file.getFileSize(),
                 file.getFileType(),
+                SeriesFileSupport.isPreviewable(file),
                 file.getUploadedAt());
     }
 

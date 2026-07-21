@@ -25,9 +25,6 @@ public final class MangakaDtos {
             String artStyle) {
     }
 
-    public record SubmitSeriesReviewRequest(@NotBlank String storyboardUrl) {
-    }
-
     public record UploadedFileResponse(
             Long id,
             Long seriesId,
@@ -37,6 +34,7 @@ public final class MangakaDtos {
             String contentType,
             Long fileSize,
             String fileType,
+            boolean previewable,
             LocalDateTime uploadedAt) {
     }
 
@@ -88,7 +86,6 @@ public final class MangakaDtos {
             String coverUrl,
             String description,
             String status,
-            String storyboardUrl,
             LocalDateTime submittedAt,
             Float rankingScore,
             List<UploadedFileResponse> uploadedFiles) {

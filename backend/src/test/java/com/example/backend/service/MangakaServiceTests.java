@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -32,6 +33,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.example.backend.dto.MangakaDtos.AssignTaskRequest;
@@ -39,7 +41,6 @@ import com.example.backend.dto.MangakaDtos.CreateAssistantRequest;
 import com.example.backend.dto.MangakaDtos.CreateSeriesRequest;
 import com.example.backend.dto.MangakaDtos.ReviewSubmissionRequest;
 import com.example.backend.dto.MangakaDtos.SubmitChapterToEditorRequest;
-import com.example.backend.dto.MangakaDtos.SubmitSeriesReviewRequest;
 import com.example.backend.model.Chapter;
 import com.example.backend.model.ChapterPage;
 import com.example.backend.model.MangaSeries;
@@ -64,7 +65,6 @@ import com.example.backend.repository.UserRepository;
 @ExtendWith(MockitoExtension.class)
 class MangakaServiceTests {
     private static final String EMAIL = "mangaka@test.local";
-    private static final String STORYBOARD_URL = "https://drive.example.test/storyboards/series-20";
     private static final String MANUSCRIPT_URL = "https://drive.example.test/chapters/chapter-1.psd";
 
     @Mock
@@ -191,14 +191,15 @@ class MangakaServiceTests {
         when(mangaSeriesRepository.findById(20L)).thenReturn(Optional.of(series));
 
         ResponseStatusException exception = assertThrows(ResponseStatusException.class,
-                () -> service.submitSeries(20L, new SubmitSeriesReviewRequest(STORYBOARD_URL)));
+                () -> service.submitSeriesWithFiles(20L, List.of(seriesFile())));
 
         assertSame(HttpStatus.FORBIDDEN, exception.getStatusCode());
         verify(mangaSeriesRepository, never()).save(any());
     }
 
     @Test
-    void submitSeriesMovesDraftToTantouReview() {
+    void submitSeriesMovesDraftToTantouReview(@TempDir Path tempDir) {
+        ReflectionTestUtils.setField(service, "seriesFileUploadRootOverride", tempDir.toString());
         MangaSeries series = new MangaSeries();
         series.setSeriesId(20L);
         series.setAuthor(user(1L, EMAIL));
@@ -211,7 +212,7 @@ class MangakaServiceTests {
                 .thenReturn(0L);
         when(mangaSeriesRepository.save(series)).thenReturn(series);
 
-        var response = service.submitSeries(20L, new SubmitSeriesReviewRequest(STORYBOARD_URL));
+        var response = service.submitSeriesWithFiles(20L, List.of(seriesFile()));
 
         assertEquals("PENDING_EDITOR", series.getStatus());
         assertEquals(editor, series.getTantouEditor());
@@ -219,7 +220,8 @@ class MangakaServiceTests {
     }
 
     @Test
-    void submitSeriesAssignsLeastLoadedTantouEditor() {
+    void submitSeriesAssignsLeastLoadedTantouEditor(@TempDir Path tempDir) {
+        ReflectionTestUtils.setField(service, "seriesFileUploadRootOverride", tempDir.toString());
         MangaSeries series = new MangaSeries();
         series.setSeriesId(20L);
         series.setAuthor(user(1L, EMAIL));
@@ -235,13 +237,14 @@ class MangakaServiceTests {
                 .thenReturn(0L);
         when(mangaSeriesRepository.save(series)).thenReturn(series);
 
-        service.submitSeries(20L, new SubmitSeriesReviewRequest(STORYBOARD_URL));
+        service.submitSeriesWithFiles(20L, List.of(seriesFile()));
 
         assertEquals(availableEditor, series.getTantouEditor());
     }
 
     @Test
-    void submitSeriesRandomlyAssignsAmongEquallyLoadedTantouEditors() {
+    void submitSeriesRandomlyAssignsAmongEquallyLoadedTantouEditors(@TempDir Path tempDir) {
+        ReflectionTestUtils.setField(service, "seriesFileUploadRootOverride", tempDir.toString());
         MangaSeries series = new MangaSeries();
         series.setSeriesId(20L);
         series.setAuthor(user(1L, EMAIL));
@@ -257,13 +260,14 @@ class MangakaServiceTests {
                 .thenReturn(1L);
         when(mangaSeriesRepository.save(series)).thenReturn(series);
 
-        service.submitSeries(20L, new SubmitSeriesReviewRequest(STORYBOARD_URL));
+        service.submitSeriesWithFiles(20L, List.of(seriesFile()));
 
         assertTrue(List.of(firstEditor, secondEditor).contains(series.getTantouEditor()));
     }
 
     @Test
-    void submitSeriesResubmitsRevisionToSameTantouEditor() {
+    void submitSeriesResubmitsRevisionToSameTantouEditor(@TempDir Path tempDir) {
+        ReflectionTestUtils.setField(service, "seriesFileUploadRootOverride", tempDir.toString());
         MangaSeries series = new MangaSeries();
         series.setSeriesId(20L);
         series.setTitle("Revision Series");
@@ -274,14 +278,12 @@ class MangakaServiceTests {
         when(mangaSeriesRepository.findById(20L)).thenReturn(Optional.of(series));
         when(mangaSeriesRepository.save(series)).thenReturn(series);
 
-        String updatedStoryboardUrl = "https://drive.example.test/storyboards/series-20-v2";
-
-        var response = service.submitSeries(20L, new SubmitSeriesReviewRequest(updatedStoryboardUrl));
+        var response = service.submitSeriesWithFiles(20L, List.of(seriesFile()));
 
         assertEquals("TANTOU_REVIEW", series.getStatus());
         assertSame(editor, series.getTantouEditor());
-        assertEquals(updatedStoryboardUrl, series.getStoryboardUrl());
         assertEquals("TANTOU_REVIEW", response.status());
+        verify(seriesFileRepository).deactivateActiveFiles(20L, "SERIES_SUBMISSION");
         verify(userRepository, never())
                 .findByRoleRoleNameAndStatusOrderByUsernameAsc(eq("TANTOU_EDITOR"), eq("ACTIVE"));
 
@@ -294,7 +296,7 @@ class MangakaServiceTests {
     }
 
     @Test
-    void submitSeriesRejectsInvalidStoryboardUrl() {
+    void submitSeriesRequiresAtLeastOneFile() {
         MangaSeries series = new MangaSeries();
         series.setSeriesId(20L);
         series.setAuthor(user(1L, EMAIL));
@@ -302,13 +304,68 @@ class MangakaServiceTests {
         when(mangaSeriesRepository.findById(20L)).thenReturn(Optional.of(series));
 
         ResponseStatusException exception = assertThrows(ResponseStatusException.class,
-                () -> service.submitSeries(20L, new SubmitSeriesReviewRequest("storyboard-url")));
+                () -> service.submitSeriesWithFiles(20L, List.of()));
 
         assertSame(HttpStatus.BAD_REQUEST, exception.getStatusCode());
-        assertEquals("storyboardUrl must be a valid http(s) URL", exception.getReason());
         verify(mangaSeriesRepository, never()).save(any());
         verify(userRepository, never())
                 .findByRoleRoleNameAndStatusOrderByUsernameAsc(eq("TANTOU_EDITOR"), eq("ACTIVE"));
+    }
+
+    @Test
+    void submitSeriesRejectsMoreThanTwentyFiles() {
+        MangaSeries series = new MangaSeries();
+        series.setSeriesId(20L);
+        series.setAuthor(user(1L, EMAIL));
+        series.setStatus("DRAFT");
+        when(mangaSeriesRepository.findById(20L)).thenReturn(Optional.of(series));
+        List<MultipartFile> files = java.util.stream.IntStream.range(0, 21)
+                .mapToObj(index -> (MultipartFile) seriesFile())
+                .toList();
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.submitSeriesWithFiles(20L, files));
+
+        assertSame(HttpStatus.BAD_REQUEST, exception.getStatusCode());
+        verify(seriesFileRepository, never()).save(any());
+    }
+
+    @Test
+    void submitSeriesRejectsOversizedNonZipFile() {
+        MangaSeries series = new MangaSeries();
+        series.setSeriesId(20L);
+        series.setAuthor(user(1L, EMAIL));
+        series.setStatus("DRAFT");
+        MultipartFile file = sizedFile("storyboard.pdf", (20L * 1024 * 1024) + 1);
+        when(mangaSeriesRepository.findById(20L)).thenReturn(Optional.of(series));
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.submitSeriesWithFiles(20L, List.of(file)));
+
+        assertSame(HttpStatus.PAYLOAD_TOO_LARGE, exception.getStatusCode());
+        verify(seriesFileRepository, never()).save(any());
+    }
+
+    @Test
+    void submitSeriesRejectsMoreThanTwoHundredMegabytesInTotal() {
+        MangaSeries series = new MangaSeries();
+        series.setSeriesId(20L);
+        series.setAuthor(user(1L, EMAIL));
+        series.setStatus("DRAFT");
+        List<MultipartFile> files = List.of(
+                sizedFile("part-1.zip", 70L * 1024 * 1024),
+                sizedFile("part-2.zip", 70L * 1024 * 1024),
+                sizedFile("part-3.zip", 70L * 1024 * 1024));
+        when(mangaSeriesRepository.findById(20L)).thenReturn(Optional.of(series));
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.submitSeriesWithFiles(20L, files));
+
+        assertSame(HttpStatus.PAYLOAD_TOO_LARGE, exception.getStatusCode());
+        verify(seriesFileRepository, never()).save(any());
     }
 
     @Test
@@ -597,6 +654,22 @@ class MangakaServiceTests {
         user.setEmail(email);
         user.setUsername(email);
         return user;
+    }
+
+    private MockMultipartFile seriesFile() {
+        return new MockMultipartFile(
+                "files",
+                "storyboard.pdf",
+                "application/pdf",
+                "series dossier".getBytes(StandardCharsets.UTF_8));
+    }
+
+    private MultipartFile sizedFile(String originalFilename, long size) {
+        MultipartFile file = mock(MultipartFile.class);
+        when(file.isEmpty()).thenReturn(false);
+        when(file.getOriginalFilename()).thenReturn(originalFilename);
+        when(file.getSize()).thenReturn(size);
+        return file;
     }
 
     private Role role(String name) {

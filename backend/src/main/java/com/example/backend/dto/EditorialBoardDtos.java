@@ -78,7 +78,6 @@ public final class EditorialBoardDtos {
                         String coverUrl,
                         String description,
                         String status,
-                        String storyboardUrl,
                         LocalDateTime submittedAt,
                         long approveVotes,
                         long rejectVotes,

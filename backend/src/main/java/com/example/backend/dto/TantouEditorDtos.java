@@ -21,7 +21,6 @@ public final class TantouEditorDtos {
             String coverUrl,
             String description,
             String status,
-            String storyboardUrl,
             LocalDateTime createdAt,
             LocalDateTime submittedAt,
             List<UploadedFileResponse> uploadedFiles) {
