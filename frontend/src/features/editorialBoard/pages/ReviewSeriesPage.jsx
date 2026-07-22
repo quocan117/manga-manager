@@ -4,11 +4,13 @@ import {
   voteSeriesDecision,
 } from "../../../services/boardService";
 import { formatDateTime } from "../../../utils/formatDate";
+import SeriesFileList from "../../../components/SeriesFileList";
 import "../styles/EditorialBoard.css";
 
 export default function ReviewSeriesPage() {
   const [seriesList, setSeriesList] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [previewSeries, setPreviewSeries] = useState(null);
 
   useEffect(() => {
     fetchReviewingSeries();
@@ -167,6 +169,12 @@ export default function ReviewSeriesPage() {
                     {series.currentUserAssigned ? (
                       <div className="d-flex gap-2">
                         <button
+                          className="btn btn-outline-info btn-sm"
+                          onClick={() => setPreviewSeries(series)}
+                        >
+                          👁 Xem hồ sơ
+                        </button>
+                        <button
                           className="btn-approve-sm"
                           onClick={() =>
                             handleVote(series.id, series.title, "APPROVE")
@@ -195,6 +203,37 @@ export default function ReviewSeriesPage() {
           </tbody>
         </table>
       </div>
+
+      {previewSeries && (
+        <div
+          className="custom-modal-overlay"
+          onClick={() => setPreviewSeries(null)}
+        >
+          <div
+            className="custom-modal-content series-review-preview-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="close-btn"
+              onClick={() => setPreviewSeries(null)}
+              aria-label="Đóng"
+            >
+              ✕
+            </button>
+            <h4 className="mb-1">{previewSeries.title}</h4>
+            <p className="text-muted mb-3">
+              Tác giả: <strong>{previewSeries.author}</strong>
+              {previewSeries.genres?.length > 0 && (
+                <> · {previewSeries.genres.join(", ")}</>
+              )}
+            </p>
+            {previewSeries.description && (
+              <p className="mb-3">{previewSeries.description}</p>
+            )}
+            <SeriesFileList files={previewSeries.uploadedFiles} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

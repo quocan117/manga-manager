@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import SeriesFileList from "../../../components/SeriesFileList";
 import {
   getSeriesDossier,
   submitToBoard,
@@ -103,29 +104,7 @@ export default function EditorReviewPage() {
               Bản thảo do Mangaka gửi
             </div>
             <div className="card-body">
-              {dossier.series.storyboardUrl ? (
-                <>
-                  <p className="text-muted mb-2">
-                    Mangaka đã gửi kèm đường dẫn bản thảo để bạn tham khảo trước
-                    khi quyết định:
-                  </p>
-                  <a
-                    href={dossier.series.storyboardUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn btn-outline-primary d-inline-flex align-items-center gap-2"
-                  >
-                    🔗 Mở link bản thảo
-                  </a>
-                  <p className="text-break text-muted small mt-2 mb-0">
-                    {dossier.series.storyboardUrl}
-                  </p>
-                </>
-              ) : (
-                <p className="text-muted mb-0">
-                  Mangaka chưa gửi kèm link bản thảo nào.
-                </p>
-              )}
+              <SeriesFileList files={dossier.series.uploadedFiles} />
             </div>
           </div>
         </div>
