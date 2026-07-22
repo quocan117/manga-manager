@@ -101,7 +101,10 @@ public class MangakaService {
     private static final Set<String> COVER_IMAGE_EXTENSIONS = Set.of(
             ".jpg", ".jpeg", ".png", ".webp", ".gif");
     private static final Set<String> SERIES_FILE_EXTENSIONS = Set.of(
-            ".jpg", ".jpeg", ".png", ".webp", ".gif", ".pdf", ".txt", ".md", ".doc", ".docx", ".zip");
+            ".jpg", ".jpeg", ".png", ".webp", ".gif",
+            ".pdf", ".txt", ".md",
+            ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
+            ".zip");
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
