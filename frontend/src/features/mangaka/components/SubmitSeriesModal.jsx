@@ -1,39 +1,52 @@
-import { useState } from "react";
-import { submitSeriesReview } from "../../../services/mangakaService";
+import { useState, useEffect } from "react";
+import {
+  submitSeriesReview,
+  getSeriesFiles,
+} from "../../../services/mangakaService";
 import "../../../styles/SeriesModal.css";
 import "../styles/SubmitSeriesModal.css";
-import { isValidHttpUrl } from "../../../utils/urlValidator";
+
+const ACCEPTED_EXTENSIONS =
+  ".jpg,.jpeg,.png,.webp,.gif,.pdf,.txt,.md,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip";
 
 export default function SubmitSeriesModal({ series, onClose, onSubmitted }) {
-  const [storyboardUrl, setStoryboardUrl] = useState(
-    series?.storyboardUrl || "",
-  );
-
+  const [files, setFiles] = useState([]);
+  const [existingFiles, setExistingFiles] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const isResubmit = series?.status === "REVISION_REQUESTED";
 
+  useEffect(() => {
+    if (series?.id) {
+      getSeriesFiles(series.id)
+        .then(setExistingFiles)
+        .catch(() => {});
+    }
+  }, [series?.id]);
+
+  const handleFilePick = (e) => {
+    const picked = Array.from(e.target.files || []);
+    setFiles((prev) => [...prev, ...picked]);
+    setError("");
+  };
+  const removeFile = (index) => {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
+  };
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-    if (!storyboardUrl.trim()) {
-      setError("Vui lòng nhập link bản thảo trước khi gửi.");
-      return;
-    }
-
-    if (!isValidHttpUrl(storyboardUrl)) {
+    if (files.length === 0) {
       setError(
-        "Link bản thảo không hợp lệ. Vui lòng nhập đúng định dạng URL (bắt đầu bằng http:// hoặc https://).",
+        "Vui lòng đính kèm ít nhất 1 file hồ sơ (ảnh, PDF, tài liệu hoặc ZIP).",
       );
       return;
     }
     try {
       setSubmitting(true);
-      const updated = await submitSeriesReview(series.id, storyboardUrl.trim());
+      const updated = await submitSeriesReview(series.id, files);
       onSubmitted?.(updated);
       onClose();
     } catch (err) {
-      console.error(err);
       const backendMessage =
         err?.response?.data?.message || err?.response?.data?.error;
       setError(
@@ -46,7 +59,6 @@ export default function SubmitSeriesModal({ series, onClose, onSubmitted }) {
   };
 
   if (!series) return null;
-  
   return (
     <div className="custom-modal-overlay" onClick={onClose}>
       <div
@@ -64,36 +76,53 @@ export default function SubmitSeriesModal({ series, onClose, onSubmitted }) {
         <p className="submit-series-subtitle">
           Series: <strong>{series.title}</strong>
         </p>
-        {isResubmit && (
-          <div className="submit-series-hint warning">
-            Series này trước đó đã bị yêu cầu chỉnh sửa. Hãy cập nhật lại link
-            bản thảo rồi gửi lại cho biên tập phụ trách.
+
+        {existingFiles.length > 0 && (
+          <div className="submit-series-hint mb-2">
+            Lần nộp trước có {existingFiles.length} file. Nộp lại sẽ thay thế
+            bằng file mới bên dưới.
           </div>
         )}
-        {!isResubmit && (
-          <div className="submit-series-hint">
-            Sau khi gửi, hệ thống sẽ tự động chọn biên tập viên đang có{" "}
-            <strong>ít series đang xử lý nhất</strong> để tiếp nhận và kiểm tra
-            hồ sơ của bạn trước khi trình lên Hội đồng Biên tập xét duyệt.
-          </div>
-        )}
+
         <form onSubmit={handleSubmit}>
           <div className="mb-3">
-            <label className="form-label">Link bản thảo (storyboard)</label>
+            <label className="form-label">
+              File hồ sơ (ảnh, PDF, Word, TXT hoặc ZIP — tối đa 20MB/file)
+            </label>
             <input
-              type="url"
+              type="file"
+              multiple
+              accept={ACCEPTED_EXTENSIONS}
               className="form-control"
-              placeholder="https://..."
-              value={storyboardUrl}
-              onChange={(e) => setStoryboardUrl(e.target.value)}
+              onChange={handleFilePick}
               disabled={submitting}
-              required
             />
             <small className="text-muted">
-              Đường dẫn tới file/kịch bản bản thảo để biên tập tham khảo khi
-              kiểm duyệt.
+              Ảnh/PDF sẽ được xem trực tiếp trên hệ thống. File ZIP hoặc tài
+              liệu không hỗ trợ xem trước sẽ có nút Tải xuống cho Biên tập.
             </small>
           </div>
+
+          {files.length > 0 && (
+            <ul className="submit-series-filelist">
+              {files.map((f, i) => (
+                <li key={i}>
+                  <span>{f.name}</span>
+                  <span className="text-muted small">
+                    ({Math.round(f.size / 1024)} KB)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => removeFile(i)}
+                    disabled={submitting}
+                  >
+                    ✕
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
           {error && <div className="alert alert-danger py-2">{error}</div>}
           <div className="d-flex gap-2 justify-content-end mt-4">
             <button

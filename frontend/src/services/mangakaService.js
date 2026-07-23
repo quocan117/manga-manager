@@ -5,10 +5,19 @@ export const getMySeries = async () => {
   return response.data;
 };
 
-export const submitSeriesReview = async (seriesId, storyboardUrl) => {
-  const response = await api.post(`/mangaka/series/${seriesId}/submit`, {
-    storyboardUrl,
-  });
+export const submitSeriesReview = async (seriesId, files) => {
+  const formData = new FormData();
+  files.forEach((file) => formData.append("files", file));
+  const response = await api.post(
+    `/mangaka/series/${seriesId}/submit`,
+    formData,
+    { headers: { "Content-Type": "multipart/form-data" } },
+  );
+  return response.data;
+};
+
+export const getSeriesFiles = async (seriesId) => {
+  const response = await api.get(`/mangaka/series/${seriesId}/files`);
   return response.data;
 };
 
