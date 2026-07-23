@@ -2,6 +2,7 @@ package com.example.backend.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.ColumnDefault;
 import java.time.LocalDateTime;
 
 @Entity
@@ -49,5 +50,10 @@ public class Task {
 
     private LocalDateTime dueDate;
     private String status;
+
+    @Column(nullable = false)
+    @ColumnDefault("1")
+    private Integer roundNumber = 1;
+
     private LocalDateTime createdAt;
 }

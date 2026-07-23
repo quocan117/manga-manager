@@ -43,7 +43,7 @@ public class SeriesFileService {
         }
 
         String email = currentEmail();
-        if (!canAccess(series, email)) {
+        if (!canAccess(file, email)) {
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
                     "You do not have permission to download this series file");
@@ -70,7 +70,13 @@ public class SeriesFileService {
                 file.getFileSize());
     }
 
-    private boolean canAccess(MangaSeries series, String email) {
+    private boolean canAccess(SeriesFile file, String email) {
+        MangaSeries series = file.getSeries();
+        if (file.getTask() != null
+                && file.getTask().getAssignedTo() != null
+                && email.equalsIgnoreCase(file.getTask().getAssignedTo().getEmail())) {
+            return true;
+        }
         User author = series.getAuthor();
         if (author != null && email.equalsIgnoreCase(author.getEmail())) {
             return true;

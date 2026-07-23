@@ -40,10 +40,12 @@ import com.example.backend.dto.MangakaDtos.NotificationResponse;
 import com.example.backend.dto.MangakaDtos.PageResponse;
 import com.example.backend.dto.MangakaDtos.RankingResponse;
 import com.example.backend.dto.MangakaDtos.ReviewSubmissionRequest;
+import com.example.backend.dto.MangakaDtos.ReviseTaskRequest;
 import com.example.backend.dto.MangakaDtos.SeriesResponse;
 import com.example.backend.dto.MangakaDtos.SubmissionResponse;
 import com.example.backend.dto.MangakaDtos.SubmitChapterToEditorRequest;
 import com.example.backend.dto.MangakaDtos.TaskResponse;
+import com.example.backend.dto.MangakaDtos.TaskMarkupPageResponse;
 import com.example.backend.dto.MangakaDtos.UpdateAssistantStatusRequest;
 import com.example.backend.dto.MangakaDtos.UploadedFileResponse;
 import com.example.backend.model.Chapter;
@@ -55,6 +57,7 @@ import com.example.backend.model.Role;
 import com.example.backend.model.SeriesFile;
 import com.example.backend.model.Submission;
 import com.example.backend.model.Task;
+import com.example.backend.model.TaskMarkupPage;
 import com.example.backend.model.User;
 import com.example.backend.repository.ChapterPageRepository;
 import com.example.backend.repository.ChapterRepository;
@@ -67,7 +70,11 @@ import com.example.backend.repository.SeriesFileRepository;
 import com.example.backend.repository.SeriesRankingRepository;
 import com.example.backend.repository.SubmissionRepository;
 import com.example.backend.repository.TaskRepository;
+import com.example.backend.repository.TaskMarkupPageRepository;
 import com.example.backend.repository.UserRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
 public class MangakaService {
@@ -93,7 +100,10 @@ public class MangakaService {
     private static final long MAX_SERIES_SUBMISSION_SIZE_BYTES = 200L * 1024 * 1024;
     private static final int MAX_SERIES_FILES_PER_SUBMISSION = 20;
     private static final Set<String> PAGE_IMAGE_CONTENT_TYPES = Set.of(
-            "image/jpeg", "image/png", "image/webp", "image/gif");
+            ".jpg", ".jpeg", ".png", ".webp", ".gif",
+            ".pdf", ".txt", ".md",
+            ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
+            ".zip");
     private static final Set<String> COVER_IMAGE_CONTENT_TYPES = Set.of(
             "image/jpeg", "image/png", "image/webp", "image/gif");
     private static final Set<String> PAGE_IMAGE_EXTENSIONS = Set.of(
@@ -116,6 +126,9 @@ public class MangakaService {
     private final SeriesRankingRepository seriesRankingRepository;
     private final SeriesFileRepository seriesFileRepository;
     private final NotificationRepository notificationRepository;
+    private final TaskMarkupPageRepository taskMarkupPageRepository;
+    private final TaskFileStorageService taskFileStorageService;
+    private final ObjectMapper objectMapper;
 
     @Value("${manga.upload.page-image-root:}")
     private String pageImageUploadRootOverride;
@@ -125,6 +138,9 @@ public class MangakaService {
 
     @Value("${manga.upload.series-file-root:}")
     private String seriesFileUploadRootOverride;
+
+    @Value("${manga.upload.task-markup-root:}")
+    private String taskMarkupUploadRootOverride;
 
     public MangakaService(
             UserRepository userRepository,
@@ -139,7 +155,10 @@ public class MangakaService {
             SubmissionRepository submissionRepository,
             SeriesRankingRepository seriesRankingRepository,
             SeriesFileRepository seriesFileRepository,
-            NotificationRepository notificationRepository) {
+            NotificationRepository notificationRepository,
+            TaskMarkupPageRepository taskMarkupPageRepository,
+            TaskFileStorageService taskFileStorageService,
+            ObjectMapper objectMapper) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
@@ -153,6 +172,9 @@ public class MangakaService {
         this.seriesRankingRepository = seriesRankingRepository;
         this.seriesFileRepository = seriesFileRepository;
         this.notificationRepository = notificationRepository;
+        this.taskMarkupPageRepository = taskMarkupPageRepository;
+        this.taskFileStorageService = taskFileStorageService;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional
@@ -531,7 +553,6 @@ public class MangakaService {
         Task task = new Task();
         task.setTitle(request.title().trim());
         task.setDescription(request.description());
-        task.setOriginalFileUrl(blankToNull(request.originalFileUrl()));
         task.setAssignedTo(assistant);
         task.setAssignedBy(mangaka);
         task.setChapter(page.getChapter());
@@ -543,8 +564,20 @@ public class MangakaService {
         task.setAreaHeight(request.areaHeight());
         task.setDueDate(request.dueDate());
         task.setStatus("ASSIGNED");
+        task.setRoundNumber(1);
         task.setCreatedAt(LocalDateTime.now());
         Task savedTask = taskRepository.save(task);
+        taskFileStorageService.storeTaskFiles(
+                savedTask,
+                mangaka,
+                request.originalFiles(),
+                savedTask.getRoundNumber(),
+                TaskFileStorageService.TASK_ORIGINAL);
+        storeTaskMarkupPages(
+                savedTask,
+                savedTask.getRoundNumber(),
+                request.markupImages(),
+                request.markupCanvasData());
         notify(
                 assistant,
                 "TASK_ASSIGNED",
@@ -552,6 +585,48 @@ public class MangakaService {
                 "Bạn được giao nhiệm vụ \"" + savedTask.getTitle()
                         + "\" ở trang " + page.getPageNumber() + ".");
         return toTaskResponse(savedTask);
+    }
+
+    @Transactional
+    public TaskResponse reviseTask(Long taskId, ReviseTaskRequest request) {
+        Task task = ownedTask(taskId);
+        if (!REVISION_REQUESTED_STATUS.equalsIgnoreCase(task.getStatus())) {
+            throw conflict("Task can only be revised after the assistant submission was rejected");
+        }
+
+        int nextRound = currentRound(task) + 1;
+        task.setRoundNumber(nextRound);
+        task.setStatus("ASSIGNED");
+        Task savedTask = taskRepository.save(task);
+        taskFileStorageService.storeTaskFiles(
+                savedTask,
+                currentUser(),
+                request.originalFiles(),
+                nextRound,
+                TaskFileStorageService.TASK_ORIGINAL);
+        storeTaskMarkupPages(
+                savedTask,
+                nextRound,
+                request.markupImages(),
+                request.markupCanvasData());
+        notify(
+                savedTask.getAssignedTo(),
+                "TASK_REVISED",
+                savedTask.getTaskId(),
+                "Mangaka has sent revision round " + nextRound + " for task \"" + savedTask.getTitle() + "\".");
+        return toTaskResponse(savedTask);
+    }
+
+    @Transactional(readOnly = true)
+    public List<TaskMarkupPageResponse> getTaskMarkupPages(Long taskId) {
+        Task task = ownedTask(taskId);
+        return taskMarkupPageRepository
+                .findByTaskTaskIdAndRoundNumberOrderByOrderIndexAscCreatedAtAsc(
+                        taskId,
+                        currentRound(task))
+                .stream()
+                .map(this::toTaskMarkupPageResponse)
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -586,6 +661,13 @@ public class MangakaService {
         if ("REVISION_REQUESTED".equals(decision)
                 && (request.reviewNote() == null || request.reviewNote().isBlank())) {
             throw badRequest("A review note is required when requesting revision");
+        }
+        if (!"SUBMITTED".equalsIgnoreCase(submission.getStatus())) {
+            throw conflict("Only a pending submission can be reviewed");
+        }
+        if (submission.getTask() != null
+                && submissionRound(submission) != currentRound(submission.getTask())) {
+            throw conflict("This submission belongs to an earlier task round");
         }
 
         submission.setStatus(decision);
@@ -667,6 +749,13 @@ public class MangakaService {
         return chapter;
     }
 
+    private Task ownedTask(Long taskId) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> notFound("Task not found"));
+        assertOwnedChapter(task.getChapter());
+        return task;
+    }
+
     private void assertOwnedChapter(Chapter chapter) {
         if (chapter == null || chapter.getSeries() == null || chapter.getSeries().getAuthor() == null
                 || !currentEmail().equals(chapter.getSeries().getAuthor().getEmail())) {
@@ -701,7 +790,7 @@ public class MangakaService {
                 assistant == null ? null : assistant.getUserId(),
                 assistant == null ? null : assistant.getUsername(),
                 task.getTaskType(), task.getTitle(), task.getDescription(), task.getOriginalFileUrl(), task.getStatus(),
-                task.getDueDate(), task.getAreaX(), task.getAreaY(),
+                currentRound(task), task.getDueDate(), task.getAreaX(), task.getAreaY(),
                 task.getAreaWidth(), task.getAreaHeight(),
                 sourceFiles(task));
     }
@@ -760,6 +849,17 @@ public class MangakaService {
                 page.getImageUrl(), page.getPageStatus());
     }
 
+    private TaskMarkupPageResponse toTaskMarkupPageResponse(TaskMarkupPage markupPage) {
+        return new TaskMarkupPageResponse(
+                markupPage.getMarkupPageId(),
+                markupPage.getTask().getTaskId(),
+                markupPage.getRoundNumber(),
+                markupPage.getImageUrl(),
+                markupPage.getCanvasData(),
+                markupPage.getOrderIndex(),
+                markupPage.getCreatedAt());
+    }
+
     private SubmissionResponse toSubmissionResponse(Submission submission) {
         User submitter = submission.getSubmittedBy();
         return new SubmissionResponse(
@@ -770,7 +870,9 @@ public class MangakaService {
                 submitter == null ? null : submitter.getUsername(),
                 submission.getArtifactUrl(), submission.getOriginalFileUrl(), submission.getNote(),
                 submission.getStatus(),
-                submission.getReviewNote(), submission.getSubmittedAt(), submission.getReviewedAt());
+                submissionRound(submission),
+                submission.getReviewNote(), submission.getSubmittedAt(), submission.getReviewedAt(),
+                resultFiles(submission));
     }
 
     private NotificationResponse toNotificationResponse(Notification notification) {
@@ -780,14 +882,125 @@ public class MangakaService {
     }
 
     private List<UploadedFileResponse> sourceFiles(Task task) {
-        MangaSeries series = task.getChapter() == null ? null : task.getChapter().getSeries();
-        if (series == null || series.getSeriesId() == null) {
+        if (task == null || task.getTaskId() == null) {
             return List.of();
         }
-        return seriesFileRepository.findBySeriesSeriesIdAndActiveTrueOrderByUploadedAtDesc(series.getSeriesId())
+        return seriesFileRepository
+                .findByTaskTaskIdAndRoundNumberAndPurposeAndActiveTrueOrderByUploadedAtAsc(
+                        task.getTaskId(),
+                        currentRound(task),
+                        TaskFileStorageService.TASK_ORIGINAL)
                 .stream()
                 .map(this::toUploadedFileResponse)
                 .toList();
+    }
+
+    private List<UploadedFileResponse> resultFiles(Submission submission) {
+        Task task = submission.getTask();
+        if (task == null || task.getTaskId() == null) {
+            return List.of();
+        }
+        return seriesFileRepository
+                .findByTaskTaskIdAndRoundNumberAndPurposeAndActiveTrueOrderByUploadedAtAsc(
+                        task.getTaskId(),
+                        submissionRound(submission),
+                        TaskFileStorageService.TASK_SUBMISSION)
+                .stream()
+                .map(this::toUploadedFileResponse)
+                .toList();
+    }
+
+    private void storeTaskMarkupPages(
+            Task task,
+            Integer roundNumber,
+            List<MultipartFile> markupImages,
+            String markupCanvasData) {
+        List<MultipartFile> images = markupImages == null
+                ? List.of()
+                : markupImages.stream()
+                        .filter(image -> image != null && !image.isEmpty())
+                        .toList();
+        List<String> canvasValues = parseMarkupCanvasData(markupCanvasData, images.size());
+        if (images.isEmpty()) {
+            return;
+        }
+        if (images.size() > MAX_SERIES_FILES_PER_SUBMISSION) {
+            throw badRequest("A task revision can contain at most 20 markup images");
+        }
+
+        Path relativeFolder = Path.of(
+                "task-" + task.getTaskId(),
+                "round-" + roundNumber);
+        Path uploadRoot = taskMarkupUploadRoot().resolve(relativeFolder).normalize();
+        try {
+            Files.createDirectories(uploadRoot);
+        } catch (IOException exception) {
+            throw new ResponseStatusException(
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Could not create task markup folder",
+                    exception);
+        }
+
+        for (int index = 0; index < images.size(); index++) {
+            MultipartFile image = images.get(index);
+            validatePageImage(image);
+            String extension = fileExtension(image.getOriginalFilename());
+            String fileName = "task-" + task.getTaskId()
+                    + "-round-" + roundNumber
+                    + "-markup-" + (index + 1)
+                    + "-" + UUID.randomUUID() + extension;
+            Path target = uploadRoot.resolve(fileName).normalize();
+            if (!target.startsWith(uploadRoot)) {
+                throw badRequest("Invalid task markup file name");
+            }
+
+            try (InputStream inputStream = image.getInputStream()) {
+                Files.copy(inputStream, target, StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException exception) {
+                throw new ResponseStatusException(
+                        HttpStatus.INTERNAL_SERVER_ERROR,
+                        "Could not save task markup image",
+                        exception);
+            }
+
+            TaskMarkupPage markupPage = new TaskMarkupPage();
+            markupPage.setTask(task);
+            markupPage.setRoundNumber(roundNumber);
+            markupPage.setImageUrl(
+                    "task-markups/" + relativeFolder.toString().replace('\\', '/') + "/" + fileName);
+            markupPage.setCanvasData(canvasValues.isEmpty() ? null : canvasValues.get(index));
+            markupPage.setOrderIndex(index + 1);
+            markupPage.setCreatedAt(LocalDateTime.now());
+            taskMarkupPageRepository.save(markupPage);
+        }
+    }
+
+    private List<String> parseMarkupCanvasData(String rawCanvasData, int imageCount) {
+        if (rawCanvasData == null || rawCanvasData.isBlank()) {
+            return List.of();
+        }
+        if (imageCount == 0) {
+            throw badRequest("markupCanvasData requires at least one markup image");
+        }
+        try {
+            JsonNode root = objectMapper.readTree(rawCanvasData);
+            if (root == null || !root.isArray() || root.size() != imageCount) {
+                throw badRequest("markupCanvasData must be a JSON array matching the markup image count");
+            }
+            List<String> values = new ArrayList<>();
+            root.forEach(value -> values.add(value.isTextual() ? value.asText() : value.toString()));
+            return values;
+        } catch (JsonProcessingException exception) {
+            throw badRequest("markupCanvasData must be valid JSON");
+        }
+    }
+
+    private int currentRound(Task task) {
+        return task.getRoundNumber() == null ? 1 : task.getRoundNumber();
+    }
+
+    private int submissionRound(Submission submission) {
+        return submission.getRoundNumber() == null ? 1 : submission.getRoundNumber();
     }
 
     private UploadedFileResponse toUploadedFileResponse(SeriesFile file) {
@@ -948,6 +1161,8 @@ public class MangakaService {
             seriesFile.setContentType(blankToNull(file.getContentType()));
             seriesFile.setFileSize(file.getSize());
             seriesFile.setFileType(fileType);
+            seriesFile.setRoundNumber(1);
+            seriesFile.setPurpose(fileType);
             seriesFile.setActive(true);
             seriesFile.setUploadedAt(LocalDateTime.now());
             savedFiles.add(seriesFileRepository.save(seriesFile));
@@ -1086,6 +1301,13 @@ public class MangakaService {
         }
 
         return Path.of("uploads/series-files").toAbsolutePath().normalize();
+    }
+
+    private Path taskMarkupUploadRoot() {
+        if (taskMarkupUploadRootOverride != null && !taskMarkupUploadRootOverride.isBlank()) {
+            return Path.of(taskMarkupUploadRootOverride).toAbsolutePath().normalize();
+        }
+        return Path.of("uploads/task-markups").toAbsolutePath().normalize();
     }
 
     private List<String> parseGenreValues(List<String> genreValues) {

@@ -11,6 +11,8 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.web.multipart.MultipartFile;
 
 public final class MangakaDtos {
     private MangakaDtos() {
@@ -66,12 +68,30 @@ public final class MangakaDtos {
             @NotBlank String taskType,
             @NotBlank String title,
             String description,
-            @NotBlank String originalFileUrl,
-            @NotNull @Future LocalDateTime dueDate,
+            @NotNull @Future @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dueDate,
             @NotNull @PositiveOrZero Float areaX,
             @NotNull @PositiveOrZero Float areaY,
             @NotNull @Positive Float areaWidth,
-            @NotNull @Positive Float areaHeight) {
+            @NotNull @Positive Float areaHeight,
+            List<MultipartFile> markupImages,
+            String markupCanvasData,
+            @NotEmpty List<MultipartFile> originalFiles) {
+    }
+
+    public record ReviseTaskRequest(
+            List<MultipartFile> markupImages,
+            String markupCanvasData,
+            @NotEmpty List<MultipartFile> originalFiles) {
+    }
+
+    public record TaskMarkupPageResponse(
+            Long id,
+            Long taskId,
+            Integer roundNumber,
+            String imageUrl,
+            String canvasData,
+            Integer orderIndex,
+            LocalDateTime createdAt) {
     }
 
     public record ReviewSubmissionRequest(
@@ -125,6 +145,7 @@ public final class MangakaDtos {
             String description,
             String originalFileUrl,
             String status,
+            Integer roundNumber,
             LocalDateTime dueDate,
             Float areaX,
             Float areaY,
@@ -158,9 +179,11 @@ public final class MangakaDtos {
             String originalFileUrl,
             String note,
             String status,
+            Integer roundNumber,
             String reviewNote,
             LocalDateTime submittedAt,
-            LocalDateTime reviewedAt) {
+            LocalDateTime reviewedAt,
+            List<UploadedFileResponse> resultFiles) {
     }
 
     public record RankingResponse(

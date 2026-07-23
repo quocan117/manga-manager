@@ -19,6 +19,9 @@ public class WebMvcConfig implements WebMvcConfigurer {
         @Value("${manga.upload.chapter-revision-note-root:uploads/chapter-revision-notes}")
         private String chapterRevisionNoteUploadRoot;
 
+        @Value("${manga.upload.task-markup-root:uploads/task-markups}")
+        private String taskMarkupUploadRoot;
+
         @Override
         public void addResourceHandlers(ResourceHandlerRegistry registry) {
                 String uploadPath = Path.of(pageImageUploadRoot)
@@ -56,6 +59,18 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
                 registry.addResourceHandler("/covers/chapter-revision-notes/**")
                                 .addResourceLocations(chapterRevisionNoteUploadPath);
+
+                String taskMarkupUploadPath = Path.of(taskMarkupUploadRoot)
+                                .toAbsolutePath()
+                                .normalize()
+                                .toUri()
+                                .toString();
+                if (!taskMarkupUploadPath.endsWith("/")) {
+                        taskMarkupUploadPath = taskMarkupUploadPath + "/";
+                }
+
+                registry.addResourceHandler("/covers/task-markups/**")
+                                .addResourceLocations(taskMarkupUploadPath);
 
         }
 }

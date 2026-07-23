@@ -25,6 +25,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
@@ -40,6 +41,7 @@ import com.example.backend.dto.MangakaDtos.AssignTaskRequest;
 import com.example.backend.dto.MangakaDtos.CreateAssistantRequest;
 import com.example.backend.dto.MangakaDtos.CreateSeriesRequest;
 import com.example.backend.dto.MangakaDtos.ReviewSubmissionRequest;
+import com.example.backend.dto.MangakaDtos.ReviseTaskRequest;
 import com.example.backend.dto.MangakaDtos.SubmitChapterToEditorRequest;
 import com.example.backend.model.Chapter;
 import com.example.backend.model.ChapterPage;
@@ -48,6 +50,7 @@ import com.example.backend.model.Notification;
 import com.example.backend.model.Role;
 import com.example.backend.model.Submission;
 import com.example.backend.model.Task;
+import com.example.backend.model.TaskMarkupPage;
 import com.example.backend.model.User;
 import com.example.backend.repository.ChapterPageRepository;
 import com.example.backend.repository.ChapterRepository;
@@ -60,7 +63,9 @@ import com.example.backend.repository.SeriesFileRepository;
 import com.example.backend.repository.SeriesRankingRepository;
 import com.example.backend.repository.SubmissionRepository;
 import com.example.backend.repository.TaskRepository;
+import com.example.backend.repository.TaskMarkupPageRepository;
 import com.example.backend.repository.UserRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @ExtendWith(MockitoExtension.class)
 class MangakaServiceTests {
@@ -93,6 +98,12 @@ class MangakaServiceTests {
     private SeriesFileRepository seriesFileRepository;
     @Mock
     private NotificationRepository notificationRepository;
+    @Mock
+    private TaskMarkupPageRepository taskMarkupPageRepository;
+    @Mock
+    private TaskFileStorageService taskFileStorageService;
+    @Spy
+    private ObjectMapper objectMapper = new ObjectMapper();
 
     @InjectMocks
     private MangakaService service;
@@ -526,7 +537,8 @@ class MangakaServiceTests {
     }
 
     @Test
-    void assignTaskStoresOriginalFileAndNotifiesAssistant() {
+    void assignTaskStoresOriginalFilesAndMarkupAndNotifiesAssistant(@TempDir Path tempDir) {
+        ReflectionTestUtils.setField(service, "taskMarkupUploadRootOverride", tempDir.toString());
         User mangaka = user(1L, EMAIL);
         User assistant = user(2L, "assistant@manga.test");
         assistant.setStatus("ACTIVE");
@@ -550,6 +562,22 @@ class MangakaServiceTests {
             saved.setTaskId(60L);
             return saved;
         });
+        when(taskMarkupPageRepository.save(any(TaskMarkupPage.class))).thenAnswer(invocation -> {
+            TaskMarkupPage saved = invocation.getArgument(0);
+            saved.setMarkupPageId(80L);
+            return saved;
+        });
+
+        MockMultipartFile markupImage = new MockMultipartFile(
+                "markupImages",
+                "note.png",
+                "image/png",
+                "markup".getBytes(StandardCharsets.UTF_8));
+        MockMultipartFile originalFile = new MockMultipartFile(
+                "originalFiles",
+                "source.zip",
+                "application/zip",
+                "source".getBytes(StandardCharsets.UTF_8));
 
         var response = service.assignTask(new AssignTaskRequest(
                 40L,
@@ -557,17 +585,36 @@ class MangakaServiceTests {
                 "BACKGROUND",
                 "Draw background",
                 "City background",
-                "source/page-2.psd",
                 LocalDateTime.now().plusDays(2),
                 0f,
                 0f,
                 100f,
-                100f));
+                100f,
+                List.of(markupImage),
+                "[{\"objects\":[{\"type\":\"rect\"}]}]",
+                List.of(originalFile)));
 
         ArgumentCaptor<Task> taskCaptor = ArgumentCaptor.forClass(Task.class);
         verify(taskRepository).save(taskCaptor.capture());
-        assertEquals("source/page-2.psd", taskCaptor.getValue().getOriginalFileUrl());
-        assertEquals("source/page-2.psd", response.originalFileUrl());
+        Task savedTask = taskCaptor.getValue();
+        assertEquals(1, savedTask.getRoundNumber());
+        assertEquals(1, response.roundNumber());
+        verify(taskFileStorageService).storeTaskFiles(
+                savedTask,
+                mangaka,
+                List.of(originalFile),
+                1,
+                TaskFileStorageService.TASK_ORIGINAL);
+
+        ArgumentCaptor<TaskMarkupPage> markupCaptor = ArgumentCaptor.forClass(TaskMarkupPage.class);
+        verify(taskMarkupPageRepository).save(markupCaptor.capture());
+        TaskMarkupPage markupPage = markupCaptor.getValue();
+        assertEquals(1, markupPage.getRoundNumber());
+        assertEquals(1, markupPage.getOrderIndex());
+        assertTrue(markupPage.getCanvasData().contains("\"type\":\"rect\""));
+        Path storedMarkup = tempDir.resolve(
+                markupPage.getImageUrl().substring("task-markups/".length()));
+        assertTrue(Files.exists(storedMarkup));
 
         ArgumentCaptor<Notification> notificationCaptor = ArgumentCaptor.forClass(Notification.class);
         verify(notificationRepository).save(notificationCaptor.capture());
@@ -575,6 +622,53 @@ class MangakaServiceTests {
         assertEquals(assistant, notification.getUser());
         assertEquals("TASK_ASSIGNED", notification.getType());
         assertEquals(60L, notification.getReferenceId());
+    }
+
+    @Test
+    void reviseTaskIncrementsRoundAndKeepsAssignedAssistant() {
+        User mangaka = user(1L, EMAIL);
+        User assistant = user(2L, "assistant@manga.test");
+        MangaSeries series = new MangaSeries();
+        series.setSeriesId(20L);
+        series.setAuthor(mangaka);
+        Chapter chapter = new Chapter();
+        chapter.setChapterId(30L);
+        chapter.setSeries(series);
+        Task task = new Task();
+        task.setTaskId(60L);
+        task.setChapter(chapter);
+        task.setAssignedBy(mangaka);
+        task.setAssignedTo(assistant);
+        task.setTitle("Background");
+        task.setStatus("REVISION_REQUESTED");
+        task.setRoundNumber(1);
+        MockMultipartFile originalFile = new MockMultipartFile(
+                "originalFiles",
+                "revision.zip",
+                "application/zip",
+                "revision".getBytes(StandardCharsets.UTF_8));
+
+        when(taskRepository.findById(60L)).thenReturn(Optional.of(task));
+        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(mangaka));
+        when(taskRepository.save(task)).thenReturn(task);
+
+        var response = service.reviseTask(
+                60L,
+                new ReviseTaskRequest(List.of(), null, List.of(originalFile)));
+
+        assertEquals(2, task.getRoundNumber());
+        assertEquals("ASSIGNED", task.getStatus());
+        assertEquals(2, response.roundNumber());
+        assertEquals(assistant.getUserId(), response.assistantId());
+        verify(taskFileStorageService).storeTaskFiles(
+                task,
+                mangaka,
+                List.of(originalFile),
+                2,
+                TaskFileStorageService.TASK_ORIGINAL);
+        ArgumentCaptor<Notification> notificationCaptor = ArgumentCaptor.forClass(Notification.class);
+        verify(notificationRepository).save(notificationCaptor.capture());
+        assertEquals("TASK_REVISED", notificationCaptor.getValue().getType());
     }
 
     @Test
@@ -613,6 +707,37 @@ class MangakaServiceTests {
         assertEquals(assistant, notification.getUser());
         assertEquals("TASK_APPROVED", notification.getType());
         assertEquals(60L, notification.getReferenceId());
+    }
+
+    @Test
+    void reviewSubmissionRejectsEarlierTaskRound() {
+        User mangaka = user(1L, EMAIL);
+        MangaSeries series = new MangaSeries();
+        series.setSeriesId(20L);
+        series.setAuthor(mangaka);
+        Chapter chapter = new Chapter();
+        chapter.setChapterId(30L);
+        chapter.setSeries(series);
+        Task task = new Task();
+        task.setTaskId(60L);
+        task.setChapter(chapter);
+        task.setRoundNumber(2);
+        Submission submission = new Submission();
+        submission.setSubmissionId(70L);
+        submission.setTask(task);
+        submission.setChapter(chapter);
+        submission.setStatus("SUBMITTED");
+        submission.setRoundNumber(1);
+        when(submissionRepository.findById(70L)).thenReturn(Optional.of(submission));
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.reviewSubmission(
+                        70L,
+                        new ReviewSubmissionRequest("APPROVED", null)));
+
+        assertSame(HttpStatus.CONFLICT, exception.getStatusCode());
+        verify(submissionRepository, never()).save(any());
     }
 
     @Test

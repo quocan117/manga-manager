@@ -31,8 +31,10 @@ import com.example.backend.model.ChapterPage;
 import com.example.backend.model.MangaSeries;
 import com.example.backend.model.Notification;
 import com.example.backend.model.PageDrawing;
+import com.example.backend.model.SeriesFile;
 import com.example.backend.model.Submission;
 import com.example.backend.model.Task;
+import com.example.backend.model.TaskMarkupPage;
 import com.example.backend.model.User;
 import com.example.backend.repository.NotificationRepository;
 import com.example.backend.repository.PageDrawingRepository;
@@ -40,6 +42,7 @@ import com.example.backend.repository.PageDrawingRevisionRepository;
 import com.example.backend.repository.SeriesFileRepository;
 import com.example.backend.repository.SubmissionRepository;
 import com.example.backend.repository.TaskRepository;
+import com.example.backend.repository.TaskMarkupPageRepository;
 import com.example.backend.repository.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -61,6 +64,10 @@ class AssistantServiceTests {
     private NotificationRepository notificationRepository;
     @Mock
     private SeriesFileRepository seriesFileRepository;
+    @Mock
+    private TaskMarkupPageRepository taskMarkupPageRepository;
+    @Mock
+    private TaskFileStorageService taskFileStorageService;
 
     private AssistantService service;
     private ObjectMapper objectMapper;
@@ -76,6 +83,8 @@ class AssistantServiceTests {
                 userRepository,
                 notificationRepository,
                 seriesFileRepository,
+                taskMarkupPageRepository,
+                taskFileStorageService,
                 objectMapper);
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(EMAIL, null, List.of()));
@@ -156,13 +165,37 @@ class AssistantServiceTests {
             submission.setSubmissionId(30L);
             return submission;
         });
+        SeriesFile resultFile = resultFile(task, 90L, 1);
+        var upload = new org.springframework.mock.web.MockMultipartFile(
+                "resultFiles",
+                "finished.png",
+                "image/png",
+                "finished".getBytes());
+        when(taskFileStorageService.storeTaskFiles(
+                task,
+                assistant,
+                List.of(upload),
+                1,
+                TaskFileStorageService.TASK_SUBMISSION))
+                .thenReturn(List.of(resultFile));
+        when(seriesFileRepository
+                .findByTaskTaskIdAndRoundNumberAndPurposeAndActiveTrueOrderByUploadedAtAsc(
+                        10L,
+                        1,
+                        TaskFileStorageService.TASK_SUBMISSION))
+                .thenReturn(List.of(resultFile));
 
-        var response = service.submitTask(10L, new SubmitTaskRequest(null, "source-final.psd", "Done", 3L));
+        var response = service.submitTask(
+                10L,
+                new SubmitTaskRequest(null, "Done", 3L),
+                List.of(upload));
 
         assertEquals(30L, response.id());
         assertEquals("SUBMITTED", response.status());
         assertEquals("preview.png", response.artifactUrl());
-        assertEquals("source-final.psd", response.originalFileUrl());
+        assertEquals("/series-files/90/download", response.originalFileUrl());
+        assertEquals(1, response.roundNumber());
+        assertEquals(1, response.resultFiles().size());
         assertEquals("SUBMITTED", task.getStatus());
         verify(taskRepository).save(task);
         ArgumentCaptor<Notification> notificationCaptor = ArgumentCaptor.forClass(Notification.class);
@@ -171,6 +204,57 @@ class AssistantServiceTests {
         assertEquals(task.getAssignedBy(), notification.getUser());
         assertEquals("TASK_SUBMITTED", notification.getType());
         assertEquals(10L, notification.getReferenceId());
+    }
+
+    @Test
+    void taskResponseOnlyReturnsOriginalFilesForCurrentRound() {
+        Task task = task(10L, user(1L, EMAIL), "ASSIGNED");
+        task.setRoundNumber(2);
+        SeriesFile sourceFile = resultFile(task, 91L, 2);
+        sourceFile.setPurpose(TaskFileStorageService.TASK_ORIGINAL);
+        sourceFile.setFileType(TaskFileStorageService.TASK_ORIGINAL);
+        when(taskRepository.findById(10L)).thenReturn(Optional.of(task));
+        when(submissionRepository.findByTaskTaskIdOrderBySubmittedAtDesc(10L)).thenReturn(List.of());
+        when(seriesFileRepository
+                .findByTaskTaskIdAndRoundNumberAndPurposeAndActiveTrueOrderByUploadedAtAsc(
+                        10L,
+                        2,
+                        TaskFileStorageService.TASK_ORIGINAL))
+                .thenReturn(List.of(sourceFile));
+
+        var response = service.getTask(10L);
+
+        assertEquals(2, response.roundNumber());
+        assertEquals(1, response.sourceFiles().size());
+        assertEquals(91L, response.sourceFiles().get(0).id());
+        verify(seriesFileRepository)
+                .findByTaskTaskIdAndRoundNumberAndPurposeAndActiveTrueOrderByUploadedAtAsc(
+                        10L,
+                        2,
+                        TaskFileStorageService.TASK_ORIGINAL);
+    }
+
+    @Test
+    void getsMarkupPagesForCurrentTaskRound() {
+        Task task = task(10L, user(1L, EMAIL), "ASSIGNED");
+        task.setRoundNumber(2);
+        TaskMarkupPage markupPage = new TaskMarkupPage();
+        markupPage.setMarkupPageId(80L);
+        markupPage.setTask(task);
+        markupPage.setRoundNumber(2);
+        markupPage.setImageUrl("task-markups/task-10/round-2/note.png");
+        markupPage.setCanvasData("{\"objects\":[]}");
+        markupPage.setOrderIndex(1);
+        when(taskRepository.findById(10L)).thenReturn(Optional.of(task));
+        when(taskMarkupPageRepository
+                .findByTaskTaskIdAndRoundNumberOrderByOrderIndexAscCreatedAtAsc(10L, 2))
+                .thenReturn(List.of(markupPage));
+
+        var response = service.getTaskMarkupPages(10L);
+
+        assertEquals(1, response.size());
+        assertEquals(80L, response.get(0).id());
+        assertEquals(2, response.get(0).roundNumber());
     }
 
     @Test
@@ -224,9 +308,27 @@ class AssistantServiceTests {
         task.setTitle("Draw background");
         task.setDescription("Draw the city");
         task.setStatus(status);
+        task.setRoundNumber(1);
         task.setDueDate(LocalDateTime.now().plusDays(3));
         task.setCreatedAt(LocalDateTime.now());
         return task;
+    }
+
+    private SeriesFile resultFile(Task task, Long fileId, int roundNumber) {
+        SeriesFile file = new SeriesFile();
+        file.setFileId(fileId);
+        file.setTask(task);
+        file.setSeries(task.getChapter().getSeries());
+        file.setFileName("stored.png");
+        file.setOriginalFileName("finished.png");
+        file.setFileUrl("series-files/series-40/tasks/task-10/round-" + roundNumber + "/stored.png");
+        file.setContentType("image/png");
+        file.setFileSize(8L);
+        file.setFileType(TaskFileStorageService.TASK_SUBMISSION);
+        file.setPurpose(TaskFileStorageService.TASK_SUBMISSION);
+        file.setRoundNumber(roundNumber);
+        file.setActive(true);
+        return file;
     }
 
     private PageDrawing drawing(Task task, User assistant, Long version, String previewImageUrl) {

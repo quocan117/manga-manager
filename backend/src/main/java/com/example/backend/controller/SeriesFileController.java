@@ -21,7 +21,7 @@ import java.nio.charset.StandardCharsets;
 @RestController
 @RequestMapping("/series-files")
 @CrossOrigin(origins = "*")
-@PreAuthorize("hasAnyRole('MANGAKA', 'TANTOU_EDITOR', 'EDITORIAL_BOARD')")
+@PreAuthorize("hasAnyRole('MANGAKA', 'ASSISTANT', 'TANTOU_EDITOR', 'EDITORIAL_BOARD')")
 @SecurityRequirement(name = "Bearer Authentication")
 public class SeriesFileController {
     private final SeriesFileService service;

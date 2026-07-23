@@ -11,6 +11,11 @@ import java.util.List;
 public interface SeriesFileRepository extends JpaRepository<SeriesFile, Long> {
     List<SeriesFile> findBySeriesSeriesIdAndActiveTrueOrderByUploadedAtDesc(Long seriesId);
 
+    List<SeriesFile> findByTaskTaskIdAndRoundNumberAndPurposeAndActiveTrueOrderByUploadedAtAsc(
+            Long taskId,
+            Integer roundNumber,
+            String purpose);
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
             update SeriesFile file

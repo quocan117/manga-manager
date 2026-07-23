@@ -28,6 +28,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.example.backend.model.MangaSeries;
+import com.example.backend.model.Task;
 import com.example.backend.model.SeriesFile;
 import com.example.backend.model.User;
 import com.example.backend.repository.SeriesBoardAssignmentRepository;
@@ -71,6 +72,19 @@ class SeriesFileServiceTests {
     @Test
     void assignedEditorCanDownloadFile(@TempDir Path uploadRoot) throws Exception {
         SeriesFile file = storedFile(uploadRoot, user("author@manga.test"), user(CURRENT_EMAIL));
+        when(seriesFileRepository.findById(10L)).thenReturn(Optional.of(file));
+
+        var download = service.getAuthorizedDownload(10L);
+
+        assertTrue(download.resource().isReadable());
+    }
+
+    @Test
+    void assignedAssistantCanDownloadTaskFile(@TempDir Path uploadRoot) throws Exception {
+        SeriesFile file = storedFile(uploadRoot, user("author@manga.test"), null);
+        Task task = new Task();
+        task.setAssignedTo(user(CURRENT_EMAIL));
+        file.setTask(task);
         when(seriesFileRepository.findById(10L)).thenReturn(Optional.of(file));
 
         var download = service.getAuthorizedDownload(10L);

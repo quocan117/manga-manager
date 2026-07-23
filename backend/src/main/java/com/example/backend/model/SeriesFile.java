@@ -2,6 +2,7 @@ package com.example.backend.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.ColumnDefault;
 
 import java.time.LocalDateTime;
 
@@ -20,6 +21,10 @@ public class SeriesFile {
     @ManyToOne
     @JoinColumn(name = "series_id")
     private MangaSeries series;
+
+    @ManyToOne
+    @JoinColumn(name = "task_id")
+    private Task task;
 
     @ManyToOne
     @JoinColumn(name = "uploaded_by")
@@ -41,6 +46,13 @@ public class SeriesFile {
 
     @Column(columnDefinition = "NVARCHAR(50)")
     private String fileType;
+
+    @Column(nullable = false)
+    @ColumnDefault("1")
+    private Integer roundNumber = 1;
+
+    @Column(columnDefinition = "NVARCHAR(50)")
+    private String purpose;
 
     @Column(nullable = false)
     private Boolean active = true;

@@ -5,9 +5,6 @@ import java.util.List;
 
 import com.example.backend.dto.MangakaDtos.UploadedFileResponse;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-
 public class AssistantDtos {
     private AssistantDtos() {
     }
@@ -29,6 +26,7 @@ public class AssistantDtos {
             String title,
             String description,
             String status,
+            Integer roundNumber,
             LocalDateTime dueDate,
             Float areaX,
             Float areaY,
@@ -41,9 +39,8 @@ public class AssistantDtos {
 
     public record SubmitTaskRequest(
             String artifactUrl,
-            @NotBlank String originalFileUrl,
             String note,
-            @NotNull Long expectedDrawingVersion) {
+            Long expectedDrawingVersion) {
     }
 
     public record SubmissionResponse(
@@ -56,9 +53,11 @@ public class AssistantDtos {
             String originalFileUrl,
             String note,
             String status,
+            Integer roundNumber,
             String reviewNote,
             LocalDateTime submittedAt,
-            LocalDateTime reviewedAt) {
+            LocalDateTime reviewedAt,
+            List<UploadedFileResponse> resultFiles) {
     }
 
     public record NotificationResponse(

@@ -7,6 +7,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -31,10 +32,12 @@ import com.example.backend.dto.MangakaDtos.NotificationResponse;
 import com.example.backend.dto.MangakaDtos.PageResponse;
 import com.example.backend.dto.MangakaDtos.RankingResponse;
 import com.example.backend.dto.MangakaDtos.ReviewSubmissionRequest;
+import com.example.backend.dto.MangakaDtos.ReviseTaskRequest;
 import com.example.backend.dto.MangakaDtos.SeriesResponse;
 import com.example.backend.dto.MangakaDtos.SubmissionResponse;
 import com.example.backend.dto.MangakaDtos.SubmitChapterToEditorRequest;
 import com.example.backend.dto.MangakaDtos.TaskResponse;
+import com.example.backend.dto.MangakaDtos.TaskMarkupPageResponse;
 import com.example.backend.dto.MangakaDtos.UploadedFileResponse;
 import com.example.backend.service.MangakaService;
 import com.example.backend.dto.MangakaDtos.UpdateAssistantStatusRequest;
@@ -166,10 +169,22 @@ public class MangakaController {
         return service.deleteAssistant(assistantId);
     }
 
-    @PostMapping("/tasks")
+    @PostMapping(value = "/tasks", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
-    public TaskResponse assignTask(@Valid @RequestBody AssignTaskRequest request) {
+    public TaskResponse assignTask(@Valid @ModelAttribute AssignTaskRequest request) {
         return service.assignTask(request);
+    }
+
+    @PostMapping(value = "/tasks/{taskId}/revise", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public TaskResponse reviseTask(
+            @PathVariable Long taskId,
+            @Valid @ModelAttribute ReviseTaskRequest request) {
+        return service.reviseTask(taskId, request);
+    }
+
+    @GetMapping("/tasks/{taskId}/markup-pages")
+    public List<TaskMarkupPageResponse> getTaskMarkupPages(@PathVariable Long taskId) {
+        return service.getTaskMarkupPages(taskId);
     }
 
     @GetMapping("/chapters/{chapterId}/tasks")

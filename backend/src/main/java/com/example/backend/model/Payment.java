@@ -1,13 +1,9 @@
 package com.example.backend.model;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-
 
 @Entity
 @Table(name = "payments")
@@ -37,6 +33,6 @@ public class Payment {
 
     @Column(columnDefinition = "NVARCHAR(MAX)")
     private String description;
-    
+
     private LocalDateTime createdAt;
 }

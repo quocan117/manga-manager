@@ -10,6 +10,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.example.backend.dto.AssistantDtos.SubmissionResponse;
@@ -21,6 +22,7 @@ import com.example.backend.dto.DrawingDtos.RevisionResponse;
 import com.example.backend.dto.DrawingDtos.SaveDrawingRequest;
 import com.example.backend.dto.DrawingDtos.VersionRequest;
 import com.example.backend.dto.MangakaDtos.UploadedFileResponse;
+import com.example.backend.dto.MangakaDtos.TaskMarkupPageResponse;
 import com.example.backend.model.Chapter;
 import com.example.backend.model.ChapterPage;
 import com.example.backend.model.MangaSeries;
@@ -30,6 +32,7 @@ import com.example.backend.model.PageDrawingRevision;
 import com.example.backend.model.SeriesFile;
 import com.example.backend.model.Submission;
 import com.example.backend.model.Task;
+import com.example.backend.model.TaskMarkupPage;
 import com.example.backend.model.User;
 import com.example.backend.repository.NotificationRepository;
 import com.example.backend.repository.PageDrawingRepository;
@@ -37,6 +40,7 @@ import com.example.backend.repository.PageDrawingRevisionRepository;
 import com.example.backend.repository.SeriesFileRepository;
 import com.example.backend.repository.SubmissionRepository;
 import com.example.backend.repository.TaskRepository;
+import com.example.backend.repository.TaskMarkupPageRepository;
 import com.example.backend.repository.UserRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -47,12 +51,9 @@ public class AssistantService {
     private static final String ASSIGNED_STATUS = "ASSIGNED";
     private static final String IN_PROGRESS_STATUS = "IN_PROGRESS";
     private static final String SUBMITTED_STATUS = "SUBMITTED";
-    private static final String APPROVED_STATUS = "APPROVED";
-    private static final String REVISION_REQUESTED_STATUS = "REVISION_REQUESTED";
     private static final Set<String> WORKABLE_STATUSES = Set.of(
             ASSIGNED_STATUS,
-            IN_PROGRESS_STATUS,
-            REVISION_REQUESTED_STATUS);
+            IN_PROGRESS_STATUS);
 
     private final TaskRepository taskRepository;
     private final SubmissionRepository submissionRepository;
@@ -61,6 +62,8 @@ public class AssistantService {
     private final UserRepository userRepository;
     private final NotificationRepository notificationRepository;
     private final SeriesFileRepository seriesFileRepository;
+    private final TaskMarkupPageRepository taskMarkupPageRepository;
+    private final TaskFileStorageService taskFileStorageService;
     private final ObjectMapper objectMapper;
 
     public AssistantService(
@@ -71,6 +74,8 @@ public class AssistantService {
             UserRepository userRepository,
             NotificationRepository notificationRepository,
             SeriesFileRepository seriesFileRepository,
+            TaskMarkupPageRepository taskMarkupPageRepository,
+            TaskFileStorageService taskFileStorageService,
             ObjectMapper objectMapper) {
         this.taskRepository = taskRepository;
         this.submissionRepository = submissionRepository;
@@ -79,6 +84,8 @@ public class AssistantService {
         this.userRepository = userRepository;
         this.notificationRepository = notificationRepository;
         this.seriesFileRepository = seriesFileRepository;
+        this.taskMarkupPageRepository = taskMarkupPageRepository;
+        this.taskFileStorageService = taskFileStorageService;
         this.objectMapper = objectMapper;
     }
 
@@ -98,7 +105,7 @@ public class AssistantService {
     @Transactional
     public TaskResponse acceptTask(Long taskId) {
         Task task = assignedTask(taskId);
-        if (APPROVED_STATUS.equals(task.getStatus()) || SUBMITTED_STATUS.equals(task.getStatus())) {
+        if (!ASSIGNED_STATUS.equals(task.getStatus())) {
             throw conflict("Task cannot be accepted in its current status");
         }
         task.setStatus(IN_PROGRESS_STATUS);
@@ -200,23 +207,39 @@ public class AssistantService {
     }
 
     @Transactional
-    public SubmissionResponse submitTask(Long taskId, SubmitTaskRequest request) {
+    public SubmissionResponse submitTask(
+            Long taskId,
+            SubmitTaskRequest request,
+            List<MultipartFile> resultFiles) {
         Task task = assignedTask(taskId);
         assertTaskCanBeWorkedOn(task);
         User assistant = currentUser();
-        PageDrawing drawing = taskDrawing(taskId, assistant);
-        assertVersion(drawing, request.expectedDrawingVersion());
+        PageDrawing drawing = drawingRepository
+                .findByTaskTaskIdAndOwnerEmail(taskId, assistant.getEmail())
+                .orElse(null);
+        if (drawing != null && request.expectedDrawingVersion() != null) {
+            assertVersion(drawing, request.expectedDrawingVersion());
+        } else if (drawing == null && request.expectedDrawingVersion() != null) {
+            throw conflict("Drawing does not exist");
+        }
+
+        List<SeriesFile> savedResultFiles = taskFileStorageService.storeTaskFiles(
+                task,
+                assistant,
+                resultFiles,
+                currentRound(task),
+                TaskFileStorageService.TASK_SUBMISSION);
 
         String artifactUrl = blankToNull(request.artifactUrl());
-        if (artifactUrl == null) {
+        if (artifactUrl == null && drawing != null) {
             artifactUrl = blankToNull(drawing.getPreviewImageUrl());
         }
         if (artifactUrl == null) {
-            throw badRequest("artifactUrl or drawing previewImageUrl is required");
-        }
-        String originalFileUrl = blankToNull(request.originalFileUrl());
-        if (originalFileUrl == null) {
-            throw badRequest("originalFileUrl is required");
+            artifactUrl = savedResultFiles.stream()
+                    .filter(SeriesFileSupport::isPreviewable)
+                    .findFirst()
+                    .map(SeriesFileSupport::downloadUrl)
+                    .orElse(SeriesFileSupport.downloadUrl(savedResultFiles.get(0)));
         }
 
         Submission submission = new Submission();
@@ -225,8 +248,9 @@ public class AssistantService {
         submission.setSubmittedBy(assistant);
         submission.setSubmittedAt(LocalDateTime.now());
         submission.setStatus(SUBMITTED_STATUS);
+        submission.setRoundNumber(currentRound(task));
         submission.setArtifactUrl(artifactUrl);
-        submission.setOriginalFileUrl(originalFileUrl);
+        submission.setOriginalFileUrl(SeriesFileSupport.downloadUrl(savedResultFiles.get(0)));
         submission.setNote(blankToNull(request.note()));
 
         task.setStatus(SUBMITTED_STATUS);
@@ -238,6 +262,18 @@ public class AssistantService {
                 task.getTaskId(),
                 "Trợ lý " + assistant.getUsername() + " đã hoàn thiện phần việc. Vui lòng kiểm duyệt");
         return toSubmissionResponse(savedSubmission);
+    }
+
+    @Transactional(readOnly = true)
+    public List<TaskMarkupPageResponse> getTaskMarkupPages(Long taskId) {
+        Task task = assignedTask(taskId);
+        return taskMarkupPageRepository
+                .findByTaskTaskIdAndRoundNumberOrderByOrderIndexAscCreatedAtAsc(
+                        taskId,
+                        currentRound(task))
+                .stream()
+                .map(this::toTaskMarkupPageResponse)
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -387,6 +423,7 @@ public class AssistantService {
                 task.getTitle(),
                 task.getDescription(),
                 task.getStatus(),
+                currentRound(task),
                 task.getDueDate(),
                 task.getAreaX(),
                 task.getAreaY(),
@@ -394,14 +431,18 @@ public class AssistantService {
                 task.getAreaHeight(),
                 task.getCreatedAt(),
                 latestSubmission,
-                sourceFiles(series));
+                sourceFiles(task));
     }
 
-    private List<UploadedFileResponse> sourceFiles(MangaSeries series) {
-        if (series == null || series.getSeriesId() == null) {
+    private List<UploadedFileResponse> sourceFiles(Task task) {
+        if (task == null || task.getTaskId() == null) {
             return List.of();
         }
-        return seriesFileRepository.findBySeriesSeriesIdAndActiveTrueOrderByUploadedAtDesc(series.getSeriesId())
+        return seriesFileRepository
+                .findByTaskTaskIdAndRoundNumberAndPurposeAndActiveTrueOrderByUploadedAtAsc(
+                        task.getTaskId(),
+                        currentRound(task),
+                        TaskFileStorageService.TASK_ORIGINAL)
                 .stream()
                 .map(this::toUploadedFileResponse)
                 .toList();
@@ -434,9 +475,45 @@ public class AssistantService {
                 submission.getOriginalFileUrl(),
                 submission.getNote(),
                 submission.getStatus(),
+                submissionRound(submission),
                 submission.getReviewNote(),
                 submission.getSubmittedAt(),
-                submission.getReviewedAt());
+                submission.getReviewedAt(),
+                resultFiles(submission));
+    }
+
+    private List<UploadedFileResponse> resultFiles(Submission submission) {
+        Task task = submission.getTask();
+        if (task == null || task.getTaskId() == null) {
+            return List.of();
+        }
+        return seriesFileRepository
+                .findByTaskTaskIdAndRoundNumberAndPurposeAndActiveTrueOrderByUploadedAtAsc(
+                        task.getTaskId(),
+                        submissionRound(submission),
+                        TaskFileStorageService.TASK_SUBMISSION)
+                .stream()
+                .map(this::toUploadedFileResponse)
+                .toList();
+    }
+
+    private TaskMarkupPageResponse toTaskMarkupPageResponse(TaskMarkupPage markupPage) {
+        return new TaskMarkupPageResponse(
+                markupPage.getMarkupPageId(),
+                markupPage.getTask().getTaskId(),
+                markupPage.getRoundNumber(),
+                markupPage.getImageUrl(),
+                markupPage.getCanvasData(),
+                markupPage.getOrderIndex(),
+                markupPage.getCreatedAt());
+    }
+
+    private int currentRound(Task task) {
+        return task.getRoundNumber() == null ? 1 : task.getRoundNumber();
+    }
+
+    private int submissionRound(Submission submission) {
+        return submission.getRoundNumber() == null ? 1 : submission.getRoundNumber();
     }
 
     private DrawingResponse toDrawingResponse(PageDrawing drawing) {

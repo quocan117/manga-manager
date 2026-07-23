@@ -3,6 +3,7 @@ package com.example.backend.controller;
 import java.util.List;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,11 +15,14 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.example.backend.dto.AssistantDtos.SubmissionResponse;
 import com.example.backend.dto.AssistantDtos.SubmitTaskRequest;
 import com.example.backend.dto.AssistantDtos.TaskResponse;
 import com.example.backend.dto.AssistantDtos.NotificationResponse;
+import com.example.backend.dto.MangakaDtos.TaskMarkupPageResponse;
 import com.example.backend.dto.DrawingDtos.DrawingResponse;
 import com.example.backend.dto.DrawingDtos.RevisionResponse;
 import com.example.backend.dto.DrawingDtos.SaveDrawingRequest;
@@ -92,12 +96,23 @@ public class AssistantController {
         return service.getSubmissions(taskId);
     }
 
-    @PostMapping("/tasks/{taskId}/submissions")
+    @PostMapping(value = "/tasks/{taskId}/submissions", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     public SubmissionResponse submitTask(
             @PathVariable Long taskId,
-            @Valid @RequestBody SubmitTaskRequest request) {
-        return service.submitTask(taskId, request);
+            @RequestParam(value = "artifactUrl", required = false) String artifactUrl,
+            @RequestParam(value = "note", required = false) String note,
+            @RequestParam(value = "expectedDrawingVersion", required = false) Long expectedDrawingVersion,
+            @RequestParam("resultFiles") List<MultipartFile> resultFiles) {
+        return service.submitTask(
+                taskId,
+                new SubmitTaskRequest(artifactUrl, note, expectedDrawingVersion),
+                resultFiles);
+    }
+
+    @GetMapping("/tasks/{taskId}/markup-pages")
+    public List<TaskMarkupPageResponse> getTaskMarkupPages(@PathVariable Long taskId) {
+        return service.getTaskMarkupPages(taskId);
     }
 
     @GetMapping("/notifications")
