@@ -10,6 +10,7 @@ import {
   getChapterSubmissions,
 } from "../../../services/mangakaService";
 import { formatDateTime } from "../../../utils/formatDate";
+import SeriesFileList from "../../../components/SeriesFileList";
 
 export default function AssistantTasks() {
   const [assistants, setAssistants] = useState([]);
@@ -28,8 +29,10 @@ export default function AssistantTasks() {
     title: "",
     description: "",
     dueDate: "",
-    originalFileUrl: "",
   });
+
+  const [originalFiles, setOriginalFiles] = useState([]);
+  const [fileError, setFileError] = useState("");
 
   useEffect(() => {
     fetchAssistants();
@@ -152,35 +155,76 @@ export default function AssistantTasks() {
     });
   };
 
+  const handleFilePick = (e) => {
+    const picked = Array.from(e.target.files || []);
+    if (picked.length === 0) return;
+
+    setOriginalFiles((prev) => {
+      const combined = [...prev, ...picked];
+
+      const zipCount = combined.filter((f) =>
+        f.name.toLowerCase().endsWith(".zip"),
+      ).length;
+      if (zipCount > 1) {
+        setFileError(
+          "Chỉ được chọn tối đa 1 file .zip trong một lần giao việc.",
+        );
+        return prev;
+      }
+      if (combined.length > 20) {
+        setFileError("Chỉ được chọn tối đa 20 file.");
+        return prev;
+      }
+      setFileError("");
+      return combined;
+    });
+    e.target.value = "";
+  };
+
+  const removeOriginalFile = (index) => {
+    setOriginalFiles((prev) => prev.filter((_, i) => i !== index));
+    setFileError("");
+  };
+
   const handleAssign = async (e) => {
     e.preventDefault();
+    if (originalFiles.length === 0) {
+      alert(
+        "Vui lòng chọn ít nhất 1 ảnh gốc hoặc 1 file .zip để giao cho trợ lý.",
+      );
+      return;
+    }
+    const formData = new FormData();
+    formData.append("pageId", Number(form.pageId));
+    formData.append("assistantId", Number(form.assistantId));
+    formData.append("taskType", form.taskType);
+    formData.append("title", form.title);
+    if (form.description) formData.append("description", form.description);
+    formData.append("dueDate", form.dueDate);
+    formData.append("areaX", 0);
+    formData.append("areaY", 0);
+    formData.append("areaWidth", 100);
+    formData.append("areaHeight", 100);
+    originalFiles.forEach((file) => formData.append("originalFiles", file));
     try {
-      await assignTask({
-        pageId: Number(form.pageId),
-        assistantId: Number(form.assistantId),
-        taskType: form.taskType,
-        title: form.title,
-        description: form.description,
-        dueDate: form.dueDate,
-        areaX: 0,
-        areaY: 0,
-        areaWidth: 100,
-        areaHeight: 100,
-        originalFileUrl: form.originalFileUrl,
-      });
+      await assignTask(formData);
       alert("Giao việc cho trợ lý thành công!");
       setForm({ ...form, title: "", description: "", pageId: "" });
+      setOriginalFiles([]);
       fetchTasks();
     } catch (error) {
       console.error(error);
-      alert("Giao việc thất bại. Vui lòng kiểm tra lại dữ liệu.");
+      alert(
+        "Giao việc thất bại: " +
+          (error.response?.data?.message || "Vui lòng kiểm tra lại dữ liệu."),
+      );
     }
   };
 
   const selectedChapterData = chapterList.find(
     (c) => c.id === Number(selectedChapterId),
   );
-  
+
   return (
     <div>
       <h2 className="mb-4">Assistant Tasks</h2>
@@ -249,19 +293,46 @@ export default function AssistantTasks() {
                     ))}
                   </select>
                 </div>
+
                 <div className="mb-3">
                   <label className="form-label">
-                    Link tài liệu gốc (Google Drive/OneDrive...)
+                    File tài liệu gốc (ảnh gốc, có thể thêm 1 file .zip)
                   </label>
                   <input
-                    type="url"
-                    name="originalFileUrl"
+                    type="file"
                     className="form-control"
-                    placeholder="https://drive.google.com/..."
-                    value={form.originalFileUrl}
-                    onChange={handleChange}
+                    multiple
+                    accept="image/*,.zip,.pdf,.doc,.docx,.txt,.md"
+                    onChange={handleFilePick}
                   />
+                  <small className="text-muted d-block mt-1">
+                    Có thể chọn nhiều lần để gộp thêm ảnh/zip vào danh sách bên
+                    dưới (tối đa 20 file, mỗi ảnh ≤20MB, zip ≤100MB, tổng
+                    ≤200MB, chỉ 1 file .zip).
+                  </small>
+                  {fileError && (
+                    <div className="text-danger small mt-1">{fileError}</div>
+                  )}
+                  {originalFiles.length > 0 && (
+                    <ul className="submit-series-filelist mt-2">
+                      {originalFiles.map((f, i) => (
+                        <li key={`${f.name}-${i}`}>
+                          <span>{f.name}</span>
+                          <span className="text-muted small">
+                            ({Math.round(f.size / 1024)} KB)
+                          </span>
+                          <button
+                            type="button"
+                            className="btn-close btn-sm"
+                            aria-label="Xoá"
+                            onClick={() => removeOriginalFile(i)}
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
+
                 <hr className="my-4" />
                 <div className="mb-3">
                   <label className="form-label">Chọn Trợ lý (Assistant)</label>
@@ -382,27 +453,20 @@ export default function AssistantTasks() {
                           {s.status}
                         </span>
                       </div>
+
                       {s.note && (
                         <p className="small mt-2 mb-1">
                           Ghi chú trợ lý: {s.note}
                         </p>
                       )}
-                      <div className="d-flex gap-2 mt-2">
-                        {s.originalFileUrl ? (
-                          <a
-                            href={s.originalFileUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="btn btn-outline-primary btn-sm"
-                          >
-                            ⬇ Tải file gốc
-                          </a>
-                        ) : (
-                          <span className="text-muted small align-self-center">
-                            Chưa có file gốc
-                          </span>
-                        )}
+
+                      <div className="mt-2">
+                        <SeriesFileList
+                          files={s.resultFiles}
+                          emptyText="Trợ lý chưa gửi kèm file nào."
+                        />
                       </div>
+                      
                       {s.status === "SUBMITTED" && (
                         <div className="d-flex gap-2 mt-3">
                           <button

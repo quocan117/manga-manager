@@ -11,6 +11,7 @@ import {
 import { resolveImageUrl } from "../../../utils/imageUrl";
 import CanvasMarkupTool from "../../../components/CanvasMarkupTool";
 import { formatDateTime } from "../../../utils/formatDate";
+import SeriesFileList from "../../../components/SeriesFileList";
 
 const WORKABLE_STATUSES = ["ASSIGNED", "IN_PROGRESS", "REVISION_REQUESTED"];
 
@@ -21,9 +22,10 @@ export default function TaskDetailPage() {
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [drawingVersion, setDrawingVersion] = useState(0);
-  const [originalFileUrl, setOriginalFileUrl] = useState("");
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [resultFiles, setResultFiles] = useState([]);
+  const [fileError, setFileError] = useState("");
   const backgroundUrl = resolveImageUrl(task?.pageImageUrl);
 
   const loadTask = useCallback(async () => {
@@ -58,22 +60,46 @@ export default function TaskDetailPage() {
     }
   };
 
+  const handleFilePick = (e) => {
+    const picked = Array.from(e.target.files || []);
+    if (picked.length === 0) return;
+    setResultFiles((prev) => {
+      const combined = [...prev, ...picked];
+      const zipCount = combined.filter((f) =>
+        f.name.toLowerCase().endsWith(".zip"),
+      ).length;
+      if (zipCount > 1) {
+        setFileError("Chỉ được chọn tối đa 1 file .zip.");
+        return prev;
+      }
+      if (combined.length > 20) {
+        setFileError("Chỉ được chọn tối đa 20 file.");
+        return prev;
+      }
+      setFileError("");
+      return combined;
+    });
+    e.target.value = "";
+  };
+
+  const removeResultFile = (index) => {
+    setResultFiles((prev) => prev.filter((_, i) => i !== index));
+    setFileError("");
+  };
+
   const handleSubmit = async () => {
-    if (!originalFileUrl.trim()) {
-      alert("Vui lòng nhập link file đã hoàn thiện trước khi nộp.");
+    if (resultFiles.length === 0) {
+      alert(
+        "Vui lòng đính kèm ít nhất 1 ảnh đã chỉnh sửa hoặc 1 file .zip trước khi nộp.",
+      );
       return;
     }
     setSubmitting(true);
     try {
-      await submitTask(
-        taskId,
-        originalFileUrl,
-        note,
-        drawingVersion,
-        originalFileUrl,
-      );
+      await submitTask(taskId, resultFiles, note, drawingVersion);
       alert("Nộp thành công! Mangaka sẽ nhận được file của bạn.");
       setNote("");
+      setResultFiles([]);
       loadTask();
     } catch (error) {
       alert("Nộp thất bại: " + (error.response?.data?.message || ""));
@@ -129,9 +155,6 @@ export default function TaskDetailPage() {
                 {task.dueDate ? formatDateTime(task.dueDate) : "-"}
               </p>
               <p>
-                <strong>Phiên bản bản vẽ:</strong> v{drawingVersion}
-              </p>
-              <p>
                 <strong>Mô tả:</strong>
                 <br />
                 {task.description || "Không có mô tả."}
@@ -140,18 +163,8 @@ export default function TaskDetailPage() {
               <p className="mb-1">
                 <strong>Tài liệu gốc để làm việc:</strong>
               </p>
-              {task.originalFileUrl ? (
-                <a
-                  href={task.originalFileUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="btn btn-outline-primary btn-sm w-100"
-                >
-                  ⬇ Tải file gốc
-                </a>
-              ) : (
-                <p className="text-muted small mb-0">Chưa có link file gốc</p>
-              )}
+              <SeriesFileList files={task.sourceFiles} />
+
               {task.status === "ASSIGNED" && (
                 <button
                   className="btn btn-success w-100 mt-3"
@@ -201,16 +214,45 @@ export default function TaskDetailPage() {
                 Nộp cho Mangaka
               </div>
               <div className="card-body">
+
                 <div className="mb-3">
-                  <label className="form-label">Link file đã hoàn thiện</label>
+                  <label className="form-label">
+                    File đã hoàn thiện (ảnh đã sửa, có thể thêm 1 file .zip)
+                  </label>
                   <input
-                    type="url"
+                    type="file"
                     className="form-control"
-                    placeholder="https://drive.google.com/..."
-                    value={originalFileUrl}
-                    onChange={(e) => setOriginalFileUrl(e.target.value)}
+                    multiple
+                    accept="image/*,.zip,.pdf,.doc,.docx,.txt,.md"
+                    onChange={handleFilePick}
                   />
+                  <small className="text-muted d-block mt-1">
+                    Có thể chọn nhiều lần để gộp thêm ảnh/zip (tối đa 20 file,
+                    mỗi ảnh ≤20MB, zip ≤100MB, tổng ≤200MB, chỉ 1 file .zip).
+                  </small>
+                  {fileError && (
+                    <div className="text-danger small mt-1">{fileError}</div>
+                  )}
+                  {resultFiles.length > 0 && (
+                    <ul className="submit-series-filelist mt-2">
+                      {resultFiles.map((f, i) => (
+                        <li key={`${f.name}-${i}`}>
+                          <span>{f.name}</span>
+                          <span className="text-muted small">
+                            ({Math.round(f.size / 1024)} KB)
+                          </span>
+                          <button
+                            type="button"
+                            className="btn-close btn-sm"
+                            aria-label="Xoá"
+                            onClick={() => removeResultFile(i)}
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
+
                 <div className="mb-3">
                   <label className="form-label">Ghi chú cho Mangaka</label>
                   <textarea

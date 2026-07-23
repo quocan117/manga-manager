@@ -6,6 +6,7 @@ import "../styles/SeriesFileList.css";
 function useObjectUrl(fileId, enabled) {
   const [url, setUrl] = useState(null);
   const [error, setError] = useState(null);
+
   useEffect(() => {
     if (!enabled) return;
     let objectUrl;
@@ -22,6 +23,7 @@ function useObjectUrl(fileId, enabled) {
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [fileId, enabled]);
+
   return { url, error };
 }
 
@@ -84,11 +86,14 @@ function DownloadButton({ file }) {
   );
 }
 
-export default function SeriesFileList({ files = [] }) {
+export default function SeriesFileList({
+  files = [],
+  emptyText = "Mangaka chưa gửi kèm file nào.",
+}) {
   const [previewFile, setPreviewFile] = useState(null);
   const { url: modalUrl } = useObjectUrl(previewFile?.id, !!previewFile);
   if (!files.length) {
-    return <p className="text-muted mb-0">Mangaka chưa gửi kèm file nào.</p>;
+    return <p className="text-muted mb-0">{emptyText}</p>;
   }
   const previewables = files.filter(isPreviewableFile);
   const others = files.filter((f) => !isPreviewableFile(f));

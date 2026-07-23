@@ -36,8 +36,8 @@ export const getAssistants = async () => {
   return response.data;
 };
 
-export const assignTask = async (data) => {
-  const response = await api.post("/mangaka/tasks", data);
+export const assignTask = async (formData) => {
+  const response = await api.post("/mangaka/tasks", formData);
   return response.data;
 };
 

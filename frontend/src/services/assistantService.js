@@ -82,16 +82,19 @@ export const markNotificationRead = async (notificationId) => {
 
 export const submitTask = async (
   taskId,
-  artifactUrl,
+  resultFiles,
   note,
   expectedDrawingVersion,
-  originalFileUrl, 
 ) => {
-  const response = await api.post(`/assistant/tasks/${taskId}/submissions`, {
-    artifactUrl,
-    note,
-    expectedDrawingVersion,
-    originalFileUrl,
-  });
+  const formData = new FormData();
+  if (note) formData.append("note", note);
+  if (expectedDrawingVersion !== undefined && expectedDrawingVersion !== null) {
+    formData.append("expectedDrawingVersion", expectedDrawingVersion);
+  }
+  resultFiles.forEach((file) => formData.append("resultFiles", file));
+  const response = await api.post(
+    `/assistant/tasks/${taskId}/submissions`,
+    formData,
+  );
   return response.data;
 };
