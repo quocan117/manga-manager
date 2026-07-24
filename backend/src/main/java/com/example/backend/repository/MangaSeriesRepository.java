@@ -2,8 +2,10 @@ package com.example.backend.repository;
 
 import com.example.backend.model.MangaSeries;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import jakarta.persistence.LockModeType;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
@@ -11,6 +13,10 @@ import java.util.List;
 import java.util.Optional;
 
 public interface MangaSeriesRepository extends JpaRepository<MangaSeries, Long> {
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select series from MangaSeries series where series.seriesId = :seriesId")
+    Optional<MangaSeries> findByIdForUpdate(@Param("seriesId") Long seriesId);
+
     List<MangaSeries> findAllByOrderByCreatedAtDesc();
 
     List<MangaSeries> findByStatusIgnoreCaseOrderByCreatedAtDesc(String status);
@@ -20,18 +26,29 @@ public interface MangaSeriesRepository extends JpaRepository<MangaSeries, Long> 
     Optional<MangaSeries> findBySeriesIdAndStatusIgnoreCase(Long seriesId, String status);
 
     @Query("""
-            select distinct series from MangaSeries series
-            where lower(series.status) = lower(:seriesStatus)
-              and exists (
-                    select chapter from Chapter chapter
-                    where chapter.series = series
-                      and lower(chapter.status) = lower(:chapterStatus)
-              )
+            select series from MangaSeries series
+            where upper(series.status) in :statuses
             order by series.createdAt desc
             """)
-    List<MangaSeries> findPublicSeriesWithPublishedChaptersOrderByCreatedAtDesc(
-            @Param("seriesStatus") String seriesStatus,
-            @Param("chapterStatus") String chapterStatus);
+    List<MangaSeries> findPublicSeriesByStatusesOrderByCreatedAtDesc(
+            @Param("statuses") Collection<String> statuses);
+
+    @Query("""
+            select series from MangaSeries series
+            where series.seriesId = :seriesId
+              and upper(series.status) in :statuses
+            """)
+    Optional<MangaSeries> findPublicSeriesByIdAndStatuses(
+            @Param("seriesId") Long seriesId,
+            @Param("statuses") Collection<String> statuses);
+
+    @Query("""
+            select series from MangaSeries series
+            where upper(series.status) in :statuses
+            order by series.createdAt desc
+            """)
+    List<MangaSeries> findByStatusesOrderByCreatedAtDesc(
+            @Param("statuses") Collection<String> statuses);
 
     List<MangaSeries> findByAuthorEmailOrderByCreatedAtDesc(String email);
 

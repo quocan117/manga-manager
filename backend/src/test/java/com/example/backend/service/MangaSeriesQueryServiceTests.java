@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -40,8 +41,8 @@ class MangaSeriesQueryServiceTests {
         MangaSeries series = series(10L, "Haikyuu!!", "Published");
         Chapter chapter = chapter(20L, series, "PUBLISHED");
 
-        when(mangaSeriesRepository.findPublicSeriesWithPublishedChaptersOrderByCreatedAtDesc(
-                "Published", "PUBLISHED"))
+        when(mangaSeriesRepository.findPublicSeriesByStatusesOrderByCreatedAtDesc(
+                Set.of("COMING_SOON", "PUBLISHING", "PUBLISHED")))
                 .thenReturn(List.of(series));
         when(chapterRepository.findBySeriesSeriesIdAndStatusIgnoreCaseOrderByChapterNumberAsc(
                 10L, "PUBLISHED"))
@@ -55,13 +56,27 @@ class MangaSeriesQueryServiceTests {
         assertEquals("Publishing", response.get(0).getStatus());
         assertEquals(1, response.get(0).getChapters().size());
         assertEquals(33L, response.get(0).getChapters().get(0).getLikes());
-        verify(mangaSeriesRepository).findPublicSeriesWithPublishedChaptersOrderByCreatedAtDesc(
-                "Published", "PUBLISHED");
+        verify(mangaSeriesRepository).findPublicSeriesByStatusesOrderByCreatedAtDesc(
+                Set.of("COMING_SOON", "PUBLISHING", "PUBLISHED"));
+    }
+
+    @Test
+    void comingSoonSeriesIsPublicWithNoChapters() {
+        MangaSeries series = series(10L, "Haikyuu!!", "COMING_SOON");
+        when(mangaSeriesRepository.findPublicSeriesByIdAndStatuses(
+                10L, Set.of("COMING_SOON", "PUBLISHING", "PUBLISHED")))
+                .thenReturn(Optional.of(series));
+
+        var response = service.getDetail(10L);
+
+        assertEquals("Coming Soon", response.getStatus());
+        assertEquals(List.of(), response.getChapters());
     }
 
     @Test
     void unpublishedSeriesDetailReturnsNotFound() {
-        when(mangaSeriesRepository.findBySeriesIdAndStatusIgnoreCase(10L, "Published"))
+        when(mangaSeriesRepository.findPublicSeriesByIdAndStatuses(
+                10L, Set.of("COMING_SOON", "PUBLISHING", "PUBLISHED")))
                 .thenReturn(Optional.empty());
 
         ResponseStatusException exception = assertThrows(ResponseStatusException.class,

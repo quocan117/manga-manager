@@ -5,10 +5,16 @@ import com.example.backend.dto.EditorialBoardDtos.AssignEditorRequest;
 import com.example.backend.dto.EditorialBoardDtos.BoardDecisionRequest;
 import com.example.backend.dto.EditorialBoardDtos.BoardDecisionResponse;
 import com.example.backend.dto.EditorialBoardDtos.BoardMemberAssignmentResponse;
+import com.example.backend.dto.EditorialBoardDtos.BoardChapterResponse;
+import com.example.backend.dto.EditorialBoardDtos.ChapterBoardReviewRequest;
+import com.example.backend.dto.EditorialBoardDtos.ChapterBoardReviewResponse;
 import com.example.backend.dto.EditorialBoardDtos.ImportReaderFeedbackRequest;
 import com.example.backend.dto.EditorialBoardDtos.ReaderFeedbackImportResponse;
 import com.example.backend.dto.EditorialBoardDtos.ReaderVoteResponse;
 import com.example.backend.dto.EditorialBoardDtos.ReviewSeriesResponse;
+import com.example.backend.dto.EditorialBoardDtos.ApprovedSeriesManagementResponse;
+import com.example.backend.dto.EditorialBoardDtos.ScheduleRequest;
+import com.example.backend.dto.EditorialBoardDtos.ScheduleResponse;
 import com.example.backend.dto.EditorialBoardDtos.SeriesVoteSummaryResponse;
 import com.example.backend.dto.EditorialBoardDtos.UpdateUserRequest;
 import com.example.backend.dto.EditorialBoardDtos.UserResponse;
@@ -16,11 +22,10 @@ import com.example.backend.dto.MangakaDtos.NotificationResponse;
 import com.example.backend.dto.MangakaDtos.RankingResponse;
 import com.example.backend.dto.MangakaDtos.UploadedFileResponse;
 import com.example.backend.dto.ReviewRegistrationRequest;
-import com.example.backend.dto.TantouEditorDtos.ScheduleRequest;
-import com.example.backend.dto.TantouEditorDtos.ScheduleResponse;
 import com.example.backend.dto.EditorialBoardDtos.SeriesTotalVotesResponse;
 import com.example.backend.model.BoardDecision;
 import com.example.backend.model.Chapter;
+import com.example.backend.model.ChapterBoardReview;
 import com.example.backend.model.ChapterLikeLog;
 import com.example.backend.model.GuestAccessLog;
 import com.example.backend.model.MangaSeries;
@@ -34,7 +39,9 @@ import com.example.backend.model.SeriesRanking;
 import com.example.backend.model.User;
 import com.example.backend.model.Notification;
 import com.example.backend.repository.BoardDecisionRepository;
+import com.example.backend.repository.ChapterBoardReviewRepository;
 import com.example.backend.repository.ChapterLikeLogRepository;
+import com.example.backend.repository.ChapterRepository;
 import com.example.backend.repository.MangaSeriesRepository;
 import com.example.backend.repository.RegistrationRequestRepository;
 import com.example.backend.repository.ReaderFeedbackImportRepository;
@@ -70,7 +77,9 @@ public class EditorialBoardService {
     private static final String BOARD_ROLE = "EDITORIAL_BOARD";
     private static final String ACTIVE_STATUS = "ACTIVE";
     private static final String REVIEWING_SERIES_STATUS = "REVIEWING";
-    private static final String PUBLISHED_SERIES_STATUS = "Published";
+    private static final String COMING_SOON_SERIES_STATUS = "COMING_SOON";
+    private static final String PUBLISHING_SERIES_STATUS = "PUBLISHING";
+    private static final String PUBLISHED_SERIES_STATUS = "PUBLISHED";
     private static final String REVISION_REQUESTED_STATUS = "REVISION_REQUESTED";
     private static final String PENDING_EDITOR_STATUS = "PENDING_EDITOR";
     private static final String EDITOR_ASSIGNMENT_REQUIRED_STATUS = "EDITOR_ASSIGNMENT_REQUIRED";
@@ -78,7 +87,12 @@ public class EditorialBoardService {
     private static final String APPROVE_DECISION = "APPROVE";
     private static final String REJECT_DECISION = "REJECT";
     private static final String CANCEL_DECISION = "CANCEL";
+    private static final String SUBMITTED_TO_BOARD_CHAPTER_STATUS = "SUBMITTED_TO_BOARD";
+    private static final String APPROVED_CHAPTER_STATUS = "APPROVED";
+    private static final String PUBLISHED_CHAPTER_STATUS = "PUBLISHED";
     private static final int BOARD_PANEL_SIZE = 3;
+    private static final Set<String> APPROVED_SERIES_STATUSES = Set.of(
+            COMING_SOON_SERIES_STATUS, PUBLISHING_SERIES_STATUS, PUBLISHED_SERIES_STATUS);
 
     private static final Set<String> MANAGED_ROLES = Set.of(
             "MANGAKA", "ASSISTANT", "TANTOU_EDITOR", BOARD_ROLE);
@@ -90,6 +104,8 @@ public class EditorialBoardService {
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final MangaSeriesRepository mangaSeriesRepository;
+    private final ChapterRepository chapterRepository;
+    private final ChapterBoardReviewRepository chapterBoardReviewRepository;
     private final BoardDecisionRepository boardDecisionRepository;
     private final NotificationRepository notificationRepository;
     private final PublishScheduleRepository publishScheduleRepository;
@@ -106,6 +122,8 @@ public class EditorialBoardService {
             RoleRepository roleRepository,
             PasswordEncoder passwordEncoder,
             MangaSeriesRepository mangaSeriesRepository,
+            ChapterRepository chapterRepository,
+            ChapterBoardReviewRepository chapterBoardReviewRepository,
             BoardDecisionRepository boardDecisionRepository,
             NotificationRepository notificationRepository,
             PublishScheduleRepository publishScheduleRepository,
@@ -120,6 +138,8 @@ public class EditorialBoardService {
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
         this.mangaSeriesRepository = mangaSeriesRepository;
+        this.chapterRepository = chapterRepository;
+        this.chapterBoardReviewRepository = chapterBoardReviewRepository;
         this.boardDecisionRepository = boardDecisionRepository;
         this.notificationRepository = notificationRepository;
         this.publishScheduleRepository = publishScheduleRepository;
@@ -179,36 +199,145 @@ public class EditorialBoardService {
 
     @Transactional(readOnly = true)
     public List<ScheduleResponse> getPublishSchedules() {
+        User currentUser = currentEditorialBoard();
         return publishScheduleRepository.findAllByOrderByPublishDateAsc()
                 .stream()
-                .map(this::toScheduleResponse)
+                .map(schedule -> toScheduleResponse(schedule, currentUser))
                 .toList();
     }
 
     @Transactional
     public ScheduleResponse createSchedule(ScheduleRequest request) {
+        User currentUser = currentEditorialBoard();
         PublishSchedule schedule = new PublishSchedule();
-        applyScheduleRequest(schedule, request);
+        applyScheduleRequest(schedule, request, currentUser);
         PublishSchedule savedSchedule = publishScheduleRepository.save(schedule);
         notifyBoardScheduleChange(savedSchedule, "PUBLISH_SCHEDULE_CREATED");
-        return toScheduleResponse(savedSchedule);
+        return toScheduleResponse(savedSchedule, currentUser);
     }
 
     @Transactional
     public ScheduleResponse updateSchedule(Long scheduleId, ScheduleRequest request) {
+        User currentUser = currentEditorialBoard();
         PublishSchedule schedule = publishScheduleRepository.findById(scheduleId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Schedule not found"));
-        applyScheduleRequest(schedule, request);
+        requirePublicationCoordinator(schedule.getSeries(), currentUser);
+        applyScheduleRequest(schedule, request, currentUser);
         PublishSchedule savedSchedule = publishScheduleRepository.save(schedule);
         notifyBoardScheduleChange(savedSchedule, "PUBLISH_SCHEDULE_UPDATED");
-        return toScheduleResponse(savedSchedule);
+        return toScheduleResponse(savedSchedule, currentUser);
     }
 
     @Transactional
     public void deleteSchedule(Long scheduleId) {
+        User currentUser = currentEditorialBoard();
         PublishSchedule schedule = publishScheduleRepository.findById(scheduleId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Schedule not found"));
+        requirePublicationCoordinator(schedule.getSeries(), currentUser);
         publishScheduleRepository.delete(schedule);
+    }
+
+    @Transactional(readOnly = true)
+    public List<BoardChapterResponse> getPendingChapterReviews() {
+        User boardMember = currentEditorialBoard();
+        return chapterBoardReviewRepository
+                .findByBoardMemberEmailIgnoreCaseAndConfirmedIsNullAndChapterStatusIgnoreCaseOrderByChapterCreatedAtDesc(
+                        boardMember.getEmail(), SUBMITTED_TO_BOARD_CHAPTER_STATUS)
+                .stream()
+                .map(ChapterBoardReview::getChapter)
+                .map(this::toBoardChapterResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public BoardChapterResponse getChapterReview(Long chapterId) {
+        User boardMember = currentEditorialBoard();
+        Chapter chapter = chapterRepository.findById(chapterId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Chapter not found"));
+        requireChapterReviewer(chapterId, boardMember);
+        return toBoardChapterResponse(chapter);
+    }
+
+    @Transactional
+    public BoardChapterResponse reviewChapter(Long chapterId, ChapterBoardReviewRequest request) {
+        User boardMember = currentEditorialBoard();
+        Chapter chapter = chapterRepository.findByIdForUpdate(chapterId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Chapter not found"));
+        if (!SUBMITTED_TO_BOARD_CHAPTER_STATUS.equalsIgnoreCase(chapter.getStatus())) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT, "Only chapters submitted to Editorial Board can be reviewed");
+        }
+
+        ChapterBoardReview review = requireChapterReviewer(chapterId, boardMember);
+        if (review.getConfirmed() != null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Chapter review was already submitted");
+        }
+        if (Boolean.FALSE.equals(request.confirmed())
+                && (request.comment() == null || request.comment().isBlank())) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "comment is required when requesting revision");
+        }
+
+        review.setConfirmed(request.confirmed());
+        review.setComment(blankToNull(request.comment()));
+        review.setReviewedAt(LocalDateTime.now());
+        chapterBoardReviewRepository.save(review);
+
+        MangaSeries series = chapter.getSeries();
+        if (Boolean.FALSE.equals(request.confirmed())) {
+            chapter.setStatus(REVISION_REQUESTED_STATUS);
+            chapterRepository.save(chapter);
+            notify(series == null ? null : series.getTantouEditor(),
+                    "CHAPTER_REVISION_REQUESTED", chapterId,
+                    "Editorial Board requested revision for chapter \"" + chapter.getTitle()
+                            + "\": " + request.comment().trim());
+            notify(series == null ? null : series.getAuthor(),
+                    "CHAPTER_REVISION_REQUESTED", chapterId,
+                    "Editorial Board requested revision for chapter \"" + chapter.getTitle() + "\".");
+        } else {
+            long totalReviews = chapterBoardReviewRepository.countByChapterChapterId(chapterId);
+            long confirmedReviews = chapterBoardReviewRepository
+                    .countByChapterChapterIdAndConfirmedTrue(chapterId);
+            if (totalReviews == BOARD_PANEL_SIZE
+                    && confirmedReviews == BOARD_PANEL_SIZE
+                    && !chapterBoardReviewRepository.existsByChapterChapterIdAndConfirmedFalse(chapterId)) {
+                chapter.setStatus(APPROVED_CHAPTER_STATUS);
+                chapterRepository.save(chapter);
+                notify(series == null ? null : series.getPublicationCoordinator(),
+                        "CHAPTER_READY_FOR_SCHEDULE", chapterId,
+                        "Chapter \"" + chapter.getTitle() + "\" was confirmed by the full board panel.");
+                notify(series == null ? null : series.getTantouEditor(),
+                        "CHAPTER_APPROVED", chapterId,
+                        "Chapter \"" + chapter.getTitle() + "\" was confirmed by the full board panel.");
+                notify(series == null ? null : series.getAuthor(),
+                        "CHAPTER_APPROVED", chapterId,
+                        "Chapter \"" + chapter.getTitle() + "\" is ready for its publication schedule.");
+            }
+        }
+        return toBoardChapterResponse(chapter);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ApprovedSeriesManagementResponse> getApprovedSeries() {
+        User currentUser = currentEditorialBoard();
+        return mangaSeriesRepository.findByStatusesOrderByCreatedAtDesc(APPROVED_SERIES_STATUSES)
+                .stream()
+                .map(series -> toApprovedSeriesManagementResponse(series, currentUser))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<BoardChapterResponse> getApprovedSeriesChapters(Long seriesId) {
+        MangaSeries series = mangaSeriesRepository.findById(seriesId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Series not found"));
+        if (series.getStatus() == null
+                || !APPROVED_SERIES_STATUSES.contains(series.getStatus().trim().toUpperCase(Locale.ROOT))) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Series has not been approved");
+        }
+        return chapterRepository.findBySeriesSeriesIdOrderByChapterNumberAsc(seriesId)
+                .stream()
+                .map(this::toBoardChapterResponse)
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -351,7 +480,7 @@ public class EditorialBoardService {
     @Transactional
     public ReviewSeriesResponse voteSeries(Long seriesId, BoardDecisionRequest request) {
         User boardMember = currentEditorialBoard();
-        MangaSeries series = mangaSeriesRepository.findById(seriesId)
+        MangaSeries series = mangaSeriesRepository.findByIdForUpdate(seriesId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Series not found"));
         if (!REVIEWING_SERIES_STATUS.equalsIgnoreCase(series.getStatus())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Only reviewing series can be voted on");
@@ -619,13 +748,37 @@ public class EditorialBoardService {
         return created;
     }
 
-    private void applyScheduleRequest(PublishSchedule schedule, ScheduleRequest request) {
+    private void applyScheduleRequest(
+            PublishSchedule schedule,
+            ScheduleRequest request,
+            User currentUser) {
         MangaSeries series = mangaSeriesRepository.findById(request.seriesId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Series not found"));
+        requirePublicationCoordinator(series, currentUser);
         schedule.setSeries(series);
         schedule.setPublishDate(request.publishDate());
         schedule.setFrequency(request.frequency().trim().toUpperCase(Locale.ROOT));
         schedule.setStatus(blankToDefault(request.status(), "PLANNED"));
+    }
+
+    private void requirePublicationCoordinator(MangaSeries series, User currentUser) {
+        User coordinator = series == null ? null : series.getPublicationCoordinator();
+        if (coordinator == null
+                || coordinator.getUserId() == null
+                || currentUser.getUserId() == null
+                || !coordinator.getUserId().equals(currentUser.getUserId())) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "Only the Publication Coordinator assigned to this series can manage its schedule");
+        }
+    }
+
+    private ChapterBoardReview requireChapterReviewer(Long chapterId, User boardMember) {
+        return chapterBoardReviewRepository
+                .findByChapterChapterIdAndBoardMemberUserId(chapterId, boardMember.getUserId())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.FORBIDDEN,
+                        "You are not assigned to review this chapter"));
     }
 
     private void notifyBoardScheduleChange(PublishSchedule schedule, String type) {
@@ -706,7 +859,8 @@ public class EditorialBoardService {
         long rejectVotes = countDecisions(series.getSeriesId(), REJECT_DECISION);
 
         if (approveVotes >= requiredVotes) {
-            series.setStatus(PUBLISHED_SERIES_STATUS);
+            series.setStatus(COMING_SOON_SERIES_STATUS);
+            assignPublicationCoordinator(series);
             mangaSeriesRepository.save(series);
             notifyBoardResult(series, "SERIES_APPROVED",
                     "Series \"" + series.getTitle() + "\" đã được Hội đồng Biên tập duyệt");
@@ -716,6 +870,30 @@ public class EditorialBoardService {
             notifyBoardResult(series, "SERIES_REJECTED",
                     "Series \"" + series.getTitle() + "\" bị Hội đồng Biên tập từ chối, cần chỉnh sửa");
         }
+    }
+
+    private void assignPublicationCoordinator(MangaSeries series) {
+        if (series.getPublicationCoordinator() != null) {
+            return;
+        }
+        List<BoardDecision> approvers = new ArrayList<>(
+                boardDecisionRepository.findPanelDecisionsBySeriesIdOrderByDecisionDateDesc(
+                                series.getSeriesId())
+                        .stream()
+                        .filter(decision -> APPROVE_DECISION.equalsIgnoreCase(decision.getDecisionType()))
+                        .filter(decision -> decision.getBoardMember() != null)
+                        .toList());
+        if (approvers.isEmpty()) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Cannot assign a Publication Coordinator without an approving board member");
+        }
+        Collections.shuffle(approvers);
+        User coordinator = approvers.get(0).getBoardMember();
+        series.setPublicationCoordinator(coordinator);
+        series.setCoordinatorAssignedAt(LocalDateTime.now());
+        notify(coordinator, "PUBLICATION_COORDINATOR_ASSIGNED", series.getSeriesId(),
+                "You are the Publication Coordinator for series \"" + series.getTitle() + "\".");
     }
 
     private void notifyBoardResult(MangaSeries series, String type, String message) {
@@ -887,7 +1065,7 @@ public class EditorialBoardService {
                 file.getUploadedAt());
     }
 
-    private ScheduleResponse toScheduleResponse(PublishSchedule schedule) {
+    private ScheduleResponse toScheduleResponse(PublishSchedule schedule, User currentUser) {
         MangaSeries series = schedule.getSeries();
         boolean overdue = "PLANNED".equalsIgnoreCase(schedule.getStatus())
                 && schedule.getPublishDate() != null
@@ -899,7 +1077,82 @@ public class EditorialBoardService {
                 schedule.getPublishDate(),
                 schedule.getFrequency(),
                 schedule.getStatus(),
-                overdue);
+                overdue,
+                isPublicationCoordinator(series, currentUser));
+    }
+
+    private boolean isPublicationCoordinator(MangaSeries series, User currentUser) {
+        User coordinator = series == null ? null : series.getPublicationCoordinator();
+        return coordinator != null
+                && coordinator.getUserId() != null
+                && currentUser != null
+                && currentUser.getUserId() != null
+                && coordinator.getUserId().equals(currentUser.getUserId());
+    }
+
+    private BoardChapterResponse toBoardChapterResponse(Chapter chapter) {
+        MangaSeries series = chapter.getSeries();
+        return new BoardChapterResponse(
+                chapter.getChapterId(),
+                chapter.getChapterNumber(),
+                chapter.getTitle(),
+                series == null ? null : series.getSeriesId(),
+                series == null ? null : series.getTitle(),
+                chapter.getManuscriptUrl(),
+                chapter.getStatus(),
+                chapter.getReleaseDate(),
+                chapterBoardReviewRepository
+                        .findByChapterChapterIdOrderByBoardMemberUsernameAsc(chapter.getChapterId())
+                        .stream()
+                        .map(this::toChapterBoardReviewResponse)
+                        .toList());
+    }
+
+    private ChapterBoardReviewResponse toChapterBoardReviewResponse(ChapterBoardReview review) {
+        Chapter chapter = review.getChapter();
+        User boardMember = review.getBoardMember();
+        return new ChapterBoardReviewResponse(
+                review.getReviewId(),
+                chapter == null ? null : chapter.getChapterId(),
+                boardMember == null ? null : boardMember.getUserId(),
+                boardMember == null ? null : boardMember.getUsername(),
+                review.getConfirmed(),
+                review.getComment(),
+                review.getReviewedAt());
+    }
+
+    private ApprovedSeriesManagementResponse toApprovedSeriesManagementResponse(
+            MangaSeries series,
+            User currentUser) {
+        User coordinator = series.getPublicationCoordinator();
+        List<Chapter> chapters = chapterRepository
+                .findBySeriesSeriesIdOrderByChapterNumberAsc(series.getSeriesId());
+        long publishedChapterCount = chapters.stream()
+                .filter(chapter -> PUBLISHED_CHAPTER_STATUS.equalsIgnoreCase(chapter.getStatus()))
+                .count();
+        double progress = chapters.isEmpty()
+                ? 0.0
+                : Math.round((publishedChapterCount * 10000.0) / chapters.size()) / 100.0;
+        ScheduleResponse schedule = publishScheduleRepository
+                .findFirstBySeriesSeriesIdOrderByPublishDateAsc(series.getSeriesId())
+                .map(value -> toScheduleResponse(value, currentUser))
+                .orElse(null);
+        return new ApprovedSeriesManagementResponse(
+                series.getSeriesId(),
+                series.getTitle(),
+                series.getStatus(),
+                coordinator == null ? null : coordinator.getUserId(),
+                coordinator == null ? null : coordinator.getUsername(),
+                seriesBoardAssignmentRepository
+                        .findBySeriesSeriesIdOrderByAssignedAtAsc(series.getSeriesId())
+                        .stream()
+                        .map(this::toBoardMemberAssignmentResponse)
+                        .toList(),
+                schedule,
+                chapters.size(),
+                publishedChapterCount,
+                progress,
+                isPublicationCoordinator(series, currentUser));
     }
 
     private ReaderVoteResponse toReaderVoteResponse(ChapterLikeLog likeLog) {

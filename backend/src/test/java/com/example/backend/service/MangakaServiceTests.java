@@ -459,6 +459,28 @@ class MangakaServiceTests {
     }
 
     @Test
+    void submitChapterToEditorCannotBypassBoardReview() {
+        User mangaka = user(1L, EMAIL);
+        MangaSeries series = new MangaSeries();
+        series.setSeriesId(20L);
+        series.setAuthor(mangaka);
+        series.setTantouEditor(tantouEditor(3L, "editor@manga.test"));
+        Chapter chapter = new Chapter();
+        chapter.setChapterId(30L);
+        chapter.setSeries(series);
+        chapter.setStatus("SUBMITTED_TO_BOARD");
+        when(chapterRepository.findById(30L)).thenReturn(Optional.of(chapter));
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.submitChapterToEditor(
+                        30L, new SubmitChapterToEditorRequest(MANUSCRIPT_URL)));
+
+        assertSame(HttpStatus.CONFLICT, exception.getStatusCode());
+        verify(chapterRepository, never()).save(any());
+    }
+
+    @Test
     void getsPagesForOwnedChapter() {
         MangaSeries series = new MangaSeries();
         series.setSeriesId(20L);

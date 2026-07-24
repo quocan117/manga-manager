@@ -33,17 +33,24 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.example.backend.dto.EditorialBoardDtos.BoardDecisionRequest;
+import com.example.backend.dto.EditorialBoardDtos.ChapterBoardReviewRequest;
 import com.example.backend.dto.EditorialBoardDtos.CreateUserRequest;
 import com.example.backend.dto.EditorialBoardDtos.ImportReaderFeedbackRequest;
+import com.example.backend.dto.EditorialBoardDtos.ScheduleRequest;
 import com.example.backend.model.BoardDecision;
+import com.example.backend.model.Chapter;
+import com.example.backend.model.ChapterBoardReview;
 import com.example.backend.model.MangaSeries;
+import com.example.backend.model.PublishSchedule;
 import com.example.backend.model.ReaderFeedbackImport;
 import com.example.backend.model.Role;
 import com.example.backend.model.SeriesBoardAssignment;
 import com.example.backend.model.SeriesRanking;
 import com.example.backend.model.User;
 import com.example.backend.repository.BoardDecisionRepository;
+import com.example.backend.repository.ChapterBoardReviewRepository;
 import com.example.backend.repository.ChapterLikeLogRepository;
+import com.example.backend.repository.ChapterRepository;
 import com.example.backend.repository.MangaSeriesRepository;
 import com.example.backend.repository.NotificationRepository;
 import com.example.backend.repository.PublishScheduleRepository;
@@ -71,6 +78,10 @@ class EditorialBoardServiceTests {
     private PasswordEncoder passwordEncoder;
     @Mock
     private MangaSeriesRepository mangaSeriesRepository;
+    @Mock
+    private ChapterRepository chapterRepository;
+    @Mock
+    private ChapterBoardReviewRepository chapterBoardReviewRepository;
     @Mock
     private BoardDecisionRepository boardDecisionRepository;
     @Mock
@@ -154,7 +165,7 @@ class EditorialBoardServiceTests {
     }
 
     @Test
-    void votePublishesSeriesWhenApproveVotesReachMajority() {
+    void voteMovesSeriesToComingSoonAndAssignsApproverAsCoordinator() {
         User board = user(1L, "Editorial Board One", BOARD_EMAIL, role("EDITORIAL_BOARD"));
         MangaSeries series = series(5L, "Submitted Series", "REVIEWING");
         BoardDecision decision = new BoardDecision();
@@ -168,7 +179,7 @@ class EditorialBoardServiceTests {
         assignment.setAssignedAt(LocalDateTime.now());
 
         when(userRepository.findByEmail(BOARD_EMAIL)).thenReturn(Optional.of(board));
-        when(mangaSeriesRepository.findById(5L)).thenReturn(Optional.of(series));
+        when(mangaSeriesRepository.findByIdForUpdate(5L)).thenReturn(Optional.of(series));
         when(seriesBoardAssignmentRepository.findBySeriesSeriesIdOrderByAssignedAtAsc(5L))
                 .thenReturn(List.of(), List.of(assignment));
         when(userRepository.findByRoleRoleNameAndStatusOrderByUsernameAsc("EDITORIAL_BOARD", "ACTIVE"))
@@ -196,8 +207,10 @@ class EditorialBoardServiceTests {
 
         var response = service.voteSeries(5L, new BoardDecisionRequest("APPROVE", "Ready"));
 
-        assertEquals("Published", series.getStatus());
-        assertEquals("Published", response.status());
+        assertEquals("COMING_SOON", series.getStatus());
+        assertEquals("COMING_SOON", response.status());
+        assertEquals(board, series.getPublicationCoordinator());
+        assertNotNull(series.getCoordinatorAssignedAt());
         assertEquals(1L, response.approveVotes());
         assertEquals(1L, response.requiredVotes());
         assertEquals("APPROVE", response.currentUserDecision());
@@ -249,7 +262,7 @@ class EditorialBoardServiceTests {
         assignment.setAssignedAt(LocalDateTime.now());
 
         when(userRepository.findByEmail(BOARD_EMAIL)).thenReturn(Optional.of(currentBoard));
-        when(mangaSeriesRepository.findById(5L)).thenReturn(Optional.of(series));
+        when(mangaSeriesRepository.findByIdForUpdate(5L)).thenReturn(Optional.of(series));
         when(seriesBoardAssignmentRepository.findBySeriesSeriesIdOrderByAssignedAtAsc(5L))
                 .thenReturn(List.of(assignment));
         when(seriesBoardAssignmentRepository.findBySeriesSeriesIdAndBoardMemberUserId(5L, 1L))
@@ -260,6 +273,74 @@ class EditorialBoardServiceTests {
                 () -> service.voteSeries(5L, new BoardDecisionRequest("APPROVE", "Ready")));
 
         assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
+    }
+
+    @Test
+    void nonCoordinatorCannotCreatePublishSchedule() {
+        User currentBoard = user(1L, "Board One", BOARD_EMAIL, role("EDITORIAL_BOARD"));
+        User coordinator = user(2L, "Board Two", "board2@manga.test", role("EDITORIAL_BOARD"));
+        MangaSeries series = series(5L, "Approved Series", "COMING_SOON");
+        series.setPublicationCoordinator(coordinator);
+        LocalDateTime publishDate = LocalDateTime.now().plusDays(7);
+
+        when(userRepository.findByEmail(BOARD_EMAIL)).thenReturn(Optional.of(currentBoard));
+        when(mangaSeriesRepository.findById(5L)).thenReturn(Optional.of(series));
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.createSchedule(
+                        new ScheduleRequest(5L, publishDate, "WEEKLY", null)));
+
+        assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
+        verify(publishScheduleRepository, never()).save(any(PublishSchedule.class));
+    }
+
+    @Test
+    void fullChapterPanelConfirmationMarksChapterApproved() {
+        User board = user(1L, "Board One", BOARD_EMAIL, role("EDITORIAL_BOARD"));
+        MangaSeries series = series(5L, "Approved Series", "COMING_SOON");
+        series.setPublicationCoordinator(board);
+        Chapter chapter = chapter(8L, series, "SUBMITTED_TO_BOARD");
+        ChapterBoardReview review = chapterReview(chapter, board);
+
+        when(userRepository.findByEmail(BOARD_EMAIL)).thenReturn(Optional.of(board));
+        when(chapterRepository.findByIdForUpdate(8L)).thenReturn(Optional.of(chapter));
+        when(chapterBoardReviewRepository.findByChapterChapterIdAndBoardMemberUserId(8L, 1L))
+                .thenReturn(Optional.of(review));
+        when(chapterBoardReviewRepository.countByChapterChapterId(8L)).thenReturn(3L);
+        when(chapterBoardReviewRepository.countByChapterChapterIdAndConfirmedTrue(8L)).thenReturn(3L);
+        when(chapterBoardReviewRepository.existsByChapterChapterIdAndConfirmedFalse(8L)).thenReturn(false);
+        when(chapterBoardReviewRepository.findByChapterChapterIdOrderByBoardMemberUsernameAsc(8L))
+                .thenReturn(List.of(review));
+
+        var response = service.reviewChapter(
+                8L, new ChapterBoardReviewRequest(true, "Confirmed"));
+
+        assertEquals("APPROVED", chapter.getStatus());
+        assertEquals("APPROVED", response.status());
+        verify(chapterRepository).save(chapter);
+    }
+
+    @Test
+    void oneChapterRejectionImmediatelyRequestsRevision() {
+        User board = user(1L, "Board One", BOARD_EMAIL, role("EDITORIAL_BOARD"));
+        MangaSeries series = series(5L, "Approved Series", "COMING_SOON");
+        Chapter chapter = chapter(8L, series, "SUBMITTED_TO_BOARD");
+        ChapterBoardReview review = chapterReview(chapter, board);
+
+        when(userRepository.findByEmail(BOARD_EMAIL)).thenReturn(Optional.of(board));
+        when(chapterRepository.findByIdForUpdate(8L)).thenReturn(Optional.of(chapter));
+        when(chapterBoardReviewRepository.findByChapterChapterIdAndBoardMemberUserId(8L, 1L))
+                .thenReturn(Optional.of(review));
+        when(chapterBoardReviewRepository.findByChapterChapterIdOrderByBoardMemberUsernameAsc(8L))
+                .thenReturn(List.of(review));
+
+        var response = service.reviewChapter(
+                8L, new ChapterBoardReviewRequest(false, "Fix the dialogue"));
+
+        assertEquals("REVISION_REQUESTED", chapter.getStatus());
+        assertEquals("REVISION_REQUESTED", response.status());
+        verify(chapterRepository).save(chapter);
     }
 
     @Test
@@ -347,6 +428,24 @@ class EditorialBoardServiceTests {
         series.setGenre("Action, Drama");
         series.setAuthor(user(20L, "Author", "author@manga.test", role("MANGAKA")));
         return series;
+    }
+
+    private Chapter chapter(Long id, MangaSeries series, String status) {
+        Chapter chapter = new Chapter();
+        chapter.setChapterId(id);
+        chapter.setSeries(series);
+        chapter.setTitle("Chapter " + id);
+        chapter.setChapterNumber(id.intValue());
+        chapter.setStatus(status);
+        return chapter;
+    }
+
+    private ChapterBoardReview chapterReview(Chapter chapter, User boardMember) {
+        ChapterBoardReview review = new ChapterBoardReview();
+        review.setReviewId(50L);
+        review.setChapter(chapter);
+        review.setBoardMember(boardMember);
+        return review;
     }
 
     private ChapterLikeLogRepository.SeriesVoteCount voteCount(Long seriesId, String title, Long count) {

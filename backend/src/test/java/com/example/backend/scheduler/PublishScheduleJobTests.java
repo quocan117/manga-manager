@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -15,8 +16,10 @@ import com.example.backend.model.Notification;
 import com.example.backend.model.PublishSchedule;
 import com.example.backend.model.User;
 import com.example.backend.repository.ChapterRepository;
+import com.example.backend.repository.MangaSeriesRepository;
 import com.example.backend.repository.NotificationRepository;
 import com.example.backend.repository.PublishScheduleRepository;
+import com.example.backend.repository.SeriesBoardAssignmentRepository;
 import com.example.backend.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,6 +39,10 @@ class PublishScheduleJobTests {
     @Mock
     private ChapterRepository chapterRepository;
     @Mock
+    private MangaSeriesRepository mangaSeriesRepository;
+    @Mock
+    private SeriesBoardAssignmentRepository seriesBoardAssignmentRepository;
+    @Mock
     private NotificationRepository notificationRepository;
     @Mock
     private UserRepository userRepository;
@@ -43,37 +50,53 @@ class PublishScheduleJobTests {
     @Test
     void publishesEarliestApprovedChapterAndMovesWeeklySchedule() {
         PublishScheduleJob job = new PublishScheduleJob(
-                publishScheduleRepository, chapterRepository, notificationRepository, userRepository);
+                publishScheduleRepository,
+                chapterRepository,
+                mangaSeriesRepository,
+                seriesBoardAssignmentRepository,
+                notificationRepository,
+                userRepository);
         LocalDateTime dueDate = LocalDateTime.now().minusDays(1);
         MangaSeries series = series(10L);
         PublishSchedule schedule = schedule(20L, series, dueDate, "WEEKLY");
         Chapter chapter = chapter(30L, series, 1);
+        series.setStatus("COMING_SOON");
 
         when(publishScheduleRepository.findByStatusIgnoreCaseAndPublishDateLessThanEqualOrderByPublishDateAsc(
                 eq("PLANNED"), any(LocalDateTime.class))).thenReturn(List.of(schedule));
         when(chapterRepository.findFirstBySeriesSeriesIdAndStatusIgnoreCaseOrderByChapterNumberAsc(
                 10L, "APPROVED")).thenReturn(Optional.of(chapter));
+        when(chapterRepository.findFirstBySeriesSeriesIdOrderByChapterNumberAsc(10L))
+                .thenReturn(Optional.of(chapter));
 
         job.publishDueChapters();
 
         assertEquals("PUBLISHED", chapter.getStatus());
         assertNotNull(chapter.getReleaseDate());
         assertEquals(dueDate.plusDays(7), schedule.getPublishDate());
+        assertEquals("PUBLISHED", series.getStatus());
         verify(chapterRepository).save(chapter);
+        verify(mangaSeriesRepository).save(series);
         verify(publishScheduleRepository).save(schedule);
 
         ArgumentCaptor<Notification> notificationCaptor = ArgumentCaptor.forClass(Notification.class);
-        verify(notificationRepository).save(notificationCaptor.capture());
-        Notification notification = notificationCaptor.getValue();
-        assertEquals(series.getAuthor(), notification.getUser());
-        assertEquals("CHAPTER_PUBLISHED", notification.getType());
-        assertEquals(30L, notification.getReferenceId());
+        verify(notificationRepository, times(2)).save(notificationCaptor.capture());
+        assertTrue(notificationCaptor.getAllValues().stream()
+                .anyMatch(notification -> "SERIES_PUBLISHED".equals(notification.getType())));
+        assertTrue(notificationCaptor.getAllValues().stream()
+                .anyMatch(notification -> "CHAPTER_PUBLISHED".equals(notification.getType())
+                        && Long.valueOf(30L).equals(notification.getReferenceId())));
     }
 
     @Test
     void skipsDueScheduleWhenNoChapterIsReady() {
         PublishScheduleJob job = new PublishScheduleJob(
-                publishScheduleRepository, chapterRepository, notificationRepository, userRepository);
+                publishScheduleRepository,
+                chapterRepository,
+                mangaSeriesRepository,
+                seriesBoardAssignmentRepository,
+                notificationRepository,
+                userRepository);
         LocalDateTime dueDate = LocalDateTime.now().minusDays(1);
         MangaSeries series = series(10L);
         PublishSchedule schedule = schedule(20L, series, dueDate, "MONTHLY");

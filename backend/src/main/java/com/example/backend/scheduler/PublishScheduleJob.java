@@ -6,8 +6,10 @@ import com.example.backend.model.Notification;
 import com.example.backend.model.PublishSchedule;
 import com.example.backend.model.User;
 import com.example.backend.repository.ChapterRepository;
+import com.example.backend.repository.MangaSeriesRepository;
 import com.example.backend.repository.NotificationRepository;
 import com.example.backend.repository.PublishScheduleRepository;
+import com.example.backend.repository.SeriesBoardAssignmentRepository;
 import com.example.backend.repository.UserRepository;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -23,19 +25,27 @@ public class PublishScheduleJob {
     private static final String PLANNED_STATUS = "PLANNED";
     private static final String READY_CHAPTER_STATUS = "APPROVED";
     private static final String PUBLISHED_CHAPTER_STATUS = "PUBLISHED";
+    private static final String COMING_SOON_SERIES_STATUS = "COMING_SOON";
+    private static final String PUBLISHED_SERIES_STATUS = "PUBLISHED";
 
     private final PublishScheduleRepository publishScheduleRepository;
     private final ChapterRepository chapterRepository;
+    private final MangaSeriesRepository mangaSeriesRepository;
+    private final SeriesBoardAssignmentRepository seriesBoardAssignmentRepository;
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
 
     public PublishScheduleJob(
             PublishScheduleRepository publishScheduleRepository,
             ChapterRepository chapterRepository,
+            MangaSeriesRepository mangaSeriesRepository,
+            SeriesBoardAssignmentRepository seriesBoardAssignmentRepository,
             NotificationRepository notificationRepository,
             UserRepository userRepository) {
         this.publishScheduleRepository = publishScheduleRepository;
         this.chapterRepository = chapterRepository;
+        this.mangaSeriesRepository = mangaSeriesRepository;
+        this.seriesBoardAssignmentRepository = seriesBoardAssignmentRepository;
         this.notificationRepository = notificationRepository;
         this.userRepository = userRepository;
     }
@@ -79,6 +89,19 @@ public class PublishScheduleJob {
             chapter.setStatus(PUBLISHED_CHAPTER_STATUS);
             chapter.setReleaseDate(now);
             chapterRepository.save(chapter);
+
+            boolean firstChapter = chapterRepository
+                    .findFirstBySeriesSeriesIdOrderByChapterNumberAsc(series.getSeriesId())
+                    .map(value -> value.getChapterId().equals(chapter.getChapterId()))
+                    .orElse(false);
+            if (firstChapter && COMING_SOON_SERIES_STATUS.equalsIgnoreCase(series.getStatus())) {
+                series.setStatus(PUBLISHED_SERIES_STATUS);
+                mangaSeriesRepository.save(series);
+                String message = "Series \"" + series.getTitle()
+                        + "\" is now publishing because its first chapter went live.";
+                notify(series.getAuthor(), "SERIES_PUBLISHED", series.getSeriesId(), message);
+                notifyBoardPanel(series, "SERIES_PUBLISHED", series.getSeriesId(), message);
+            }
 
             schedule.setPublishDate(nextPublishDate);
             schedule.setOverdueNotified(false);
@@ -129,5 +152,15 @@ public class PublishScheduleJob {
             return;
         }
         boardMembers.forEach(user -> notify(user, type, referenceId, message));
+    }
+
+    private void notifyBoardPanel(
+            MangaSeries series,
+            String type,
+            Long referenceId,
+            String message) {
+        seriesBoardAssignmentRepository
+                .findBySeriesSeriesIdOrderByAssignedAtAsc(series.getSeriesId())
+                .forEach(assignment -> notify(assignment.getBoardMember(), type, referenceId, message));
     }
 }

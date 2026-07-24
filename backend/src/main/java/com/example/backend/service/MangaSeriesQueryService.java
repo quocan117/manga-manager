@@ -2,6 +2,8 @@ package com.example.backend.service;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -16,8 +18,14 @@ import com.example.backend.repository.MangaSeriesRepository;
 
 @Service
 public class MangaSeriesQueryService {
-        private static final String PUBLISHED_SERIES_STATUS = "Published";
+        private static final String COMING_SOON_SERIES_STATUS = "COMING_SOON";
+        private static final String PUBLISHING_SERIES_STATUS = "PUBLISHING";
+        private static final String PUBLISHED_SERIES_STATUS = "PUBLISHED";
         private static final String PUBLISHED_CHAPTER_STATUS = "PUBLISHED";
+        private static final Set<String> PUBLIC_SERIES_STATUSES = Set.of(
+                        COMING_SOON_SERIES_STATUS,
+                        PUBLISHING_SERIES_STATUS,
+                        PUBLISHED_SERIES_STATUS);
 
         private final MangaSeriesRepository mangaSeriesRepository;
         private final ChapterRepository chapterRepository;
@@ -34,36 +42,37 @@ public class MangaSeriesQueryService {
 
         public MangaSeriesDetailResponse getDetail(Long seriesId) {
                 MangaSeries series = mangaSeriesRepository
-                                .findBySeriesIdAndStatusIgnoreCase(seriesId, PUBLISHED_SERIES_STATUS)
+                                .findPublicSeriesByIdAndStatuses(seriesId, PUBLIC_SERIES_STATUSES)
                                 .orElseThrow(() -> new ResponseStatusException(
                                                 HttpStatus.NOT_FOUND, "Manga series not found"));
-                MangaSeriesDetailResponse response = toResponse(series);
-                if (response.getChapters().isEmpty()) {
-                        throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Manga series not found");
-                }
-                return response;
+                return toResponse(series);
         }
 
         public List<MangaSeriesDetailResponse> getAll() {
                 return mangaSeriesRepository
-                                .findPublicSeriesWithPublishedChaptersOrderByCreatedAtDesc(
-                                                PUBLISHED_SERIES_STATUS, PUBLISHED_CHAPTER_STATUS)
+                                .findPublicSeriesByStatusesOrderByCreatedAtDesc(PUBLIC_SERIES_STATUSES)
                                 .stream()
                                 .map(this::toResponse)
                                 .toList();
         }
 
         private MangaSeriesDetailResponse toResponse(MangaSeries series) {
-                List<ChapterSummaryResponse> chapters = chapterRepository
-                                .findBySeriesSeriesIdAndStatusIgnoreCaseOrderByChapterNumberAsc(
-                                                series.getSeriesId(), PUBLISHED_CHAPTER_STATUS)
-                                .stream()
-                                .map(chapter -> new ChapterSummaryResponse(
-                                                chapter.getChapterId(),
-                                                chapter.getTitle(),
-                                                chapterLikeLogRepository
-                                                                .countByChapterChapterId(chapter.getChapterId())))
-                                .toList();
+                boolean comingSoon = series.getStatus() != null
+                                && COMING_SOON_SERIES_STATUS.equalsIgnoreCase(series.getStatus());
+                List<ChapterSummaryResponse> chapters = comingSoon
+                                ? List.of()
+                                : chapterRepository
+                                                .findBySeriesSeriesIdAndStatusIgnoreCaseOrderByChapterNumberAsc(
+                                                                series.getSeriesId(),
+                                                                PUBLISHED_CHAPTER_STATUS)
+                                                .stream()
+                                                .map(chapter -> new ChapterSummaryResponse(
+                                                                chapter.getChapterId(),
+                                                                chapter.getTitle(),
+                                                                chapterLikeLogRepository
+                                                                                .countByChapterChapterId(
+                                                                                                chapter.getChapterId())))
+                                                .toList();
 
                 String author = series.getAuthor() == null
                                 ? null
@@ -83,13 +92,16 @@ public class MangaSeriesQueryService {
         private String readerStatus(MangaSeries series, List<ChapterSummaryResponse> chapters) {
                 String status = series.getStatus();
                 if (status != null) {
-                        String normalized = status.trim().toUpperCase();
+                        String normalized = status.trim().toUpperCase(Locale.ROOT);
+                        if (COMING_SOON_SERIES_STATUS.equals(normalized)) {
+                                return "Coming Soon";
+                        }
                         if ("FINISH".equals(normalized) || "FINISHED".equals(normalized)
                                         || "COMPLETED".equals(normalized)) {
                                 return "Finish";
                         }
                 }
-                return chapters.isEmpty() ? "Coming soon" : "Publishing";
+                return "Publishing";
         }
 
         private List<String> parseGenres(String genre) {

@@ -28,8 +28,6 @@ import com.example.backend.dto.TantouEditorDtos.DossierResponse;
 import com.example.backend.dto.TantouEditorDtos.ManuscriptResponse;
 import com.example.backend.dto.TantouEditorDtos.ProgressResponse;
 import com.example.backend.dto.TantouEditorDtos.ReviewDecisionRequest;
-import com.example.backend.dto.TantouEditorDtos.ScheduleRequest;
-import com.example.backend.dto.TantouEditorDtos.ScheduleResponse;
 import com.example.backend.dto.TantouEditorDtos.SeriesSummaryResponse;
 import com.example.backend.service.TantouEditorService;
 
@@ -83,14 +81,9 @@ public class TantouEditorController {
         return service.requestChapterRevision(chapterId);
     }
 
-    @PostMapping("/chapters/{chapterId}/approve")
-    public ChapterManuscriptResponse approveChapter(@PathVariable Long chapterId) {
-        return service.approveChapter(chapterId);
-    }
-
-    @PostMapping("/chapters/{chapterId}/publish")
-    public ChapterManuscriptResponse publishChapter(@PathVariable Long chapterId) {
-        return service.publishChapter(chapterId);
+    @PostMapping("/chapters/{chapterId}/submit-to-board")
+    public ChapterManuscriptResponse submitChapterToBoard(@PathVariable Long chapterId) {
+        return service.submitChapterToBoard(chapterId);
     }
 
     @GetMapping("/series/{seriesId}/manuscript")
@@ -156,30 +149,6 @@ public class TantouEditorController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteComment(@PathVariable Long commentId) {
         service.deleteComment(commentId);
-    }
-
-    @GetMapping("/schedules")
-    public List<ScheduleResponse> getSchedules(@RequestParam(required = false) Long seriesId) {
-        return service.getSchedules(seriesId);
-    }
-
-    @PostMapping("/schedules")
-    @ResponseStatus(HttpStatus.CREATED)
-    public ScheduleResponse createSchedule(@Valid @RequestBody ScheduleRequest request) {
-        return service.createSchedule(request);
-    }
-
-    @PutMapping("/schedules/{scheduleId}")
-    public ScheduleResponse updateSchedule(
-            @PathVariable Long scheduleId,
-            @Valid @RequestBody ScheduleRequest request) {
-        return service.updateSchedule(scheduleId, request);
-    }
-
-    @DeleteMapping("/schedules/{scheduleId}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteSchedule(@PathVariable Long scheduleId) {
-        service.deleteSchedule(scheduleId);
     }
 
     @PostMapping("/series/{seriesId}/accept")

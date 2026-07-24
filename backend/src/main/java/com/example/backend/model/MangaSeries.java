@@ -28,6 +28,13 @@ public class MangaSeries {
     @JoinColumn(name = "tantou_editor_id")
     private User tantouEditor;
 
+    @ManyToOne
+    @JoinColumn(name = "publication_coordinator_id")
+    private User publicationCoordinator;
+
+    @Column(name = "coordinator_assigned_at")
+    private LocalDateTime coordinatorAssignedAt;
+
     @Column(columnDefinition = "NVARCHAR(255)")
     private String genre;
 

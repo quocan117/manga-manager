@@ -70,6 +70,65 @@ public final class EditorialBoardDtos {
                         LocalDateTime decisionDate) {
         }
 
+        public record ScheduleRequest(
+                        @NotNull Long seriesId,
+                        @NotNull LocalDateTime publishDate,
+                        @NotBlank String frequency,
+                        String status) {
+        }
+
+        public record ScheduleResponse(
+                        Long id,
+                        Long seriesId,
+                        String seriesTitle,
+                        LocalDateTime publishDate,
+                        String frequency,
+                        String status,
+                        boolean isOverdue,
+                        boolean isPublicationCoordinator) {
+        }
+
+        public record ChapterBoardReviewRequest(
+                        @NotNull Boolean confirmed,
+                        String comment) {
+        }
+
+        public record ChapterBoardReviewResponse(
+                        Long id,
+                        Long chapterId,
+                        Long boardMemberId,
+                        String boardMemberName,
+                        Boolean confirmed,
+                        String comment,
+                        LocalDateTime reviewedAt) {
+        }
+
+        public record BoardChapterResponse(
+                        Long id,
+                        Integer chapterNumber,
+                        String title,
+                        Long seriesId,
+                        String seriesTitle,
+                        String manuscriptUrl,
+                        String status,
+                        LocalDateTime releaseDate,
+                        List<ChapterBoardReviewResponse> reviews) {
+        }
+
+        public record ApprovedSeriesManagementResponse(
+                        Long id,
+                        String title,
+                        String status,
+                        Long publicationCoordinatorId,
+                        String publicationCoordinatorName,
+                        List<BoardMemberAssignmentResponse> boardPanel,
+                        ScheduleResponse publishSchedule,
+                        long chapterCount,
+                        long publishedChapterCount,
+                        double progress,
+                        boolean isPublicationCoordinator) {
+        }
+
         public record ReviewSeriesResponse(
                         Long id,
                         String title,

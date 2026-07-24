@@ -6,7 +6,6 @@ import java.util.List;
 import com.example.backend.dto.MangakaDtos.UploadedFileResponse;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 
 public final class TantouEditorDtos {
@@ -29,8 +28,7 @@ public final class TantouEditorDtos {
     public record ManuscriptResponse(
             SeriesSummaryResponse series,
             List<ChapterManuscriptResponse> chapters,
-            ProgressResponse progress,
-            List<ScheduleResponse> schedules) {
+            ProgressResponse progress) {
     }
 
     public record ChapterManuscriptResponse(
@@ -74,30 +72,12 @@ public final class TantouEditorDtos {
             LocalDateTime createdAt) {
     }
 
-    public record ScheduleRequest(
-            @NotNull Long seriesId,
-            @NotNull LocalDateTime publishDate,
-            @NotBlank String frequency,
-            String status) {
-    }
-
-    public record ScheduleResponse(
-            Long id,
-            Long seriesId,
-            String seriesTitle,
-            LocalDateTime publishDate,
-            String frequency,
-            String status,
-            boolean isOverdue) {
-    }
-
     public record DossierResponse(
             SeriesSummaryResponse series,
             long approveVotes,
             long rejectVotes,
             List<BoardDecisionResponse> boardDecisions,
             ProgressResponse progress,
-            List<ScheduleResponse> schedules,
             List<CommentResponse> comments) {
     }
 

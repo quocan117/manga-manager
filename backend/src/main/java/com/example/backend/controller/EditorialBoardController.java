@@ -4,18 +4,21 @@ import com.example.backend.dto.EditorialBoardDtos.CreateUserRequest;
 import com.example.backend.dto.EditorialBoardDtos.AssignEditorRequest;
 import com.example.backend.dto.EditorialBoardDtos.BoardDecisionRequest;
 import com.example.backend.dto.EditorialBoardDtos.BoardDecisionResponse;
+import com.example.backend.dto.EditorialBoardDtos.BoardChapterResponse;
+import com.example.backend.dto.EditorialBoardDtos.ChapterBoardReviewRequest;
 import com.example.backend.dto.EditorialBoardDtos.ImportReaderFeedbackRequest;
+import com.example.backend.dto.EditorialBoardDtos.ApprovedSeriesManagementResponse;
 import com.example.backend.dto.EditorialBoardDtos.ReaderFeedbackImportResponse;
 import com.example.backend.dto.EditorialBoardDtos.ReaderVoteResponse;
 import com.example.backend.dto.EditorialBoardDtos.ReviewSeriesResponse;
 import com.example.backend.dto.EditorialBoardDtos.SeriesVoteSummaryResponse;
 import com.example.backend.dto.EditorialBoardDtos.UpdateUserRequest;
 import com.example.backend.dto.EditorialBoardDtos.UserResponse;
+import com.example.backend.dto.EditorialBoardDtos.ScheduleResponse;
+import com.example.backend.dto.EditorialBoardDtos.ScheduleRequest;
 import com.example.backend.dto.MangakaDtos.NotificationResponse;
 import com.example.backend.dto.MangakaDtos.RankingResponse;
 import com.example.backend.dto.ReviewRegistrationRequest;
-import com.example.backend.dto.TantouEditorDtos.ScheduleResponse;
-import com.example.backend.dto.TantouEditorDtos.ScheduleRequest;
 import com.example.backend.dto.EditorialBoardDtos.SeriesTotalVotesResponse;
 import com.example.backend.model.RegistrationRequest;
 import com.example.backend.service.EditorialBoardService;
@@ -76,6 +79,33 @@ public class EditorialBoardController {
     @GetMapping("/publish-schedules")
     public List<ScheduleResponse> getPublishSchedules() {
         return service.getPublishSchedules();
+    }
+
+    @GetMapping("/series/approved")
+    public List<ApprovedSeriesManagementResponse> getApprovedSeries() {
+        return service.getApprovedSeries();
+    }
+
+    @GetMapping("/series/{id}/chapters")
+    public List<BoardChapterResponse> getApprovedSeriesChapters(@PathVariable Long id) {
+        return service.getApprovedSeriesChapters(id);
+    }
+
+    @GetMapping("/chapters/pending-review")
+    public List<BoardChapterResponse> getPendingChapterReviews() {
+        return service.getPendingChapterReviews();
+    }
+
+    @GetMapping("/chapters/{id}")
+    public BoardChapterResponse getChapterReview(@PathVariable Long id) {
+        return service.getChapterReview(id);
+    }
+
+    @PostMapping("/chapters/{id}/review")
+    public BoardChapterResponse reviewChapter(
+            @PathVariable Long id,
+            @Valid @RequestBody ChapterBoardReviewRequest request) {
+        return service.reviewChapter(id, request);
     }
 
     @PreAuthorize("hasRole('EDITORIAL_BOARD')")

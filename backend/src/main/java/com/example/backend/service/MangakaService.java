@@ -90,7 +90,8 @@ public class MangakaService {
     private static final String PENDING_EDITOR_STATUS = "PENDING_EDITOR";
     private static final String TANTOU_REVIEW_STATUS = "TANTOU_REVIEW";
     private static final String REVISION_REQUESTED_STATUS = "REVISION_REQUESTED";
-    private static final String PUBLISHED_STATUS = "PUBLISHED";
+    private static final Set<String> CHAPTER_SUBMISSION_STATUSES = Set.of(
+            "DRAFT", REVISION_REQUESTED_STATUS);
     private static final Set<String> TANTOU_WORKLOAD_STATUSES = Set.of(
             "DRAFT", TANTOU_REVIEW_STATUS, REVISION_REQUESTED_STATUS);
     private static final long MAX_PAGE_IMAGE_SIZE_BYTES = 5L * 1024 * 1024;
@@ -100,10 +101,7 @@ public class MangakaService {
     private static final long MAX_SERIES_SUBMISSION_SIZE_BYTES = 200L * 1024 * 1024;
     private static final int MAX_SERIES_FILES_PER_SUBMISSION = 20;
     private static final Set<String> PAGE_IMAGE_CONTENT_TYPES = Set.of(
-            ".jpg", ".jpeg", ".png", ".webp", ".gif",
-            ".pdf", ".txt", ".md",
-            ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
-            ".zip");
+            "image/jpeg", "image/png", "image/webp", "image/gif");
     private static final Set<String> COVER_IMAGE_CONTENT_TYPES = Set.of(
             "image/jpeg", "image/png", "image/webp", "image/gif");
     private static final Set<String> PAGE_IMAGE_EXTENSIONS = Set.of(
@@ -401,8 +399,11 @@ public class MangakaService {
     @Transactional
     public ChapterResponse submitChapterToEditor(Long chapterId, SubmitChapterToEditorRequest request) {
         Chapter chapter = ownedChapter(chapterId);
-        if (PUBLISHED_STATUS.equalsIgnoreCase(chapter.getStatus())) {
-            throw badRequest("Published chapters cannot be submitted again");
+        String currentStatus = chapter.getStatus() == null
+                ? ""
+                : chapter.getStatus().trim().toUpperCase(Locale.ROOT);
+        if (!CHAPTER_SUBMISSION_STATUSES.contains(currentStatus)) {
+            throw conflict("Only draft chapters or chapters awaiting revision can be submitted");
         }
 
         MangaSeries series = chapter.getSeries();

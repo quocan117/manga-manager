@@ -1,12 +1,12 @@
 package com.example.backend.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -34,8 +34,8 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.example.backend.dto.TantouEditorDtos.CommentRequest;
-import com.example.backend.dto.TantouEditorDtos.ScheduleRequest;
 import com.example.backend.model.Chapter;
+import com.example.backend.model.ChapterBoardReview;
 import com.example.backend.model.ChapterPage;
 import com.example.backend.model.ChapterRevisionNote;
 import com.example.backend.model.MangaSeries;
@@ -43,10 +43,12 @@ import com.example.backend.model.Notification;
 import com.example.backend.model.PublishSchedule;
 import com.example.backend.model.ReviewComment;
 import com.example.backend.model.SeriesEditorRejection;
+import com.example.backend.model.SeriesBoardAssignment;
 import com.example.backend.model.Task;
 import com.example.backend.model.User;
 import com.example.backend.repository.BoardDecisionRepository;
 import com.example.backend.repository.ChapterPageRepository;
+import com.example.backend.repository.ChapterBoardReviewRepository;
 import com.example.backend.repository.ChapterRepository;
 import com.example.backend.repository.ChapterRevisionNoteRepository;
 import com.example.backend.repository.MangaSeriesRepository;
@@ -54,6 +56,7 @@ import com.example.backend.repository.NotificationRepository;
 import com.example.backend.repository.PublishScheduleRepository;
 import com.example.backend.repository.ReviewCommentRepository;
 import com.example.backend.repository.SeriesEditorRejectionRepository;
+import com.example.backend.repository.SeriesBoardAssignmentRepository;
 import com.example.backend.repository.SeriesFileRepository;
 import com.example.backend.repository.SubmissionRepository;
 import com.example.backend.repository.TaskRepository;
@@ -67,6 +70,8 @@ class TantouEditorServiceTests {
     private MangaSeriesRepository mangaSeriesRepository;
     @Mock
     private ChapterRepository chapterRepository;
+    @Mock
+    private ChapterBoardReviewRepository chapterBoardReviewRepository;
     @Mock
     private ChapterRevisionNoteRepository chapterRevisionNoteRepository;
     @Mock
@@ -90,6 +95,8 @@ class TantouEditorServiceTests {
     @Mock
     private SeriesEditorRejectionRepository seriesEditorRejectionRepository;
     @Mock
+    private SeriesBoardAssignmentRepository seriesBoardAssignmentRepository;
+    @Mock
     private MangakaService mangakaService;
     @Mock
     private EditorialBoardService editorialBoardService;
@@ -101,6 +108,7 @@ class TantouEditorServiceTests {
         service = new TantouEditorService(
                 mangaSeriesRepository,
                 chapterRepository,
+                chapterBoardReviewRepository,
                 chapterRevisionNoteRepository,
                 pageRepository,
                 commentRepository,
@@ -112,6 +120,7 @@ class TantouEditorServiceTests {
                 notificationRepository,
                 seriesFileRepository,
                 seriesEditorRejectionRepository,
+                seriesBoardAssignmentRepository,
                 mangakaService,
                 editorialBoardService);
         SecurityContextHolder.getContext().setAuthentication(
@@ -187,24 +196,28 @@ class TantouEditorServiceTests {
     }
 
     @Test
-    void publishChapterSetsReleaseDateAndNotifiesMangaka() {
+    void submitChapterToBoardCreatesThreePendingReviews() {
         MangaSeries series = series(10L);
         Chapter chapter = chapter(11L, series);
         chapter.setStatus("SUBMITTED_TO_EDITOR");
+        List<SeriesBoardAssignment> panel = List.of(
+                assignment(series, user(21L, "board1@manga.test")),
+                assignment(series, user(22L, "board2@manga.test")),
+                assignment(series, user(23L, "board3@manga.test")));
         when(chapterRepository.findById(11L)).thenReturn(Optional.of(chapter));
+        when(seriesBoardAssignmentRepository.findBySeriesSeriesIdOrderByAssignedAtAsc(10L))
+                .thenReturn(panel);
+        when(chapterBoardReviewRepository.save(any(ChapterBoardReview.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
         when(chapterRepository.save(chapter)).thenReturn(chapter);
         when(pageRepository.findByChapterChapterIdOrderByPageNumberAsc(11L)).thenReturn(List.of());
 
-        var response = service.publishChapter(11L);
+        var response = service.submitChapterToBoard(11L);
 
-        assertEquals("PUBLISHED", response.status());
-        assertNotNull(chapter.getReleaseDate());
-        ArgumentCaptor<Notification> notificationCaptor = ArgumentCaptor.forClass(Notification.class);
-        verify(notificationRepository).save(notificationCaptor.capture());
-        Notification notification = notificationCaptor.getValue();
-        assertEquals(series.getAuthor(), notification.getUser());
-        assertEquals("CHAPTER_PUBLISHED", notification.getType());
-        assertEquals(11L, notification.getReferenceId());
+        assertEquals("SUBMITTED_TO_BOARD", response.status());
+        verify(chapterBoardReviewRepository).deleteByChapterChapterId(11L);
+        verify(chapterBoardReviewRepository, times(3)).save(any(ChapterBoardReview.class));
+        verify(chapterRepository).save(chapter);
     }
 
     @Test
@@ -272,28 +285,6 @@ class TantouEditorServiceTests {
         assertEquals(1, response.overdueTasks());
         assertEquals(1, response.openComments());
         assertEquals(50.0, response.completionRate());
-    }
-
-    @Test
-    void createPublishScheduleIsForbiddenForTantouEditor() {
-        LocalDateTime publishDate = LocalDateTime.now().plusDays(7);
-
-        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
-                () -> service.createSchedule(new ScheduleRequest(10L, publishDate, "WEEKLY", null)));
-
-        assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
-    }
-
-    @Test
-    void updatePublishScheduleIsForbiddenForTantouEditor() {
-        LocalDateTime newPublishDate = LocalDateTime.now().plusDays(14);
-
-        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
-                () -> service.updateSchedule(
-                        60L,
-                        new ScheduleRequest(10L, newPublishDate, "MONTHLY", "PLANNED")));
-
-        assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
     }
 
     @Test
@@ -457,6 +448,13 @@ class TantouEditorServiceTests {
         schedule.setFrequency("WEEKLY");
         schedule.setStatus("PLANNED");
         return schedule;
+    }
+
+    private SeriesBoardAssignment assignment(MangaSeries series, User boardMember) {
+        SeriesBoardAssignment assignment = new SeriesBoardAssignment();
+        assignment.setSeries(series);
+        assignment.setBoardMember(boardMember);
+        return assignment;
     }
 
     private User user(Long id, String email) {
