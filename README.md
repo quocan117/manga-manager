@@ -21,6 +21,8 @@ B3(Optional): chạy query trong backend/database (Chỉ dùng khi có cập nh�
 7. add_task_submission_original_file_urls<br>
 8. add_chapter_editor_review_flow<br>
 9. add_task_file_rounds_and_markup_pages<br>
+10. add_chapter_board_reviews<br>
+11. add_series_publication_coordinator<br>
 <h5><strong>Lưu ý: số lượng like sẽ khác nhau ở mỗi máy vì dùng %*00 + *0 </strong></h5>
 
 <h3>Tài khoản:</h3>
