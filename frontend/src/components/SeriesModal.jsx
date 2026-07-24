@@ -30,11 +30,13 @@ const SeriesModal = ({ series, onClose }) => {
   };
 
   if (!series) return null;
+
+  const isComingSoon = series.status === "Coming Soon";
   const filteredChapters =
     filter === ""
       ? []
       : series.chapters.filter((c) => c.id.toString() === filter);
-      
+
   return (
     <div className="custom-modal-overlay" onClick={onClose}>
       <div
@@ -55,7 +57,12 @@ const SeriesModal = ({ series, onClose }) => {
             className="modal-cover"
           />
           <div className="modal-info">
-            <h2>{series.title}</h2>
+            <h2>
+              {series.title}
+              {isComingSoon && (
+                <span className="modal-coming-soon-badge">Sắp ra mắt</span>
+              )}
+            </h2>
             <p>
               <strong>Tác giả:</strong> {series.author}
             </p>
@@ -63,52 +70,63 @@ const SeriesModal = ({ series, onClose }) => {
           </div>
         </div>
         <div className="modal-chapters">
-          <div className="chapter-filter-header">
-            <h3>Danh sách chương</h3>
-            <select
-              className="chapter-filter-select"
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-            >
-              <option value="" disabled>
-                -- Vui lòng chọn một chương --
-              </option>
-              {series.chapters.map((chap) => (
-                <option key={chap.id} value={chap.id}>
-                  {chap.title}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="chapter-list">
-            {filteredChapters.map((chapter) => {
-              const hasLikes = userLikes[chapter.id];
-              return (
-                <div key={chapter.id} className="chapter-item">
-                  <span className="chapter-title">{chapter.title}</span>
-                  <button
-                    className={`modal-vote-btn ${hasLikes ? "voted" : ""}`}
-                    onClick={() => handleToggleLike(chapter.id)}
-                  >
-                    {hasLikes ? "❤️ Đã Like" : "🤍 Bình chọn"} (
-                    {chapter.likes.toLocaleString()})
-                  </button>
-                </div>
-              );
-            })}
-            {filter === "" && (
-              <div
-                style={{
-                  textAlign: "center",
-                  padding: "40px 0",
-                  color: "#888",
-                  fontStyle: "italic",
-                }}
-              >
-                Hãy chọn một chương từ menu phía trên để tiến hành bình chọn.
+          {isComingSoon ? (
+            <div className="coming-soon-notice">
+              📢 Series đang trong giai
+              đoạn <strong>chuẩn bị phát hành</strong>. Chương đầu tiên sẽ sớm
+              ra mắt, hãy quay lại sau nhé!
+            </div>
+          ) : (
+            <>
+              <div className="chapter-filter-header">
+                <h3>Danh sách chương</h3>
+                <select
+                  className="chapter-filter-select"
+                  value={filter}
+                  onChange={(e) => setFilter(e.target.value)}
+                >
+                  <option value="" disabled>
+                    -- Vui lòng chọn một chương --
+                  </option>
+                  {series.chapters.map((chap) => (
+                    <option key={chap.id} value={chap.id}>
+                      {chap.title}
+                    </option>
+                  ))}
+                </select>
               </div>
-            )}
-          </div>
+              <div className="chapter-list">
+                {filteredChapters.map((chapter) => {
+                  const hasLikes = userLikes[chapter.id];
+                  return (
+                    <div key={chapter.id} className="chapter-item">
+                      <span className="chapter-title">{chapter.title}</span>
+                      <button
+                        className={`modal-vote-btn ${hasLikes ? "voted" : ""}`}
+                        onClick={() => handleToggleLike(chapter.id)}
+                      >
+                        {hasLikes ? "❤️ Đã Like" : "🤍 Bình chọn"} (
+                        {chapter.likes.toLocaleString()})
+                      </button>
+                    </div>
+                  );
+                })}
+                {filter === "" && (
+                  <div
+                    style={{
+                      textAlign: "center",
+                      padding: "40px 0",
+                      color: "#888",
+                      fontStyle: "italic",
+                    }}
+                  >
+                    Hãy chọn một chương từ menu phía trên để tiến hành bình
+                    chọn.
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

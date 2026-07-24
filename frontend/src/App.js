@@ -45,8 +45,9 @@ import TantouLayout from "./features/tantouEditor/components/TantouLayout";
 import TantouDashboardPage from "./features/tantouEditor/pages/TantouDashboardPage";
 import EditorReviewPage from "./features/tantouEditor/pages/EditorReviewPage";
 import ChapterReviewPage from "./features/tantouEditor/pages/ChapterReviewPage";
-import ScheduleManagementPage from "./features/tantouEditor/pages/ScheduleManagementPage";
 import TantouNotificationsPage from "./features/tantouEditor/pages/TantouNotificationsPage";
+import SeriesManagementPage from "./features/editorialBoard/pages/SeriesManagementPage";
+import ChapterReviewBoardPage from "./features/editorialBoard/pages/ChapterReviewBoardPage";
 
 function App() {
   useGuestTracking();
@@ -109,6 +110,11 @@ function App() {
         <Route path="schedule" element={<PublishSchedulePage />} />
         <Route path="reader-votes" element={<ReaderVotesPage />} />
         <Route path="notifications" element={<BoardNotificationPage />} />
+        <Route path="series-management" element={<SeriesManagementPage />} />
+        <Route
+          path="chapters/:chapterId/review"
+          element={<ChapterReviewBoardPage />}
+        />
       </Route>
 
       {/* Khu vực Assistant */}
@@ -142,11 +148,7 @@ function App() {
           path="chapters/:chapterId/review"
           element={<ChapterReviewPage />}
         />
-        <Route path="schedule" element={<ScheduleManagementPage />} />
-        <Route
-          path="notifications"
-          element={<TantouNotificationsPage />}
-        />
+        <Route path="notifications" element={<TantouNotificationsPage />} />
       </Route>
     </Routes>
   );

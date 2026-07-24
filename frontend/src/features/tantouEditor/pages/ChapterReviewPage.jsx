@@ -5,7 +5,7 @@ import {
   getChapterForReview,
   saveChapterRevisionNote,
   sendChapterRevisionToMangaka,
-  approveChapter,
+  submitChapterToBoard,
 } from "../../../services/chapterEditorService";
 
 export default function ChapterReviewPage() {
@@ -13,7 +13,7 @@ export default function ChapterReviewPage() {
   const navigate = useNavigate();
   const [chapter, setChapter] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [approving, setApproving] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     fetchChapter();
@@ -28,6 +28,26 @@ export default function ChapterReviewPage() {
       console.error("Lỗi tải chapter:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSubmitToBoard = async () => {
+    if (
+      !window.confirm(
+        "Xác nhận gửi chapter này lên Hội đồng Biên tập để xác nhận đủ điều kiện xuất bản?",
+      )
+    )
+      return;
+    try {
+      setSubmitting(true);
+      await submitChapterToBoard(chapterId);
+      alert("Đã gửi chapter lên Hội đồng Biên tập!");
+      navigate("/tantou");
+    } catch (error) {
+      console.error(error);
+      alert("Lỗi khi gửi chapter lên Hội đồng.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -47,28 +67,6 @@ export default function ChapterReviewPage() {
     } catch (error) {
       console.error(error);
       alert("Lỗi khi gửi yêu cầu chỉnh sửa.");
-    }
-  };
-
-  const handleApprove = async () => {
-    if (
-      !window.confirm(
-        "Xác nhận duyệt chapter này? Chapter sẽ tự động xuất bản theo lịch đã cấu hình cho series.",
-      )
-    )
-      return;
-    try {
-      setApproving(true);
-      await approveChapter(chapterId);
-      alert(
-        "Đã duyệt chapter! Mangaka đã được thông báo, chapter sẽ tự động xuất bản theo lịch.",
-      );
-      navigate("/tantou");
-    } catch (error) {
-      console.error(error);
-      alert("Lỗi khi duyệt chapter.");
-    } finally {
-      setApproving(false);
     }
   };
 
@@ -127,20 +125,16 @@ export default function ChapterReviewPage() {
         </div>
       </div>
       <div className="card shadow-sm border-0">
-        <div className="card-header bg-white fw-bold">Duyệt Chapter</div>
+        <div className="card-header bg-white fw-bold">
+          Gửi lên Hội đồng Biên tập
+        </div>
         <div className="card-body">
-          <p className="text-muted">
-            Nếu chapter đã đạt yêu cầu, không cần chỉnh sửa gì thêm, hãy duyệt
-            để Mangaka được thông báo. Chapter sẽ{" "}
-            <strong>tự động xuất bản</strong> theo lịch đã cấu hình ở mục{" "}
-            <strong>Lịch Xuất Bản</strong> — không xuất bản ngay lập tức.
-          </p>
           <button
             className="btn btn-success fw-bold"
-            onClick={handleApprove}
-            disabled={approving}
+            onClick={handleSubmitToBoard}
+            disabled={submitting}
           >
-            {approving ? "Đang duyệt..." : "✅ Duyệt Chapter"}
+            {submitting ? "Đang gửi..." : "📤 Gửi lên Hội đồng"}
           </button>
         </div>
       </div>

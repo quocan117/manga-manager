@@ -43,16 +43,6 @@ export default function TantouLayout() {
           </li>
           <li>
             <NavLink
-              to="/tantou/schedule"
-              className={({ isActive }) =>
-                isActive ? "nav-link active" : "nav-link"
-              }
-            >
-              <i className="fas fa-calendar-alt"></i> Lịch Xuất Bản
-            </NavLink>
-          </li>
-          <li>
-            <NavLink
               to="/tantou/notifications"
               className={({ isActive }) =>
                 isActive ? "nav-link active" : "nav-link"

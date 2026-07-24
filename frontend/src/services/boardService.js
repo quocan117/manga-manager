@@ -116,3 +116,47 @@ export const markNotificationRead = async (id) => {
   const response = await api.patch(`/editorial-board/notifications/${id}/read`);
   return response.data;
 };
+
+export const createPublishSchedule = async (payload) => {
+  const response = await api.post(
+    "/editorial-board/publish-schedules",
+    payload,
+  );
+  return response.data;
+};
+
+export const updatePublishSchedule = async (scheduleId, payload) => {
+  const response = await api.put(
+    `/editorial-board/publish-schedules/${scheduleId}`,
+    payload,
+  );
+  return response.data;
+};
+
+export const getApprovedSeries = async () => {
+  const response = await api.get("/editorial-board/series/approved");
+  return response.data;
+};
+
+export const getSeriesChapters = async (seriesId) => {
+  const response = await api.get(
+    `/editorial-board/series/${seriesId}/chapters`,
+  );
+  return response.data;
+};
+
+export const getChapterForBoardReview = async (chapterId) => {
+  const response = await api.get(`/editorial-board/chapters/${chapterId}`);
+  return response.data;
+};
+
+export const reviewChapter = async (chapterId, confirmed, comment) => {
+  const response = await api.post(
+    `/editorial-board/chapters/${chapterId}/review`,
+    {
+      confirmed,
+      comment,
+    },
+  );
+  return response.data;
+};

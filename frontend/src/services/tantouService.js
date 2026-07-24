@@ -33,16 +33,6 @@ export const requestRevision = async (seriesId, note) => {
   return response.data;
 };
 
-export const getSchedules = async () => {
-  const response = await api.get("/tantou-editor/schedules");
-  return response.data;
-};
-
-export const createSchedule = async (scheduleData) => {
-  const response = await api.post("/tantou-editor/schedules", scheduleData);
-  return response.data;
-};
-
 export const getNotifications = async () => {
   const response = await api.get("/tantou-editor/notifications");
   return response.data;

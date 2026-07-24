@@ -10,6 +10,7 @@
   align-items: center;
   z-index: 9999 !important;
 }
+
 .custom-modal-content {
   background-color: #ffffff !important;
   padding: 30px;
@@ -20,6 +21,7 @@
   z-index: 10000 !important;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }
+
 .close-btn {
   position: absolute;
   top: 15px;
@@ -30,11 +32,13 @@
   cursor: pointer;
   color: #888;
 }
+
 .custom-modal-header {
   display: flex;
   gap: 20px;
   margin-bottom: 30px;
 }
+
 .modal-cover {
   width: 120px;
   height: 170px;
@@ -42,15 +46,18 @@
   object-fit: cover;
   background-color: #eee;
 }
+
 .modal-info h2 {
   margin: 0 0 10px 0;
   color: #ff4757;
 }
+
 .modal-desc {
   color: #555;
   line-height: 1.5;
   font-size: 14px;
 }
+
 .chapter-filter-header {
   display: flex;
   justify-content: space-between;
@@ -59,10 +66,12 @@
   border-bottom: 2px solid #f0f0f0;
   padding-bottom: 10px;
 }
+
 .chapter-filter-header h3 {
   margin: 0;
   color: #333;
 }
+
 .chapter-filter-select {
   padding: 8px 15px;
   border-radius: 8px;
@@ -75,10 +84,12 @@
   color: #444;
   transition: all 0.2s;
 }
+
 .chapter-filter-select:hover {
   border-color: #ff4757;
   background-color: #fff;
 }
+
 .chapter-item {
   display: flex;
   justify-content: space-between;
@@ -86,6 +97,7 @@
   padding: 12px 0;
   border-bottom: 1px solid #eee;
 }
+
 .modal-vote-btn {
   padding: 8px 15px;
   border-radius: 20px;
@@ -96,11 +108,13 @@
   color: #555;
   transition: all 0.2s;
 }
+
 .modal-vote-btn.voted {
   background: #ff4757;
   color: white;
   border-color: #ff4757;
 }
+
 .modal-cover {
   width: 180px;
   height: 250px;
@@ -108,4 +122,27 @@
   border-radius: 8px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
   flex-shrink: 0;
+}
+
+.modal-coming-soon-badge {
+  display: inline-block;
+  margin-left: 10px;
+  vertical-align: middle;
+  background-color: #ff9800;
+  color: #fff;
+  font-size: 12px;
+  font-weight: bold;
+  padding: 3px 10px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.coming-soon-notice {
+  text-align: center;
+  padding: 40px 24px;
+  color: #555;
+  background-color: #fff8e1;
+  border: 1px dashed #ff9800;
+  border-radius: 8px;
+  line-height: 1.6;
 }

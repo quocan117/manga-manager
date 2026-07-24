@@ -30,7 +30,7 @@ export default function ReviewSeriesPage() {
 
   const handleVote = async (seriesId, title, decisionType) => {
     const actionText =
-      decisionType === "APPROVE" ? "DUYỆT XUẤT BẢN" : "YÊU CẦU SỬA/TỪ CHỐI";
+      decisionType === "APPROVE" ? "DUYỆT" : "YÊU CẦU SỬA/TỪ CHỐI";
     try {
       await voteSeriesDecision(seriesId, decisionType);
       alert(`Đã gửi quyết định: ${actionText} thành công!`);
@@ -53,11 +53,6 @@ export default function ReviewSeriesPage() {
   return (
     <div className="tab-content">
       <h2 className="mb-4">📝 Xét Duyệt Tác Phẩm Mới</h2>
-      <p className="text-muted mb-4">
-        Hội đồng biên tập cần bỏ phiếu cho các tác phẩm đang ở trạng thái{" "}
-        <strong>REVIEWING</strong>. Tác phẩm sẽ tự động xuất bản nếu đạt đủ số
-        phiếu đồng thuận.
-      </p>
       <div className="table-wrapper">
         <table className="admin-table">
           <thead>
@@ -141,11 +136,6 @@ export default function ReviewSeriesPage() {
                       <span className="text-danger">
                         Từ chối: {series.rejectVotes}/{series.totalBoardMembers}
                       </span>
-                      <br />
-                      <small className="text-muted">
-                        (Cần {series.requiredVotes}/{series.totalBoardMembers}{" "}
-                        phiếu đồng thuận để quyết định)
-                      </small>
                     </div>
                   </td>
                   <td>
