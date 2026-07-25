@@ -366,7 +366,7 @@ class TantouEditorServiceTests {
 
         ResponseStatusException exception = assertThrows(
                 ResponseStatusException.class,
-                () -> service.rejectSeries(10L));
+                () -> service.rejectSeries(10L, "Không phù hợp chuyên môn"));
 
         assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
         assertTrue(exception.getReason().contains("2 rejections"));
@@ -395,7 +395,7 @@ class TantouEditorServiceTests {
         when(userRepository.findByRoleRoleNameAndStatusOrderByUsernameAsc("TANTOU_EDITOR", "ACTIVE"))
                 .thenReturn(List.of(editor));
 
-        service.rejectSeries(10L);
+        service.rejectSeries(10L, "Khối lượng hiện tại đã đầy");
 
         ArgumentCaptor<LocalDateTime> periodStart = ArgumentCaptor.forClass(LocalDateTime.class);
         ArgumentCaptor<LocalDateTime> periodEnd = ArgumentCaptor.forClass(LocalDateTime.class);
@@ -406,7 +406,20 @@ class TantouEditorServiceTests {
         assertEquals(currentMonth.atDay(1).atStartOfDay(), periodStart.getValue());
         assertEquals(currentMonth.plusMonths(1).atDay(1).atStartOfDay(), periodEnd.getValue());
         assertEquals("EDITOR_ASSIGNMENT_REQUIRED", series.getStatus());
-        verify(seriesEditorRejectionRepository).save(any(SeriesEditorRejection.class));
+        ArgumentCaptor<SeriesEditorRejection> rejectionCaptor = ArgumentCaptor.forClass(SeriesEditorRejection.class);
+        verify(seriesEditorRejectionRepository).save(rejectionCaptor.capture());
+        assertEquals("Khối lượng hiện tại đã đầy", rejectionCaptor.getValue().getReason());
+    }
+
+    @Test
+    void rejectSeriesRequiresReason() {
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.rejectSeries(10L, "  "));
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
+        assertEquals("Vui lòng nhập lý do từ chối", exception.getReason());
+        verify(mangaSeriesRepository, never()).findById(any(Long.class));
     }
 
     @Test
@@ -418,7 +431,7 @@ class TantouEditorServiceTests {
 
         ResponseStatusException exception = assertThrows(
                 ResponseStatusException.class,
-                () -> service.rejectSeries(10L));
+                () -> service.rejectSeries(10L, "Không nhận hồ sơ"));
 
         assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
         assertTrue(series.getEditorAssignmentLocked());

@@ -93,6 +93,10 @@ public final class TantouEditorDtos {
     public record ReviewDecisionRequest(String note) {
     }
 
+    public record RejectSeriesRequest(
+            @NotBlank(message = "Vui lòng nhập lý do từ chối") String reason) {
+    }
+
     public record BoardDecisionResponse(
             Long id,
             Long boardMemberId,

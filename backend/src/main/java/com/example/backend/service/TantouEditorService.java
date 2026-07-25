@@ -420,7 +420,12 @@ public class TantouEditorService {
     }
 
     @Transactional
-    public void rejectSeries(Long seriesId) {
+    public void rejectSeries(Long seriesId, String reason) {
+        String requiredReason = blankToNull(reason);
+        if (requiredReason == null) {
+            throw badRequest("Vui lòng nhập lý do từ chối");
+        }
+
         MangaSeries series = mangaSeriesRepository.findById(seriesId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy Series"));
         String email = currentEmail();
@@ -444,7 +449,7 @@ public class TantouEditorService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Editor not found"));
         enforceMonthlyRejectionLimit(oldEditor);
         dismissAssignmentNotifications(seriesId, email);
-        recordEditorRejection(series, oldEditor);
+        recordEditorRejection(series, oldEditor, requiredReason);
         Set<Long> rejectedEditorIds = rejectedEditorIds(seriesId);
 
         List<User> activeEditors = userRepository.findByRoleRoleNameAndStatusOrderByUsernameAsc(
@@ -496,7 +501,7 @@ public class TantouEditorService {
         notificationRepository.save(toAuthor);
     }
 
-    private void recordEditorRejection(MangaSeries series, User editor) {
+    private void recordEditorRejection(MangaSeries series, User editor, String reason) {
         if (series == null || series.getSeriesId() == null || editor == null || editor.getUserId() == null) {
             return;
         }
@@ -505,6 +510,7 @@ public class TantouEditorService {
                 .orElseGet(SeriesEditorRejection::new);
         rejection.setSeries(series);
         rejection.setEditor(editor);
+        rejection.setReason(reason);
         rejection.setRejectedAt(LocalDateTime.now());
         seriesEditorRejectionRepository.save(rejection);
     }

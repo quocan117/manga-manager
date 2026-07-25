@@ -45,6 +45,7 @@ import com.example.backend.model.PublishSchedule;
 import com.example.backend.model.ReaderFeedbackImport;
 import com.example.backend.model.Role;
 import com.example.backend.model.SeriesBoardAssignment;
+import com.example.backend.model.SeriesEditorRejection;
 import com.example.backend.model.SeriesRanking;
 import com.example.backend.model.User;
 import com.example.backend.repository.BoardDecisionRepository;
@@ -100,6 +101,8 @@ class EditorialBoardServiceTests {
     private SeriesEditorRejectionRepository seriesEditorRejectionRepository;
     @Mock
     private SeriesBoardAssignmentRepository seriesBoardAssignmentRepository;
+    @Mock
+    private MangakaService mangakaService;
 
     @InjectMocks
     private EditorialBoardService service;
@@ -146,6 +149,41 @@ class EditorialBoardServiceTests {
         assertEquals("ACTIVE", response.status());
         assertEquals(1L, response.createdById());
         assertNotNull(response.createdAt());
+    }
+
+    @Test
+    void editorAssignmentRequiredResponseIncludesRejectedEditorDetails() {
+        User board = user(1L, "Editorial Board One", BOARD_EMAIL, role("EDITORIAL_BOARD"));
+        User rejectedEditor = user(7L, "Tantou Seven", "tantou7@manga.test", role("TANTOU_EDITOR"));
+        MangaSeries series = series(5L, "Needs Editor", "EDITOR_ASSIGNMENT_REQUIRED");
+        LocalDateTime rejectedAt = LocalDateTime.now().minusHours(2);
+        SeriesEditorRejection rejection = new SeriesEditorRejection();
+        rejection.setSeries(series);
+        rejection.setEditor(rejectedEditor);
+        rejection.setReason("Không phù hợp với thể loại của series");
+        rejection.setRejectedAt(rejectedAt);
+
+        when(userRepository.findByEmail(BOARD_EMAIL)).thenReturn(Optional.of(board));
+        when(mangaSeriesRepository.findByStatusIgnoreCaseOrderBySubmittedAtDesc("EDITOR_ASSIGNMENT_REQUIRED"))
+                .thenReturn(List.of(series));
+        when(seriesBoardAssignmentRepository.findBySeriesSeriesIdOrderByAssignedAtAsc(5L))
+                .thenReturn(List.of());
+        when(seriesEditorRejectionRepository.findBySeriesSeriesId(5L))
+                .thenReturn(List.of(rejection));
+        when(mangakaService.countTantouEditorActiveWorkload(7L)).thenReturn(3L);
+
+        var response = service.getEditorAssignmentRequiredSeries();
+
+        assertEquals(1, response.size());
+        assertEquals(1, response.get(0).editorRejectCount());
+        assertEquals(1, response.get(0).rejectedEditors().size());
+        var rejectedEditorResponse = response.get(0).rejectedEditors().get(0);
+        assertEquals(7L, rejectedEditorResponse.editorId());
+        assertEquals("Tantou Seven", rejectedEditorResponse.name());
+        assertEquals("tantou7@manga.test", rejectedEditorResponse.email());
+        assertEquals(3L, rejectedEditorResponse.currentTaskCount());
+        assertEquals("Không phù hợp với thể loại của series", rejectedEditorResponse.reason());
+        assertEquals(rejectedAt, rejectedEditorResponse.rejectedAt());
     }
 
     @Test

@@ -129,6 +129,15 @@ public final class EditorialBoardDtos {
                         boolean isPublicationCoordinator) {
         }
 
+        public record RejectedEditorResponse(
+                        Long editorId,
+                        String name,
+                        String email,
+                        long currentTaskCount,
+                        String reason,
+                        LocalDateTime rejectedAt) {
+        }
+
         public record ReviewSeriesResponse(
                         Long id,
                         String title,
@@ -156,7 +165,8 @@ public final class EditorialBoardDtos {
                         LocalDateTime createdAt,
                         long totalEligibleBoardMembers,
                         List<BoardMemberAssignmentResponse> assignedBoardMembers,
-                        List<UploadedFileResponse> uploadedFiles) {
+                        List<UploadedFileResponse> uploadedFiles,
+                        List<RejectedEditorResponse> rejectedEditors) {
         }
 
         public record ReaderVoteResponse(

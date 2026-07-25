@@ -8,7 +8,6 @@ import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Random;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -92,8 +91,8 @@ public class MangakaService {
     private static final String CHAPTER_MANUSCRIPT_PURPOSE = "CHAPTER_MANUSCRIPT";
     private static final Set<String> CHAPTER_SUBMISSION_STATUSES = Set.of(
             "DRAFT", REVISION_REQUESTED_STATUS);
-    private static final Set<String> TANTOU_WORKLOAD_STATUSES = Set.of(
-            "DRAFT", TANTOU_REVIEW_STATUS, REVISION_REQUESTED_STATUS);
+    private static final List<String> TANTOU_ACTIVE_WORKLOAD_STATUSES = List.of(
+            PENDING_EDITOR_STATUS, TANTOU_REVIEW_STATUS, "REVIEWING");
     private static final long MAX_PAGE_IMAGE_SIZE_BYTES = 5L * 1024 * 1024;
     private static final long MAX_COVER_IMAGE_SIZE_BYTES = 5L * 1024 * 1024;
     private static final long MAX_SERIES_FILE_SIZE_BYTES = 20L * 1024 * 1024;
@@ -1083,8 +1082,7 @@ public class MangakaService {
     }
 
     private long countTantouEditorWorkload(User editor) {
-        return mangaSeriesRepository.countByTantouEditorUserIdAndStatusIn(
-                editor.getUserId(), TANTOU_WORKLOAD_STATUSES);
+        return countTantouEditorActiveWorkload(editor == null ? null : editor.getUserId());
     }
 
     private String storeSeriesCoverImage(MultipartFile coverImage) {
@@ -1413,13 +1411,11 @@ public class MangakaService {
         }
 
         // Các trạng thái được tính là "đang có việc"
-        List<String> activeStatuses = Arrays.asList("PENDING_EDITOR", "TANTOU_REVIEW", "REVIEWING");
-        int minWorkload = Integer.MAX_VALUE;
+        long minWorkload = Long.MAX_VALUE;
         List<User> candidates = new ArrayList<>();
 
         for (User editor : editors) {
-            int workload = (int) mangaSeriesRepository.countByTantouEditorUserIdAndStatusIn(editor.getUserId(),
-                    activeStatuses);
+            long workload = countTantouEditorActiveWorkload(editor.getUserId());
             if (workload < minWorkload) {
                 minWorkload = workload;
                 candidates.clear();
@@ -1429,6 +1425,15 @@ public class MangakaService {
             }
         }
         // Chọn ngẫu nhiên nếu có nhiều người cùng mức độ ưu tiên
-        return candidates.get(new Random().nextInt(candidates.size()));
+        return candidates.get(ThreadLocalRandom.current().nextInt(candidates.size()));
+    }
+
+    public long countTantouEditorActiveWorkload(Long editorId) {
+        if (editorId == null) {
+            return 0L;
+        }
+        return mangaSeriesRepository.countByTantouEditorUserIdAndStatusIn(
+                editorId,
+                TANTOU_ACTIVE_WORKLOAD_STATUSES);
     }
 }

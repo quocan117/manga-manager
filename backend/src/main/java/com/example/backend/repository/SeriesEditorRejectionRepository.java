@@ -12,8 +12,6 @@ public interface SeriesEditorRejectionRepository extends JpaRepository<SeriesEdi
 
     Optional<SeriesEditorRejection> findBySeriesSeriesIdAndEditorUserId(Long seriesId, Long editorId);
 
-    long countBySeriesSeriesId(Long seriesId);
-
     long countByEditorUserIdAndRejectedAtGreaterThanEqualAndRejectedAtLessThan(
             Long editorId,
             LocalDateTime periodStart,

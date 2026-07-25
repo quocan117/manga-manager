@@ -27,6 +27,7 @@ import com.example.backend.dto.TantouEditorDtos.CommentResponse;
 import com.example.backend.dto.TantouEditorDtos.DossierResponse;
 import com.example.backend.dto.TantouEditorDtos.ManuscriptResponse;
 import com.example.backend.dto.TantouEditorDtos.ProgressResponse;
+import com.example.backend.dto.TantouEditorDtos.RejectSeriesRequest;
 import com.example.backend.dto.TantouEditorDtos.ReviewDecisionRequest;
 import com.example.backend.dto.TantouEditorDtos.SeriesSummaryResponse;
 import com.example.backend.service.TantouEditorService;
@@ -162,8 +163,10 @@ public class TantouEditorController {
 
     @PostMapping("/series/{seriesId}/reject")
     @ResponseStatus(HttpStatus.OK)
-    public void rejectSeries(@PathVariable Long seriesId) {
-        service.rejectSeries(seriesId);
+    public void rejectSeries(
+            @PathVariable Long seriesId,
+            @Valid @RequestBody RejectSeriesRequest request) {
+        service.rejectSeries(seriesId, request.reason());
     }
 
     @GetMapping("/notifications")

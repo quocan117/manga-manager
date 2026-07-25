@@ -30,5 +30,8 @@ public class SeriesEditorRejection {
     @JoinColumn(name = "editor_id")
     private User editor;
 
+    @Column(columnDefinition = "NVARCHAR(MAX)")
+    private String reason;
+
     private LocalDateTime rejectedAt;
 }

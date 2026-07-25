@@ -11,6 +11,7 @@ import com.example.backend.dto.EditorialBoardDtos.ChapterBoardReviewResponse;
 import com.example.backend.dto.EditorialBoardDtos.ImportReaderFeedbackRequest;
 import com.example.backend.dto.EditorialBoardDtos.ReaderFeedbackImportResponse;
 import com.example.backend.dto.EditorialBoardDtos.ReaderVoteResponse;
+import com.example.backend.dto.EditorialBoardDtos.RejectedEditorResponse;
 import com.example.backend.dto.EditorialBoardDtos.ReviewSeriesResponse;
 import com.example.backend.dto.EditorialBoardDtos.ApprovedSeriesManagementResponse;
 import com.example.backend.dto.EditorialBoardDtos.ScheduleRequest;
@@ -117,6 +118,7 @@ public class EditorialBoardService {
     private final SeriesFileRepository seriesFileRepository;
     private final SeriesEditorRejectionRepository seriesEditorRejectionRepository;
     private final SeriesBoardAssignmentRepository seriesBoardAssignmentRepository;
+    private final MangakaService mangakaService;
 
     public EditorialBoardService(
             RegistrationRequestRepository requestRepository,
@@ -134,7 +136,8 @@ public class EditorialBoardService {
             ReaderFeedbackImportRepository readerFeedbackImportRepository,
             SeriesFileRepository seriesFileRepository,
             SeriesEditorRejectionRepository seriesEditorRejectionRepository,
-            SeriesBoardAssignmentRepository seriesBoardAssignmentRepository) {
+            SeriesBoardAssignmentRepository seriesBoardAssignmentRepository,
+            MangakaService mangakaService) {
         this.requestRepository = requestRepository;
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
@@ -151,6 +154,7 @@ public class EditorialBoardService {
         this.seriesFileRepository = seriesFileRepository;
         this.seriesEditorRejectionRepository = seriesEditorRejectionRepository;
         this.seriesBoardAssignmentRepository = seriesBoardAssignmentRepository;
+        this.mangakaService = mangakaService;
     }
 
     public List<RegistrationRequest> getAllRequests() {
@@ -994,6 +998,11 @@ public class EditorialBoardService {
                 ? null
                 : series.getAuthor().getUsername();
         User editor = series.getTantouEditor();
+        List<RejectedEditorResponse> rejectedEditors = seriesEditorRejectionRepository
+                .findBySeriesSeriesId(series.getSeriesId())
+                .stream()
+                .map(this::toRejectedEditorResponse)
+                .toList();
 
         return new ReviewSeriesResponse(
                 series.getSeriesId(),
@@ -1015,7 +1024,7 @@ public class EditorialBoardService {
                 editor == null ? null : editor.getUsername(),
                 editor == null ? null : editor.getEmail(),
                 Boolean.TRUE.equals(series.getEditorAssignmentLocked()),
-                seriesEditorRejectionRepository.countBySeriesSeriesId(series.getSeriesId()),
+                rejectedEditors.size(),
                 userRepository.countByRoleRoleNameAndStatus("TANTOU_EDITOR", ACTIVE_STATUS),
                 series.getPublicationType(),
                 series.getArtStyle(),
@@ -1029,7 +1038,20 @@ public class EditorialBoardService {
                         SERIES_SUBMISSION_PURPOSE)
                         .stream()
                         .map(this::toUploadedFileResponse)
-                        .toList());
+                        .toList(),
+                rejectedEditors);
+    }
+
+    private RejectedEditorResponse toRejectedEditorResponse(SeriesEditorRejection rejection) {
+        User editor = rejection.getEditor();
+        Long editorId = editor == null ? null : editor.getUserId();
+        return new RejectedEditorResponse(
+                editorId,
+                editor == null ? null : editor.getUsername(),
+                editor == null ? null : editor.getEmail(),
+                mangakaService.countTantouEditorActiveWorkload(editorId),
+                rejection.getReason(),
+                rejection.getRejectedAt());
     }
 
     private BoardDecisionResponse toBoardDecisionResponse(BoardDecision decision) {

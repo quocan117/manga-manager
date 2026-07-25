@@ -278,6 +278,18 @@ class MangakaServiceTests {
     }
 
     @Test
+    void countsTantouEditorWorkloadWithAssignmentStatuses() {
+        when(mangaSeriesRepository.countByTantouEditorUserIdAndStatusIn(
+                3L,
+                List.of("PENDING_EDITOR", "TANTOU_REVIEW", "REVIEWING")))
+                .thenReturn(4L);
+
+        long workload = service.countTantouEditorActiveWorkload(3L);
+
+        assertEquals(4L, workload);
+    }
+
+    @Test
     void submitSeriesResubmitsRevisionToSameTantouEditor(@TempDir Path tempDir) {
         ReflectionTestUtils.setField(service, "seriesFileUploadRootOverride", tempDir.toString());
         MangaSeries series = new MangaSeries();
