@@ -6,7 +6,9 @@ import java.util.List;
 import com.example.backend.dto.MangakaDtos.UploadedFileResponse;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
+import org.springframework.web.multipart.MultipartFile;
 
 public final class TantouEditorDtos {
     private TantouEditorDtos() {
@@ -25,6 +27,13 @@ public final class TantouEditorDtos {
             List<UploadedFileResponse> uploadedFiles) {
     }
 
+    public record ChapterRevisionNoteRequest(
+            @NotNull MultipartFile image,
+            String canvasData,
+            @NotBlank String description,
+            @NotNull @PositiveOrZero Integer orderIndex) {
+    }
+
     public record ManuscriptResponse(
             SeriesSummaryResponse series,
             List<ChapterManuscriptResponse> chapters,
@@ -37,7 +46,7 @@ public final class TantouEditorDtos {
             String title,
             Long seriesId,
             String seriesTitle,
-            String manuscriptUrl,
+            List<UploadedFileResponse> manuscriptFiles,
             String status,
             LocalDateTime releaseDate,
             List<PageManuscriptResponse> pages) {

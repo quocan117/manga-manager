@@ -109,7 +109,7 @@ public final class EditorialBoardDtos {
                         String title,
                         Long seriesId,
                         String seriesTitle,
-                        String manuscriptUrl,
+                        List<UploadedFileResponse> manuscriptFiles,
                         String status,
                         LocalDateTime releaseDate,
                         List<ChapterBoardReviewResponse> reviews) {

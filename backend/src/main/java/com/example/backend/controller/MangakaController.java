@@ -35,7 +35,6 @@ import com.example.backend.dto.MangakaDtos.ReviewSubmissionRequest;
 import com.example.backend.dto.MangakaDtos.ReviseTaskRequest;
 import com.example.backend.dto.MangakaDtos.SeriesResponse;
 import com.example.backend.dto.MangakaDtos.SubmissionResponse;
-import com.example.backend.dto.MangakaDtos.SubmitChapterToEditorRequest;
 import com.example.backend.dto.MangakaDtos.TaskResponse;
 import com.example.backend.dto.MangakaDtos.TaskMarkupPageResponse;
 import com.example.backend.dto.MangakaDtos.UploadedFileResponse;
@@ -134,11 +133,13 @@ public class MangakaController {
         return service.getChapter(chapterId);
     }
 
-    @PatchMapping("/chapters/{chapterId}/submit-to-editor")
+    @PatchMapping(
+            value = "/chapters/{chapterId}/submit-to-editor",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ChapterResponse submitChapterToEditor(
             @PathVariable Long chapterId,
-            @Valid @RequestBody SubmitChapterToEditorRequest request) {
-        return service.submitChapterToEditor(chapterId, request);
+            @RequestParam("files") List<MultipartFile> files) {
+        return service.submitChapterToEditor(chapterId, files);
     }
 
     @GetMapping("/chapters/{chapterId}/revision-notes")

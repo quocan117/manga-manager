@@ -25,9 +25,6 @@ public class Chapter {
     @Column(columnDefinition = "NVARCHAR(255)")
     private String title;
 
-    @Column(columnDefinition = "NVARCHAR(MAX)")
-    private String manuscriptUrl;
-
     private String status;
     private LocalDateTime releaseDate;
     private LocalDateTime createdAt;

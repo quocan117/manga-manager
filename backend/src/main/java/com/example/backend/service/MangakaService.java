@@ -2,7 +2,6 @@ package com.example.backend.service;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -43,7 +42,6 @@ import com.example.backend.dto.MangakaDtos.ReviewSubmissionRequest;
 import com.example.backend.dto.MangakaDtos.ReviseTaskRequest;
 import com.example.backend.dto.MangakaDtos.SeriesResponse;
 import com.example.backend.dto.MangakaDtos.SubmissionResponse;
-import com.example.backend.dto.MangakaDtos.SubmitChapterToEditorRequest;
 import com.example.backend.dto.MangakaDtos.TaskResponse;
 import com.example.backend.dto.MangakaDtos.TaskMarkupPageResponse;
 import com.example.backend.dto.MangakaDtos.UpdateAssistantStatusRequest;
@@ -90,6 +88,8 @@ public class MangakaService {
     private static final String PENDING_EDITOR_STATUS = "PENDING_EDITOR";
     private static final String TANTOU_REVIEW_STATUS = "TANTOU_REVIEW";
     private static final String REVISION_REQUESTED_STATUS = "REVISION_REQUESTED";
+    private static final String SERIES_SUBMISSION_PURPOSE = "SERIES_SUBMISSION";
+    private static final String CHAPTER_MANUSCRIPT_PURPOSE = "CHAPTER_MANUSCRIPT";
     private static final Set<String> CHAPTER_SUBMISSION_STATUSES = Set.of(
             "DRAFT", REVISION_REQUESTED_STATUS);
     private static final Set<String> TANTOU_WORKLOAD_STATUSES = Set.of(
@@ -247,9 +247,9 @@ public class MangakaService {
         boolean resubmission = REVISION_REQUESTED_STATUS.equalsIgnoreCase(series.getStatus())
                 && series.getTantouEditor() != null;
         if (resubmission) {
-            seriesFileRepository.deactivateActiveFiles(seriesId, "SERIES_SUBMISSION");
+            seriesFileRepository.deactivateActiveFiles(seriesId, SERIES_SUBMISSION_PURPOSE);
         }
-        storeSeriesFiles(series, mangaka, submissionFiles, "SERIES_SUBMISSION");
+        storeSeriesFiles(series, mangaka, submissionFiles, SERIES_SUBMISSION_PURPOSE);
 
         if (resubmission) {
             boardDecisionRepository.deleteBySeriesSeriesId(series.getSeriesId());
@@ -397,7 +397,7 @@ public class MangakaService {
     }
 
     @Transactional
-    public ChapterResponse submitChapterToEditor(Long chapterId, SubmitChapterToEditorRequest request) {
+    public ChapterResponse submitChapterToEditor(Long chapterId, List<MultipartFile> files) {
         Chapter chapter = ownedChapter(chapterId);
         String currentStatus = chapter.getStatus() == null
                 ? ""
@@ -412,13 +412,14 @@ public class MangakaService {
             throw conflict("This series has no assigned tantou editor");
         }
 
-        String manuscriptUrl = requireHttpUrl(request.manuscriptUrl(), "manuscriptUrl");
+        List<MultipartFile> manuscriptFiles = requireChapterManuscriptFiles(files);
 
         if (REVISION_REQUESTED_STATUS.equalsIgnoreCase(chapter.getStatus())) {
             chapterRevisionNoteRepository.deleteByChapterChapterId(chapterId);
         }
 
-        chapter.setManuscriptUrl(manuscriptUrl);
+        seriesFileRepository.deactivateActiveChapterFiles(chapterId, CHAPTER_MANUSCRIPT_PURPOSE);
+        storeChapterManuscriptFiles(series, chapter, series.getAuthor(), manuscriptFiles);
         chapter.setStatus(SUBMITTED_TO_EDITOR_STATUS);
         Chapter savedChapter = chapterRepository.save(chapter);
         notify(
@@ -463,7 +464,10 @@ public class MangakaService {
     @Transactional(readOnly = true)
     public List<UploadedFileResponse> getSeriesFiles(Long seriesId) {
         ownedSeries(seriesId);
-        return seriesFileRepository.findBySeriesSeriesIdAndActiveTrueOrderByUploadedAtDesc(seriesId)
+        return seriesFileRepository
+                .findBySeriesSeriesIdAndPurposeAndActiveTrueOrderByUploadedAtDesc(
+                        seriesId,
+                        SERIES_SUBMISSION_PURPOSE)
                 .stream()
                 .map(this::toUploadedFileResponse)
                 .toList();
@@ -778,7 +782,9 @@ public class MangakaService {
                 series.getSeriesId(), series.getTitle(), genres, series.getCoverImage(),
                 series.getDescription(), series.getStatus(),
                 series.getSubmittedAt(), series.getRankingScore(),
-                seriesFileRepository.findBySeriesSeriesIdAndActiveTrueOrderByUploadedAtDesc(series.getSeriesId())
+                seriesFileRepository.findBySeriesSeriesIdAndPurposeAndActiveTrueOrderByUploadedAtDesc(
+                        series.getSeriesId(),
+                        SERIES_SUBMISSION_PURPOSE)
                         .stream()
                         .map(this::toUploadedFileResponse)
                         .toList());
@@ -834,7 +840,8 @@ public class MangakaService {
     private ChapterResponse toChapterResponse(Chapter chapter) {
         return new ChapterResponse(
                 chapter.getChapterId(), chapter.getSeries().getSeriesId(), chapter.getChapterNumber(),
-                chapter.getTitle(), chapter.getManuscriptUrl(), chapter.getStatus(), chapter.getCreatedAt());
+                chapter.getTitle(), chapterManuscriptFiles(chapter.getChapterId()),
+                chapter.getStatus(), chapter.getCreatedAt());
     }
 
     private ChapterRevisionNoteResponse toChapterRevisionNoteResponse(ChapterRevisionNote note) {
@@ -843,8 +850,19 @@ public class MangakaService {
                 note.getNoteId(),
                 chapter == null ? null : chapter.getChapterId(),
                 note.getImageUrl(),
+                note.getDescription(),
                 note.getOrderIndex(),
                 note.getCreatedAt());
+    }
+
+    private List<UploadedFileResponse> chapterManuscriptFiles(Long chapterId) {
+        return seriesFileRepository
+                .findByChapterChapterIdAndPurposeAndActiveTrueOrderByUploadedAtAsc(
+                        chapterId,
+                        CHAPTER_MANUSCRIPT_PURPOSE)
+                .stream()
+                .map(this::toUploadedFileResponse)
+                .toList();
     }
 
     private PageResponse toPageResponse(ChapterPage page) {
@@ -1030,26 +1048,6 @@ public class MangakaService {
         return new ResponseStatusException(HttpStatus.BAD_REQUEST, message);
     }
 
-    private String requireHttpUrl(String rawUrl, String fieldName) {
-        String value = blankToNull(rawUrl);
-        if (value == null) {
-            throw badRequest(fieldName + " is required");
-        }
-
-        try {
-            URI uri = URI.create(value);
-            String scheme = uri.getScheme();
-            if (scheme == null
-                    || uri.getHost() == null
-                    || (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme))) {
-                throw badRequest(fieldName + " must be a valid http(s) URL");
-            }
-        } catch (IllegalArgumentException exception) {
-            throw badRequest(fieldName + " must be a valid http(s) URL");
-        }
-        return value;
-    }
-
     private ResponseStatusException conflict(String message) {
         return new ResponseStatusException(HttpStatus.CONFLICT, message);
     }
@@ -1121,6 +1119,28 @@ public class MangakaService {
             User uploadedBy,
             List<MultipartFile> files,
             String fileType) {
+        return storeSeriesFiles(series, null, uploadedBy, files, fileType);
+    }
+
+    private List<SeriesFile> storeChapterManuscriptFiles(
+            MangaSeries series,
+            Chapter chapter,
+            User uploadedBy,
+            List<MultipartFile> files) {
+        return storeSeriesFiles(
+                series,
+                chapter,
+                uploadedBy,
+                files,
+                CHAPTER_MANUSCRIPT_PURPOSE);
+    }
+
+    private List<SeriesFile> storeSeriesFiles(
+            MangaSeries series,
+            Chapter chapter,
+            User uploadedBy,
+            List<MultipartFile> files,
+            String fileType) {
         if (files == null || files.isEmpty()) {
             return List.of();
         }
@@ -1158,6 +1178,7 @@ public class MangakaService {
 
             SeriesFile seriesFile = new SeriesFile();
             seriesFile.setSeries(series);
+            seriesFile.setChapter(chapter);
             seriesFile.setUploadedBy(uploadedBy);
             seriesFile.setFileName(fileName);
             seriesFile.setOriginalFileName(blankToNull(file.getOriginalFilename()));
@@ -1244,6 +1265,40 @@ public class MangakaService {
             throw new ResponseStatusException(
                     HttpStatus.PAYLOAD_TOO_LARGE,
                     "A series submission must be 200MB or smaller in total");
+        }
+        return presentFiles;
+    }
+
+    private List<MultipartFile> requireChapterManuscriptFiles(List<MultipartFile> files) {
+        List<MultipartFile> presentFiles = files == null
+                ? List.of()
+                : files.stream()
+                        .filter(file -> file != null && !file.isEmpty())
+                        .toList();
+        if (presentFiles.isEmpty()) {
+            throw badRequest("At least one chapter manuscript file is required");
+        }
+        if (presentFiles.size() > MAX_SERIES_FILES_PER_SUBMISSION) {
+            throw badRequest("A chapter manuscript can contain at most 20 images");
+        }
+
+        presentFiles.forEach(this::validateSeriesFile);
+        List<String> extensions = presentFiles.stream()
+                .map(file -> fileExtension(file.getOriginalFilename()))
+                .toList();
+        boolean containsZip = extensions.stream().anyMatch(".zip"::equals);
+        if (containsZip && (presentFiles.size() != 1 || !".zip".equals(extensions.get(0)))) {
+            throw badRequest("Upload either one ZIP file or one or more image files");
+        }
+        if (!containsZip && extensions.stream().anyMatch(extension -> !PAGE_IMAGE_EXTENSIONS.contains(extension))) {
+            throw badRequest("Chapter manuscripts only accept JPG, PNG, WEBP, GIF, or one ZIP file");
+        }
+
+        long totalSize = presentFiles.stream().mapToLong(MultipartFile::getSize).sum();
+        if (totalSize > MAX_SERIES_SUBMISSION_SIZE_BYTES) {
+            throw new ResponseStatusException(
+                    HttpStatus.PAYLOAD_TOO_LARGE,
+                    "A chapter manuscript must be 200MB or smaller in total");
         }
         return presentFiles;
     }

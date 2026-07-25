@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -15,6 +16,7 @@ import java.time.LocalDateTime;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -42,12 +44,12 @@ import com.example.backend.dto.MangakaDtos.CreateAssistantRequest;
 import com.example.backend.dto.MangakaDtos.CreateSeriesRequest;
 import com.example.backend.dto.MangakaDtos.ReviewSubmissionRequest;
 import com.example.backend.dto.MangakaDtos.ReviseTaskRequest;
-import com.example.backend.dto.MangakaDtos.SubmitChapterToEditorRequest;
 import com.example.backend.model.Chapter;
 import com.example.backend.model.ChapterPage;
 import com.example.backend.model.MangaSeries;
 import com.example.backend.model.Notification;
 import com.example.backend.model.Role;
+import com.example.backend.model.SeriesFile;
 import com.example.backend.model.Submission;
 import com.example.backend.model.Task;
 import com.example.backend.model.TaskMarkupPage;
@@ -70,7 +72,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 @ExtendWith(MockitoExtension.class)
 class MangakaServiceTests {
     private static final String EMAIL = "mangaka@test.local";
-    private static final String MANUSCRIPT_URL = "https://drive.example.test/chapters/chapter-1.psd";
 
     @Mock
     private UserRepository userRepository;
@@ -402,7 +403,8 @@ class MangakaServiceTests {
     }
 
     @Test
-    void submitChapterToEditorStoresManuscriptAndNotifiesAssignedEditor() {
+    void submitChapterToEditorStoresImageFilesAndNotifiesAssignedEditor(@TempDir Path tempDir) {
+        ReflectionTestUtils.setField(service, "seriesFileUploadRootOverride", tempDir.toString());
         User mangaka = user(1L, EMAIL);
         User editor = tantouEditor(3L, "editor@manga.test");
         MangaSeries series = new MangaSeries();
@@ -417,14 +419,37 @@ class MangakaServiceTests {
 
         when(chapterRepository.findById(30L)).thenReturn(Optional.of(chapter));
         when(chapterRepository.save(chapter)).thenReturn(chapter);
+        List<SeriesFile> savedFiles = new ArrayList<>();
+        when(seriesFileRepository.save(any(SeriesFile.class))).thenAnswer(invocation -> {
+            SeriesFile file = invocation.getArgument(0);
+            file.setFileId((long) savedFiles.size() + 1);
+            savedFiles.add(file);
+            return file;
+        });
+        when(seriesFileRepository
+                .findByChapterChapterIdAndPurposeAndActiveTrueOrderByUploadedAtAsc(
+                        30L,
+                        "CHAPTER_MANUSCRIPT"))
+                .thenAnswer(invocation -> List.copyOf(savedFiles));
+        MockMultipartFile firstImage = new MockMultipartFile(
+                "files", "page-1.png", "image/png", "page 1".getBytes(StandardCharsets.UTF_8));
+        MockMultipartFile secondImage = new MockMultipartFile(
+                "files", "page-2.jpg", "image/jpeg", "page 2".getBytes(StandardCharsets.UTF_8));
 
         var response = service.submitChapterToEditor(
                 30L,
-                new SubmitChapterToEditorRequest(MANUSCRIPT_URL));
+                List.of(firstImage, secondImage));
 
         assertEquals("SUBMITTED_TO_EDITOR", chapter.getStatus());
-        assertEquals(MANUSCRIPT_URL, chapter.getManuscriptUrl());
-        assertEquals(MANUSCRIPT_URL, response.manuscriptUrl());
+        assertEquals(2, response.manuscriptFiles().size());
+        assertEquals("page-1.png", response.manuscriptFiles().get(0).originalFileName());
+        assertEquals("page-2.jpg", response.manuscriptFiles().get(1).originalFileName());
+        verify(seriesFileRepository).deactivateActiveChapterFiles(30L, "CHAPTER_MANUSCRIPT");
+        verify(seriesFileRepository, times(2)).save(any(SeriesFile.class));
+        assertTrue(savedFiles.stream().allMatch(file -> chapter.equals(file.getChapter())));
+        assertTrue(savedFiles.stream().allMatch(file -> "CHAPTER_MANUSCRIPT".equals(file.getPurpose())));
+        assertTrue(savedFiles.stream()
+                .allMatch(file -> Files.exists(tempDir.resolve("series-20").resolve(file.getFileName()))));
 
         ArgumentCaptor<Notification> notificationCaptor = ArgumentCaptor.forClass(Notification.class);
         verify(notificationRepository).save(notificationCaptor.capture());
@@ -435,7 +460,7 @@ class MangakaServiceTests {
     }
 
     @Test
-    void submitChapterToEditorRejectsInvalidManuscriptUrl() {
+    void submitChapterToEditorRejectsMixedZipAndImages() {
         User mangaka = user(1L, EMAIL);
         User editor = tantouEditor(3L, "editor@manga.test");
         MangaSeries series = new MangaSeries();
@@ -448,14 +473,47 @@ class MangakaServiceTests {
         chapter.setTitle("Chapter 1");
         chapter.setStatus("DRAFT");
         when(chapterRepository.findById(30L)).thenReturn(Optional.of(chapter));
+        MockMultipartFile image = new MockMultipartFile(
+                "files", "page.png", "image/png", "page".getBytes(StandardCharsets.UTF_8));
+        MockMultipartFile zip = new MockMultipartFile(
+                "files", "chapter.zip", "application/zip", "zip".getBytes(StandardCharsets.UTF_8));
 
         ResponseStatusException exception = assertThrows(ResponseStatusException.class,
-                () -> service.submitChapterToEditor(30L, new SubmitChapterToEditorRequest("chapter-1.psd")));
+                () -> service.submitChapterToEditor(30L, List.of(image, zip)));
 
         assertSame(HttpStatus.BAD_REQUEST, exception.getStatusCode());
-        assertEquals("manuscriptUrl must be a valid http(s) URL", exception.getReason());
+        assertEquals("Upload either one ZIP file or one or more image files", exception.getReason());
         verify(chapterRepository, never()).save(any());
+        verify(seriesFileRepository, never()).save(any());
         verify(notificationRepository, never()).save(any());
+    }
+
+    @Test
+    void submitChapterToEditorAcceptsOneZip(@TempDir Path tempDir) {
+        ReflectionTestUtils.setField(service, "seriesFileUploadRootOverride", tempDir.toString());
+        User mangaka = user(1L, EMAIL);
+        MangaSeries series = new MangaSeries();
+        series.setSeriesId(20L);
+        series.setAuthor(mangaka);
+        series.setTantouEditor(tantouEditor(3L, "editor@manga.test"));
+        Chapter chapter = new Chapter();
+        chapter.setChapterId(30L);
+        chapter.setSeries(series);
+        chapter.setTitle("Chapter 1");
+        chapter.setStatus("DRAFT");
+        when(chapterRepository.findById(30L)).thenReturn(Optional.of(chapter));
+        when(chapterRepository.save(chapter)).thenReturn(chapter);
+        when(seriesFileRepository.save(any(SeriesFile.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        MockMultipartFile zip = new MockMultipartFile(
+                "files", "chapter.zip", "application/zip", "zip".getBytes(StandardCharsets.UTF_8));
+
+        var response = service.submitChapterToEditor(30L, List.of(zip));
+
+        assertEquals("SUBMITTED_TO_EDITOR", response.status());
+        ArgumentCaptor<SeriesFile> fileCaptor = ArgumentCaptor.forClass(SeriesFile.class);
+        verify(seriesFileRepository).save(fileCaptor.capture());
+        assertEquals("chapter.zip", fileCaptor.getValue().getOriginalFileName());
+        assertEquals("CHAPTER_MANUSCRIPT", fileCaptor.getValue().getPurpose());
     }
 
     @Test
@@ -474,7 +532,7 @@ class MangakaServiceTests {
         ResponseStatusException exception = assertThrows(
                 ResponseStatusException.class,
                 () -> service.submitChapterToEditor(
-                        30L, new SubmitChapterToEditorRequest(MANUSCRIPT_URL)));
+                        30L, List.of(seriesFile())));
 
         assertSame(HttpStatus.CONFLICT, exception.getStatusCode());
         verify(chapterRepository, never()).save(any());

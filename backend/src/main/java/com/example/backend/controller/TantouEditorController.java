@@ -8,20 +8,20 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.multipart.MultipartFile;
 
 import com.example.backend.dto.ChapterRevisionNoteResponse;
 import com.example.backend.dto.MangakaDtos.NotificationResponse;
 import com.example.backend.dto.TantouEditorDtos.ChapterManuscriptResponse;
+import com.example.backend.dto.TantouEditorDtos.ChapterRevisionNoteRequest;
 import com.example.backend.dto.TantouEditorDtos.CommentRequest;
 import com.example.backend.dto.TantouEditorDtos.CommentResponse;
 import com.example.backend.dto.TantouEditorDtos.DossierResponse;
@@ -70,10 +70,13 @@ public class TantouEditorController {
     @ResponseStatus(HttpStatus.CREATED)
     public ChapterRevisionNoteResponse createChapterRevisionNote(
             @PathVariable Long chapterId,
-            @RequestParam("image") MultipartFile image,
-            @RequestParam(required = false) String canvasData,
-            @RequestParam Integer orderIndex) {
-        return service.createChapterRevisionNote(chapterId, image, canvasData, orderIndex);
+            @Valid @ModelAttribute ChapterRevisionNoteRequest request) {
+        return service.createChapterRevisionNote(
+                chapterId,
+                request.image(),
+                request.canvasData(),
+                request.description(),
+                request.orderIndex());
     }
 
     @PostMapping("/chapters/{chapterId}/request-revision")

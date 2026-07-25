@@ -78,6 +78,8 @@ public class TantouEditorService {
     private static final String SUBMITTED_TO_EDITOR_STATUS = "SUBMITTED_TO_EDITOR";
     private static final String SUBMITTED_TO_BOARD_STATUS = "SUBMITTED_TO_BOARD";
     private static final String EDITOR_ASSIGNMENT_REQUIRED_STATUS = "EDITOR_ASSIGNMENT_REQUIRED";
+    private static final String SERIES_SUBMISSION_PURPOSE = "SERIES_SUBMISSION";
+    private static final String CHAPTER_MANUSCRIPT_PURPOSE = "CHAPTER_MANUSCRIPT";
     private static final int BOARD_PANEL_SIZE = 3;
     private static final int MAX_EDITOR_REJECTIONS_PER_MONTH = 2;
     private static final long MAX_REVISION_NOTE_IMAGE_SIZE_BYTES = 5L * 1024 * 1024;
@@ -313,9 +315,14 @@ public class TantouEditorService {
             Long chapterId,
             MultipartFile image,
             String canvasData,
+            String description,
             Integer orderIndex) {
         Chapter chapter = chapterForCurrentEditor(chapterId);
         validateRevisionNoteImage(image);
+        String requiredDescription = blankToNull(description);
+        if (requiredDescription == null) {
+            throw badRequest("description is required");
+        }
         if (orderIndex == null || orderIndex < 0) {
             throw badRequest("orderIndex must be zero or greater");
         }
@@ -325,6 +332,7 @@ public class TantouEditorService {
         note.setEditor(currentUser());
         note.setImageUrl(storeChapterRevisionNoteImage(chapterId, orderIndex, image));
         note.setCanvasData(blankToNull(canvasData));
+        note.setDescription(requiredDescription);
         note.setOrderIndex(orderIndex);
         note.setCreatedAt(LocalDateTime.now());
         return toChapterRevisionNoteResponse(chapterRevisionNoteRepository.save(note));
@@ -575,7 +583,7 @@ public class TantouEditorService {
                 chapter.getTitle(),
                 series == null ? null : series.getSeriesId(),
                 series == null ? null : series.getTitle(),
-                chapter.getManuscriptUrl(),
+                chapterManuscriptFiles(chapter.getChapterId()),
                 chapter.getStatus(),
                 chapter.getReleaseDate(),
                 pages);
@@ -699,7 +707,9 @@ public class TantouEditorService {
                 series.getStatus(),
                 series.getCreatedAt(),
                 series.getSubmittedAt(),
-                seriesFileRepository.findBySeriesSeriesIdAndActiveTrueOrderByUploadedAtDesc(series.getSeriesId())
+                seriesFileRepository.findBySeriesSeriesIdAndPurposeAndActiveTrueOrderByUploadedAtDesc(
+                        series.getSeriesId(),
+                        SERIES_SUBMISSION_PURPOSE)
                         .stream()
                         .map(this::toUploadedFileResponse)
                         .toList());
@@ -753,8 +763,19 @@ public class TantouEditorService {
                 note.getNoteId(),
                 chapter == null ? null : chapter.getChapterId(),
                 note.getImageUrl(),
+                note.getDescription(),
                 note.getOrderIndex(),
                 note.getCreatedAt());
+    }
+
+    private List<UploadedFileResponse> chapterManuscriptFiles(Long chapterId) {
+        return seriesFileRepository
+                .findByChapterChapterIdAndPurposeAndActiveTrueOrderByUploadedAtAsc(
+                        chapterId,
+                        CHAPTER_MANUSCRIPT_PURPOSE)
+                .stream()
+                .map(this::toUploadedFileResponse)
+                .toList();
     }
 
     private MangaSeries series(Long seriesId) {

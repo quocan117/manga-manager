@@ -46,9 +46,6 @@ public final class MangakaDtos {
             @NotBlank String title) {
     }
 
-    public record SubmitChapterToEditorRequest(@NotBlank String manuscriptUrl) {
-    }
-
     public record CreatePageRequest(
             @NotNull Long chapterId,
             @NotNull @Positive Integer pageNumber,
@@ -120,7 +117,7 @@ public final class MangakaDtos {
             Long seriesId,
             Integer chapterNumber,
             String title,
-            String manuscriptUrl,
+            List<UploadedFileResponse> manuscriptFiles,
             String status,
             LocalDateTime createdAt) {
     }

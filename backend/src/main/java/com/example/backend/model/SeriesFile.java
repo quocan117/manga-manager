@@ -27,6 +27,10 @@ public class SeriesFile {
     private Task task;
 
     @ManyToOne
+    @JoinColumn(name = "chapter_id")
+    private Chapter chapter;
+
+    @ManyToOne
     @JoinColumn(name = "uploaded_by")
     private User uploadedBy;
 

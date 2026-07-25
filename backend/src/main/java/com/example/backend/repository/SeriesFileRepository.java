@@ -9,7 +9,13 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 
 public interface SeriesFileRepository extends JpaRepository<SeriesFile, Long> {
-    List<SeriesFile> findBySeriesSeriesIdAndActiveTrueOrderByUploadedAtDesc(Long seriesId);
+    List<SeriesFile> findBySeriesSeriesIdAndPurposeAndActiveTrueOrderByUploadedAtDesc(
+            Long seriesId,
+            String purpose);
+
+    List<SeriesFile> findByChapterChapterIdAndPurposeAndActiveTrueOrderByUploadedAtAsc(
+            Long chapterId,
+            String purpose);
 
     List<SeriesFile> findByTaskTaskIdAndRoundNumberAndPurposeAndActiveTrueOrderByUploadedAtAsc(
             Long taskId,
@@ -21,10 +27,22 @@ public interface SeriesFileRepository extends JpaRepository<SeriesFile, Long> {
             update SeriesFile file
             set file.active = false
             where file.series.seriesId = :seriesId
-              and file.fileType = :fileType
+              and file.purpose = :purpose
               and file.active = true
             """)
     int deactivateActiveFiles(
             @Param("seriesId") Long seriesId,
-            @Param("fileType") String fileType);
+            @Param("purpose") String purpose);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            update SeriesFile file
+            set file.active = false
+            where file.chapter.chapterId = :chapterId
+              and file.purpose = :purpose
+              and file.active = true
+            """)
+    int deactivateActiveChapterFiles(
+            @Param("chapterId") Long chapterId,
+            @Param("purpose") String purpose);
 }

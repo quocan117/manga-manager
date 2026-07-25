@@ -44,6 +44,7 @@ import com.example.backend.model.PublishSchedule;
 import com.example.backend.model.ReviewComment;
 import com.example.backend.model.SeriesEditorRejection;
 import com.example.backend.model.SeriesBoardAssignment;
+import com.example.backend.model.SeriesFile;
 import com.example.backend.model.Task;
 import com.example.backend.model.User;
 import com.example.backend.repository.BoardDecisionRepository;
@@ -136,17 +137,29 @@ class TantouEditorServiceTests {
     void listsPendingChapterReviewsForCurrentEditor() {
         MangaSeries series = series(10L);
         Chapter chapter = chapter(11L, series);
-        chapter.setManuscriptUrl("drive/chapter-11.psd");
         chapter.setStatus("SUBMITTED_TO_EDITOR");
+        SeriesFile manuscript = new SeriesFile();
+        manuscript.setFileId(50L);
+        manuscript.setSeries(series);
+        manuscript.setChapter(chapter);
+        manuscript.setOriginalFileName("chapter-11.zip");
+        manuscript.setPurpose("CHAPTER_MANUSCRIPT");
+        manuscript.setActive(true);
         when(chapterRepository.findBySeriesTantouEditorEmailAndStatusIgnoreCaseOrderByCreatedAtDesc(
                 EMAIL, "SUBMITTED_TO_EDITOR")).thenReturn(List.of(chapter));
         when(pageRepository.findByChapterChapterIdOrderByPageNumberAsc(11L)).thenReturn(List.of());
+        when(seriesFileRepository
+                .findByChapterChapterIdAndPurposeAndActiveTrueOrderByUploadedAtAsc(
+                        11L,
+                        "CHAPTER_MANUSCRIPT"))
+                .thenReturn(List.of(manuscript));
 
         var response = service.getPendingChapterReviews();
 
         assertEquals(1, response.size());
         assertEquals(11L, response.get(0).id());
-        assertEquals("drive/chapter-11.psd", response.get(0).manuscriptUrl());
+        assertEquals(1, response.get(0).manuscriptFiles().size());
+        assertEquals("chapter-11.zip", response.get(0).manuscriptFiles().get(0).originalFileName());
     }
 
     @Test
@@ -165,14 +178,38 @@ class TantouEditorServiceTests {
             return note;
         });
 
-        var response = service.createChapterRevisionNote(11L, image, "{\"objects\":[]}", 2);
+        var response = service.createChapterRevisionNote(
+                11L,
+                image,
+                "{\"objects\":[]}",
+                "Sai lời thoại ở khung thứ hai",
+                2);
 
         assertEquals(90L, response.id());
         assertEquals(11L, response.chapterId());
+        assertEquals("Sai lời thoại ở khung thứ hai", response.description());
         assertEquals(2, response.orderIndex());
         assertTrue(response.imageUrl().startsWith("chapter-revision-notes/chapter-11/"));
         String savedFileName = Path.of(response.imageUrl()).getFileName().toString();
         assertTrue(Files.exists(tempDir.resolve("chapter-11").resolve(savedFileName)));
+    }
+
+    @Test
+    void createChapterRevisionNoteRequiresDescription(@TempDir Path tempDir) {
+        ReflectionTestUtils.setField(service, "chapterRevisionNoteUploadRootOverride", tempDir.toString());
+        MangaSeries series = series(10L);
+        Chapter chapter = chapter(11L, series);
+        MockMultipartFile image = new MockMultipartFile(
+                "image", "revision.png", "image/png", "revision image".getBytes(StandardCharsets.UTF_8));
+        when(chapterRepository.findById(11L)).thenReturn(Optional.of(chapter));
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.createChapterRevisionNote(11L, image, null, "  ", 0));
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
+        assertEquals("description is required", exception.getReason());
+        verify(chapterRevisionNoteRepository, never()).save(any(ChapterRevisionNote.class));
     }
 
     @Test

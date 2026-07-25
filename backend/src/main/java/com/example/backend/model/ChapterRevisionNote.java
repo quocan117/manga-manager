@@ -30,6 +30,9 @@ public class ChapterRevisionNote {
     @Column(columnDefinition = "NVARCHAR(MAX)")
     private String canvasData;
 
+    @Column(columnDefinition = "NVARCHAR(MAX)")
+    private String description;
+
     private Integer orderIndex;
     private LocalDateTime createdAt;
 }

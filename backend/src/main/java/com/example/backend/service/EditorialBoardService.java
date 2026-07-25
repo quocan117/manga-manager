@@ -90,6 +90,8 @@ public class EditorialBoardService {
     private static final String SUBMITTED_TO_BOARD_CHAPTER_STATUS = "SUBMITTED_TO_BOARD";
     private static final String APPROVED_CHAPTER_STATUS = "APPROVED";
     private static final String PUBLISHED_CHAPTER_STATUS = "PUBLISHED";
+    private static final String SERIES_SUBMISSION_PURPOSE = "SERIES_SUBMISSION";
+    private static final String CHAPTER_MANUSCRIPT_PURPOSE = "CHAPTER_MANUSCRIPT";
     private static final int BOARD_PANEL_SIZE = 3;
     private static final Set<String> APPROVED_SERIES_STATUSES = Set.of(
             COMING_SOON_SERIES_STATUS, PUBLISHING_SERIES_STATUS, PUBLISHED_SERIES_STATUS);
@@ -1022,7 +1024,9 @@ public class EditorialBoardService {
                 assignments.stream()
                         .map(this::toBoardMemberAssignmentResponse)
                         .toList(),
-                seriesFileRepository.findBySeriesSeriesIdAndActiveTrueOrderByUploadedAtDesc(series.getSeriesId())
+                seriesFileRepository.findBySeriesSeriesIdAndPurposeAndActiveTrueOrderByUploadedAtDesc(
+                        series.getSeriesId(),
+                        SERIES_SUBMISSION_PURPOSE)
                         .stream()
                         .map(this::toUploadedFileResponse)
                         .toList());
@@ -1098,7 +1102,7 @@ public class EditorialBoardService {
                 chapter.getTitle(),
                 series == null ? null : series.getSeriesId(),
                 series == null ? null : series.getTitle(),
-                chapter.getManuscriptUrl(),
+                chapterManuscriptFiles(chapter.getChapterId()),
                 chapter.getStatus(),
                 chapter.getReleaseDate(),
                 chapterBoardReviewRepository
@@ -1106,6 +1110,16 @@ public class EditorialBoardService {
                         .stream()
                         .map(this::toChapterBoardReviewResponse)
                         .toList());
+    }
+
+    private List<UploadedFileResponse> chapterManuscriptFiles(Long chapterId) {
+        return seriesFileRepository
+                .findByChapterChapterIdAndPurposeAndActiveTrueOrderByUploadedAtAsc(
+                        chapterId,
+                        CHAPTER_MANUSCRIPT_PURPOSE)
+                .stream()
+                .map(this::toUploadedFileResponse)
+                .toList();
     }
 
     private ChapterBoardReviewResponse toChapterBoardReviewResponse(ChapterBoardReview review) {
