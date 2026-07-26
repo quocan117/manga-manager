@@ -48,6 +48,14 @@ const BoardLayout = () => {
           </li>
           <li>
             <NavLink
+              to="/board/editor-assignment"
+              className={({ isActive }) => (isActive ? "active" : "")}
+            >
+              🧭 Phân Công Biên Tập Viên
+            </NavLink>
+          </li>
+          <li>
+            <NavLink
               to="/board/schedule"
               className={({ isActive }) => (isActive ? "active" : "")}
             >

@@ -31,6 +31,7 @@ import ManageUsersPage from "./features/editorialBoard/pages/ManageUsersPage";
 import PublishSchedulePage from "./features/editorialBoard/pages/PublishSchedulePage";
 import ReaderVotesPage from "./features/editorialBoard/pages/ReaderVotesPage";
 import BoardNotificationPage from "./features/editorialBoard/pages/BoardNotificationPage";
+import EditorAssignmentPage from "./features/editorialBoard/pages/EditorAssignmentPage";
 
 // Feature: Assistant
 import AssistantLayout from "./features/assistant/components/AssistantLayout";
@@ -111,6 +112,7 @@ function App() {
         <Route path="reader-votes" element={<ReaderVotesPage />} />
         <Route path="notifications" element={<BoardNotificationPage />} />
         <Route path="series-management" element={<SeriesManagementPage />} />
+        <Route path="editor-assignment" element={<EditorAssignmentPage />} />
         <Route
           path="chapters/:chapterId/review"
           element={<ChapterReviewBoardPage />}

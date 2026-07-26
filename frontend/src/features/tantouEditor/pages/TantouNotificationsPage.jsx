@@ -7,14 +7,21 @@ import {
   rejectSeries,
 } from "../../../services/tantouService";
 import { formatDateTime } from "../../../utils/formatDate";
+import RejectReasonModal from "../../../components/RejectReasonModal";
 
-const ASSIGNMENT_NOTIFICATION_TYPES = ["NEW_ASSIGNMENT", "SYSTEM_ASSIGNMENT"];
+const ASSIGNMENT_NOTIFICATION_TYPES = [
+  "NEW_ASSIGNMENT",
+  "SYSTEM_ASSIGNMENT",
+  "FORCED_EDITOR_ASSIGNMENT",
+];
+const LOCKED_ASSIGNMENT_TYPES = ["FORCED_EDITOR_ASSIGNMENT"];
 
 export default function TantouNotifications() {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [acceptingId, setAcceptingId] = useState(null);
   const [rejectingId, setRejectingId] = useState(null);
+  const [rejectTarget, setRejectTarget] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
   const navigate = useNavigate();
   const { refreshUnreadCount } = useOutletContext() || {};
@@ -46,7 +53,7 @@ export default function TantouNotifications() {
       console.error("Lỗi đánh dấu đã đọc:", error);
     }
   };
-  
+
   const handleAccept = async (notification, e) => {
     e.stopPropagation();
     const seriesId = notification.referenceId;
@@ -77,18 +84,20 @@ export default function TantouNotifications() {
     }
   };
 
-  const handleReject = async (notification, e) => {
+  const handleReject = (notification, e) => {
     e.stopPropagation();
+    if (!notification.referenceId) return;
+    setRejectTarget(notification);
+  };
+
+  const handleConfirmReject = async (reason) => {
+    const notification = rejectTarget;
+    if (!notification) return;
     const seriesId = notification.referenceId;
-    if (!seriesId) return;
-    const confirmed = window.confirm(
-      "Bạn có chắc muốn từ chối hồ sơ này? Hệ thống sẽ tự động chuyển cho biên tập viên đang có ít việc nhất.",
-    );
-    if (!confirmed) return;
     setErrorMsg("");
     setRejectingId(notification.id);
     try {
-      await rejectSeries(seriesId);
+      await rejectSeries(seriesId, reason);
       if (!notification.isRead) {
         await markNotificationRead(notification.id);
       }
@@ -98,6 +107,7 @@ export default function TantouNotifications() {
         ),
       );
       refreshUnreadCount?.();
+      setRejectTarget(null);
     } catch (error) {
       console.error("Lỗi từ chối hồ sơ:", error);
       const message =
@@ -111,7 +121,7 @@ export default function TantouNotifications() {
   };
 
   if (loading) return <div className="p-4">Đang tải thông báo...</div>;
-  
+
   return (
     <div className="p-4 bg-light min-vh-100">
       <h2 className="mb-4">🔔 Thông Báo</h2>
@@ -126,6 +136,8 @@ export default function TantouNotifications() {
       {notifications.map((n) => {
         const isAssignment = ASSIGNMENT_NOTIFICATION_TYPES.includes(n.type);
         const canAccept = isAssignment && !n.isRead && !n.accepted;
+        const canReject =
+          canAccept && !LOCKED_ASSIGNMENT_TYPES.includes(n.type);
         const isAccepting = acceptingId === n.id;
         const isRejecting = rejectingId === n.id;
         return (
@@ -151,14 +163,16 @@ export default function TantouNotifications() {
                     >
                       {isAccepting ? "Đang nhận..." : "Nhận hồ sơ series"}
                     </button>
-                    <button
-                      type="button"
-                      className="btn btn-sm btn-outline-danger"
-                      disabled={isAccepting || isRejecting}
-                      onClick={(e) => handleReject(n, e)}
-                    >
-                      {isRejecting ? "Đang từ chối..." : "Từ chối"}
-                    </button>
+                    {canReject && (
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline-danger"
+                        disabled={isAccepting || isRejecting}
+                        onClick={(e) => handleReject(n, e)}
+                      >
+                        {isRejecting ? "Đang từ chối..." : "Từ chối"}
+                      </button>
+                    )}
                   </>
                 )}
                 <small className="text-muted">
@@ -169,6 +183,15 @@ export default function TantouNotifications() {
           </div>
         );
       })}
+
+      {rejectTarget && (
+        <RejectReasonModal
+          seriesTitle={rejectTarget.message}
+          submitting={rejectingId === rejectTarget.id}
+          onCancel={() => setRejectTarget(null)}
+          onConfirm={handleConfirmReject}
+        />
+      )}
     </div>
   );
 }
