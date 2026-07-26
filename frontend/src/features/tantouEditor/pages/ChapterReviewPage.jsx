@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import ChapterMarkupUploader from "../../../components/ChapterMarkupUploader";
+import SeriesFileList from "../../../components/SeriesFileList";
 import {
   getChapterForReview,
   saveChapterRevisionNote,
@@ -51,10 +52,11 @@ export default function ChapterReviewPage() {
     }
   };
 
-  const handleSaveNote = async (index, { canvasData, previewImageUrl }) => {
+  const handleSaveNote = async (index, { canvasData, previewImageUrl, description },) => {
     return saveChapterRevisionNote(chapterId, {
       previewImageUrl,
       canvasData,
+      description,
       orderIndex: index,
     });
   };
@@ -94,18 +96,10 @@ export default function ChapterReviewPage() {
           File gốc do Mangaka gửi
         </div>
         <div className="card-body">
-          {chapter?.manuscriptUrl ? (
-            <a
-              href={chapter.manuscriptUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn btn-outline-primary"
-            >
-              🔗 Mở link file gốc để tải về kiểm tra
-            </a>
-          ) : (
-            <p className="text-muted mb-0">Chưa có link file gốc.</p>
-          )}
+          <SeriesFileList
+            files={chapter?.manuscriptFiles || []}
+            emptyText="Chưa có file bản thảo nào."
+          />
         </div>
       </div>
       <div className="card shadow-sm border-0 mb-4">

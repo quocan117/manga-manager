@@ -1,13 +1,14 @@
 import api from "./api";
 
-export const submitChapterToEditor = async (chapterId, manuscriptUrl) => {
+export const submitChapterToEditor = async (chapterId, files) => {
+  const formData = new FormData();
+  files.forEach((file) => formData.append("files", file));
   const response = await api.patch(
     `/mangaka/chapters/${chapterId}/submit-to-editor`,
-    { manuscriptUrl },
+    formData,
+    { headers: { "Content-Type": "multipart/form-data" } },
   );
   return response.data;
-  console.warn("[TODO-BE] submit-to-editor chưa có API thật, đang trả mock.");
-  return { id: chapterId, status: "SUBMITTED_TO_EDITOR", manuscriptUrl };
 };
 
 export const getChapterRevisionNotes = async (chapterId) => {
@@ -50,12 +51,13 @@ function dataUrlToBlob(dataUrl) {
 
 export const saveChapterRevisionNote = async (
   chapterId,
-  { previewImageUrl, canvasData, orderIndex },
+  { previewImageUrl, canvasData, description, orderIndex },
 ) => {
   const formData = new FormData();
   const blob = dataUrlToBlob(previewImageUrl);
   formData.append("image", blob, `revision-note-${orderIndex}.png`);
   formData.append("canvasData", JSON.stringify(canvasData));
+  formData.append("description", description);
   formData.append("orderIndex", orderIndex);
   const response = await api.post(
     `/tantou-editor/chapters/${chapterId}/revision-notes`,

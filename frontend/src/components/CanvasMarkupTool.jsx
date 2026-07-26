@@ -12,6 +12,7 @@ const CanvasMarkupTool = ({
   onStatusChange,
   readOnly = false,
   hideControls = false,
+  canSave = true,
 }) => {
   const fetchDrawing = loadDrawing || (() => getPageDrawing(pageId));
   const persist =
@@ -230,7 +231,7 @@ const CanvasMarkupTool = ({
   };
 
   const handleSave = async () => {
-    if (!canvas || isLocked) return;
+    if (!canvas || isLocked || !canSave) return;
     const canvasJSON = canvas.toJSON();
     delete canvasJSON.backgroundImage;
     const previewImageUrl = canvas.toDataURL({ format: "png" });
@@ -289,15 +290,20 @@ const CanvasMarkupTool = ({
           >
             ↪ Redo
           </button>
-          <button onClick={handleSave} disabled={isLocked} className="btn-save">
+          <button
+            onClick={handleSave}
+            disabled={isLocked || !canSave}
+            className="btn-save"
+          >
             Lưu đánh dấu
           </button>
         </div>
-      )}
+      )
+      }
       <div className="canvas-wrapper">
         <canvas ref={canvasRef} />
       </div>
-    </div>
+    </div >
   );
 };
 export default CanvasMarkupTool;

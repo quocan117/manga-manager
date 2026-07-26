@@ -4,6 +4,7 @@ import {
   getChapterForBoardReview,
   reviewChapter,
 } from "../../../services/boardService";
+import SeriesFileList from "../../../components/SeriesFileList";
 
 export default function ChapterReviewBoardPage() {
   const { chapterId } = useParams();
@@ -41,16 +42,12 @@ export default function ChapterReviewBoardPage() {
         Xác nhận Chapter #{chapter.chapterNumber}: {chapter.title}
       </h2>
       <p className="text-muted">Series: {chapter.seriesTitle}</p>
-      {chapter.manuscriptUrl && (
-        <a
-          href={chapter.manuscriptUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="btn btn-outline-primary mb-3"
-        >
-          🔗 Mở bản thảo
-        </a>
-      )}
+      <div className="mb-3">
+        <SeriesFileList
+          files={chapter.manuscriptFiles || []}
+          emptyText="Chưa có file bản thảo nào."
+        />
+      </div>
       <textarea
         className="form-control mb-3"
         rows={4}

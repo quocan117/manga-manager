@@ -2,7 +2,7 @@ import { useState } from "react";
 import CanvasMarkupTool from "./CanvasMarkupTool";
 
 export default function ChapterMarkupUploader({ onSaveNote, onSendAll }) {
-  const [images, setImages] = useState([]); 
+  const [images, setImages] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [sending, setSending] = useState(false);
 
@@ -13,6 +13,7 @@ export default function ChapterMarkupUploader({ onSaveNote, onSendAll }) {
       file,
       previewUrl: URL.createObjectURL(file),
       note: null,
+      description: "",
       finalized: false,
     }));
     setImages((prev) => {
@@ -28,11 +29,25 @@ export default function ChapterMarkupUploader({ onSaveNote, onSendAll }) {
   const allFinalized =
     images.length > 0 && images.every((img) => img.finalized);
 
+  const handleDescriptionChange = (value) => {
+    setImages((prev) =>
+      prev.map((img, idx) =>
+        idx === currentIndex ? { ...img, description: value } : img,
+      ),
+    );
+  };
+
   const handlePersist = async (canvasJSON, previewImageUrl) => {
+    const description = (currentImage.description || "").trim();
+    if (!description) {
+      alert("Vui lòng nhập mô tả lỗi cho trang này trước khi chốt.");
+      throw new Error("Thiếu mô tả lỗi");
+    }
     const note = await onSaveNote(currentIndex, {
       imageFile: currentImage.file,
       canvasData: canvasJSON,
       previewImageUrl,
+      description,
     });
     setImages((prev) =>
       prev.map((img, idx) =>
@@ -54,7 +69,7 @@ export default function ChapterMarkupUploader({ onSaveNote, onSendAll }) {
       setSending(false);
     }
   };
-  
+
   return (
     <div className="chapter-markup-uploader">
       <div className="mb-3 p-3 border rounded bg-light">
@@ -97,6 +112,20 @@ export default function ChapterMarkupUploader({ onSaveNote, onSendAll }) {
             )}
           </div>
           <div className="card-body">
+            <div className="mb-3">
+              <label className="form-label fw-bold">
+                Mô tả lỗi cho trang này <span className="text-danger">*</span>
+              </label>
+              <textarea
+                className="form-control"
+                rows={2}
+                placeholder="Mô tả cụ thể lỗi cần chỉnh sửa trên trang này..."
+                value={currentImage.description || ""}
+                onChange={(e) => handleDescriptionChange(e.target.value)}
+                disabled={currentImage.finalized}
+                required
+              />
+            </div>
             <CanvasMarkupTool
               key={currentIndex}
               pageId={`local-${currentIndex}`}
@@ -105,6 +134,7 @@ export default function ChapterMarkupUploader({ onSaveNote, onSendAll }) {
               hideControls={currentImage.finalized}
               loadDrawing={async () => null}
               persistDrawing={handlePersist}
+              canSave={!!(currentImage.description || "").trim()}
             />
           </div>
         </div>
