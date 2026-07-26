@@ -387,7 +387,7 @@ public class TantouEditorService {
     }
 
     private static final List<String> ASSIGNMENT_NOTIFICATION_TYPES =
-            Arrays.asList("NEW_ASSIGNMENT", "SYSTEM_ASSIGNMENT");
+            Arrays.asList("NEW_ASSIGNMENT", "SYSTEM_ASSIGNMENT", "FORCED_EDITOR_ASSIGNMENT");
 
     @Transactional
     public void acceptSeries(Long seriesId) {
