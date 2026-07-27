@@ -96,6 +96,7 @@ public class EditorialBoardService {
     private static final String PUBLISHED_CHAPTER_STATUS = "PUBLISHED";
     private static final String SERIES_SUBMISSION_PURPOSE = "SERIES_SUBMISSION";
     private static final String CHAPTER_MANUSCRIPT_PURPOSE = "CHAPTER_MANUSCRIPT";
+    private static final String CHAPTER_BOARD_REJECTED_STATUS = "BOARD_REJECTED";
     private static final int BOARD_PANEL_SIZE = 3;
     private static final Set<String> APPROVED_SERIES_STATUSES = Set.of(
             COMING_SOON_SERIES_STATUS, PUBLISHING_SERIES_STATUS, PUBLISHED_SERIES_STATUS);
@@ -309,12 +310,12 @@ public class EditorialBoardService {
 
         MangaSeries series = chapter.getSeries();
         if (Boolean.FALSE.equals(request.confirmed())) {
-            chapter.setStatus(REVISION_REQUESTED_STATUS);
+            chapter.setStatus(CHAPTER_BOARD_REJECTED_STATUS);
             chapterRepository.save(chapter);
             notify(series == null ? null : series.getTantouEditor(),
                     "CHAPTER_REVISION_REQUESTED", chapterId,
                     "Editorial Board requested revision for chapter \"" + chapter.getTitle()
-                            + "\": " + request.comment().trim());
+                            + "\". Vui lòng chờ Biên tập viên xem xét.");
             notify(series == null ? null : series.getAuthor(),
                     "CHAPTER_REVISION_REQUESTED", chapterId,
                     "Editorial Board requested revision for chapter \"" + chapter.getTitle() + "\".");
@@ -1113,8 +1114,8 @@ public class EditorialBoardService {
                         .map(this::toBoardMemberAssignmentResponse)
                         .toList(),
                 seriesFileRepository.findBySeriesSeriesIdAndPurposeAndActiveTrueOrderByUploadedAtDesc(
-                        series.getSeriesId(),
-                        SERIES_SUBMISSION_PURPOSE)
+                                series.getSeriesId(),
+                                SERIES_SUBMISSION_PURPOSE)
                         .stream()
                         .map(this::toUploadedFileResponse)
                         .toList(),

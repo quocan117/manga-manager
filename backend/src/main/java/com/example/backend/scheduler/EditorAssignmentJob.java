@@ -36,7 +36,7 @@ public class EditorAssignmentJob {
     public void revokeAndReassignOverdueSeries() {
         LocalDateTime timeLimit = LocalDateTime.now().minusHours(24);
         List<MangaSeries> overdueSeries = mangaSeriesRepository
-                .findByStatusIgnoreCaseAndEditorAssignedAtBefore("PENDING_EDITOR", timeLimit);
+                .findOverdueUnlockedSeries("PENDING_EDITOR", timeLimit);
 
         for (MangaSeries series : overdueSeries) {
             User oldEditor = series.getTantouEditor();

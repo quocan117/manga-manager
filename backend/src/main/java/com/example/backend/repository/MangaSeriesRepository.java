@@ -73,4 +73,14 @@ public interface MangaSeriesRepository extends JpaRepository<MangaSeries, Long> 
 
     // Tìm các series đang ở trạng thái chỉ định và được gán trước một mốc thời gian cụ thể
     List<MangaSeries> findByStatusIgnoreCaseAndEditorAssignedAtBefore(String status, LocalDateTime time);
+
+    @Query("""
+            select series from MangaSeries series
+            where upper(series.status) = upper(:status)
+              and series.editorAssignedAt < :time
+              and (series.editorAssignmentLocked is null or series.editorAssignmentLocked = false)
+            """)
+    List<MangaSeries> findOverdueUnlockedSeries(
+            @Param("status") String status,
+            @Param("time") LocalDateTime time);
 }

@@ -67,7 +67,7 @@ export default function SeriesManagementPage() {
                   <td>{s.publicationCoordinatorName || "Chưa có"}</td>
                   <td style={{ fontSize: "0.85rem" }}>
                     {s.boardPanel?.map((m) => (
-                      <div key={m.userId}>{m.username}</div>
+                      <div key={m.boardMemberId}>{m.boardMemberName}</div>
                     ))}
                   </td>
                   <td>
@@ -96,29 +96,80 @@ export default function SeriesManagementPage() {
                         </thead>
                         <tbody>
                           {(chaptersBySeries[s.id] || []).map((c) => (
-                            <tr key={c.id}>
-                              <td>
-                                #{c.chapterNumber} {c.title}
-                              </td>
-                              <td>{c.status}</td>
-                              <td>
-                                {c.releaseDate
-                                  ? formatDateTime(c.releaseDate)
-                                  : "-"}
-                              </td>
-                              <td>
-                                {c.status === "SUBMITTED_TO_BOARD" && (
-                                  <button
-                                    className="btn btn-sm btn-success"
-                                    onClick={() =>
-                                      navigate(`/board/chapters/${c.id}/review`)
-                                    }
+                            <React.Fragment key={c.id}>
+                              <tr>
+                                <td>
+                                  #{c.chapterNumber} {c.title}
+                                </td>
+                                <td>{c.status}</td>
+                                <td>
+                                  {c.releaseDate
+                                    ? formatDateTime(c.releaseDate)
+                                    : "-"}
+                                </td>
+                                <td>
+                                  {(c.status === "SUBMITTED_TO_BOARD" ||
+                                    c.status === "BOARD_REJECTED" ||
+                                    c.status === "APPROVED") && (
+                                    <button
+                                      className="btn btn-sm btn-success"
+                                      onClick={() =>
+                                        navigate(
+                                          `/board/chapters/${c.id}/review`,
+                                        )
+                                      }
+                                    >
+                                      {c.status === "SUBMITTED_TO_BOARD"
+                                        ? "Xem & Xác nhận"
+                                        : "Xem chi tiết"}
+                                    </button>
+                                  )}
+                                </td>
+                              </tr>
+                              {c.reviews?.length > 0 && (
+                                <tr>
+                                  <td
+                                    colSpan={4}
+                                    style={{ background: "#f8f9fa" }}
                                   >
-                                    Xem & Xác nhận
-                                  </button>
-                                )}
-                              </td>
-                            </tr>
+                                    <div className="d-flex flex-wrap gap-3 py-1">
+                                      {c.reviews.map((r) => (
+                                        <div
+                                          key={r.id}
+                                          style={{ fontSize: "0.85rem" }}
+                                        >
+                                          <strong>
+                                            👤 {r.boardMemberName}
+                                          </strong>{" "}
+                                          {r.confirmed === null ? (
+                                            <span className="badge bg-secondary">
+                                              Chưa bỏ phiếu
+                                            </span>
+                                          ) : (
+                                            <span
+                                              className={`badge ${
+                                                r.confirmed
+                                                  ? "bg-success"
+                                                  : "bg-danger"
+                                              }`}
+                                            >
+                                              {r.confirmed
+                                                ? "Đủ điều kiện"
+                                                : "Từ chối"}
+                                            </span>
+                                          )}
+                                          {r.comment && (
+                                            <div className="text-muted">
+                                              Lý do: {r.comment}
+                                            </div>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
                           ))}
                         </tbody>
                       </table>

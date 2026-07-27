@@ -4,6 +4,8 @@ import {
   getChapterForBoardReview,
   reviewChapter,
 } from "../../../services/boardService";
+import SeriesFileList from "../../../components/SeriesFileList";
+import { formatDateTime } from "../../../utils/formatDate";
 
 export default function ChapterReviewBoardPage() {
   const { chapterId } = useParams();
@@ -41,15 +43,49 @@ export default function ChapterReviewBoardPage() {
         Xác nhận Chapter #{chapter.chapterNumber}: {chapter.title}
       </h2>
       <p className="text-muted">Series: {chapter.seriesTitle}</p>
-      {chapter.manuscriptUrl && (
-        <a
-          href={chapter.manuscriptUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="btn btn-outline-primary mb-3"
-        >
-          🔗 Mở bản thảo
-        </a>
+      <div className="mb-3">
+        <SeriesFileList
+          files={chapter.manuscriptFiles || []}
+          emptyText="Chưa có file bản thảo nào."
+        />
+      </div>
+      {chapter.reviews?.length > 0 && (
+        <div className="mb-3">
+          <h6>Ý kiến từ Ban Phụ Trách</h6>
+          <ul className="list-group">
+            {chapter.reviews.map((r) => (
+              <li
+                key={r.id}
+                className="list-group-item d-flex justify-content-between align-items-start"
+              >
+                <div>
+                  <strong>{r.boardMemberName}</strong>
+                  {r.comment && (
+                    <div className="text-muted small">{r.comment}</div>
+                  )}
+                  <div className="text-muted small">
+                    {formatDateTime(r.reviewedAt)}
+                  </div>
+                </div>
+                <span
+                  className={`badge ${
+                    r.confirmed === true
+                      ? "bg-success"
+                      : r.confirmed === false
+                        ? "bg-danger"
+                        : "bg-secondary"
+                  }`}
+                >
+                  {r.confirmed === true
+                    ? "Đủ điều kiện"
+                    : r.confirmed === false
+                      ? "Trả về chỉnh sửa"
+                      : "Chưa bình chọn"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
       <textarea
         className="form-control mb-3"

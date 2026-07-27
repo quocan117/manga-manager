@@ -80,6 +80,9 @@ public class TantouEditorService {
     private static final String EDITOR_ASSIGNMENT_REQUIRED_STATUS = "EDITOR_ASSIGNMENT_REQUIRED";
     private static final String SERIES_SUBMISSION_PURPOSE = "SERIES_SUBMISSION";
     private static final String CHAPTER_MANUSCRIPT_PURPOSE = "CHAPTER_MANUSCRIPT";
+    private static final String BOARD_REJECTED_CHAPTER_STATUS = "BOARD_REJECTED";
+    private static final Set<String> CHAPTER_REASSIGNABLE_STATUSES =
+            Set.of(SUBMITTED_TO_EDITOR_STATUS, BOARD_REJECTED_CHAPTER_STATUS);
     private static final int BOARD_PANEL_SIZE = 3;
     private static final int MAX_EDITOR_REJECTIONS_PER_MONTH = 2;
     private static final long MAX_REVISION_NOTE_IMAGE_SIZE_BYTES = 5L * 1024 * 1024;
@@ -298,8 +301,8 @@ public class TantouEditorService {
 
     @Transactional(readOnly = true)
     public List<ChapterManuscriptResponse> getPendingChapterReviews() {
-        return chapterRepository.findBySeriesTantouEditorEmailAndStatusIgnoreCaseOrderByCreatedAtDesc(
-                        currentEmail(), SUBMITTED_TO_EDITOR_STATUS)
+        return chapterRepository.findBySeriesTantouEditorEmailAndStatusInIgnoreCaseOrderByCreatedAtDesc(
+                        currentEmail(), CHAPTER_REASSIGNABLE_STATUSES)
                 .stream()
                 .map(this::toChapterManuscript)
                 .toList();
@@ -341,7 +344,8 @@ public class TantouEditorService {
     @Transactional
     public ChapterManuscriptResponse requestChapterRevision(Long chapterId) {
         Chapter chapter = chapterForCurrentEditor(chapterId);
-        if (!SUBMITTED_TO_EDITOR_STATUS.equalsIgnoreCase(chapter.getStatus())) {
+        if (!CHAPTER_REASSIGNABLE_STATUSES.contains(
+                chapter.getStatus() == null ? "" : chapter.getStatus().toUpperCase(Locale.ROOT))) {
             throw badRequest("Only submitted chapters can be returned for revision");
         }
         chapter.setStatus(REVISION_REQUESTED_STATUS);
@@ -387,7 +391,7 @@ public class TantouEditorService {
     }
 
     private static final List<String> ASSIGNMENT_NOTIFICATION_TYPES =
-            Arrays.asList("NEW_ASSIGNMENT", "SYSTEM_ASSIGNMENT");
+            Arrays.asList("NEW_ASSIGNMENT", "SYSTEM_ASSIGNMENT", "FORCED_EDITOR_ASSIGNMENT");
 
     @Transactional
     public void acceptSeries(Long seriesId) {
@@ -714,8 +718,8 @@ public class TantouEditorService {
                 series.getCreatedAt(),
                 series.getSubmittedAt(),
                 seriesFileRepository.findBySeriesSeriesIdAndPurposeAndActiveTrueOrderByUploadedAtDesc(
-                        series.getSeriesId(),
-                        SERIES_SUBMISSION_PURPOSE)
+                                series.getSeriesId(),
+                                SERIES_SUBMISSION_PURPOSE)
                         .stream()
                         .map(this::toUploadedFileResponse)
                         .toList());

@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Collection;
 
 public interface ChapterRepository extends JpaRepository<Chapter, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
@@ -27,6 +28,9 @@ public interface ChapterRepository extends JpaRepository<Chapter, Long> {
 
     List<Chapter> findBySeriesTantouEditorEmailAndStatusIgnoreCaseOrderByCreatedAtDesc(
             String email, String status);
+
+    List<Chapter> findBySeriesTantouEditorEmailAndStatusInIgnoreCaseOrderByCreatedAtDesc(
+            String email, Collection<String> statuses);
 
     long countBySeriesSeriesId(Long seriesId);
 
