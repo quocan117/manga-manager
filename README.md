@@ -25,6 +25,7 @@ B3(Optional): chạy query trong backend/database (Chỉ dùng khi có cập nh�
 11. add_series_publication_coordinator<br>
 12. add_chapter_manuscript_files_and_revision_descriptions<br>
 13. add_series_editor_rejection_reason<br>
+14. replace_feedback_period_with_range<br>
 <h5><strong>Lưu ý: số lượng like sẽ khác nhau ở mỗi máy vì dùng %*00 + *0 </strong></h5>
 
 <h3>Tài khoản:</h3>
