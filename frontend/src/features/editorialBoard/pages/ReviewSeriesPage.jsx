@@ -105,21 +105,45 @@ export default function ReviewSeriesPage() {
                   <td>
                     {series.assignedBoardMembers?.length > 0 ? (
                       <div style={{ fontSize: "0.85rem" }}>
-                        {series.assignedBoardMembers.map((member) => (
-                          <div
-                            key={member.boardMemberId}
-                            className="mb-1"
-                            style={{
-                              display: "flex",
-                              flexDirection: "column",
-                            }}
-                          >
-                            <span>👤 {member.boardMemberName}</span>
-                            <small className="text-muted">
-                              Nhận lúc: {formatDateTime(member.assignedAt)}
-                            </small>
-                          </div>
-                        ))}
+                        {series.assignedBoardMembers.map((member) => {
+                          const decision = series.decisions?.find(
+                            (d) => d.boardMemberId === member.boardMemberId,
+                          );
+                          return (
+                            <div
+                              key={member.boardMemberId}
+                              className="mb-1"
+                              style={{
+                                display: "flex",
+                                flexDirection: "column",
+                              }}
+                            >
+                              <span>
+                                👤 {member.boardMemberName}{" "}
+                                {decision ? (
+                                  <span
+                                    className={`badge ${
+                                      decision.decisionType === "APPROVE"
+                                        ? "bg-success"
+                                        : "bg-danger"
+                                    }`}
+                                  >
+                                    {decision.decisionType === "APPROVE"
+                                      ? "Đã duyệt"
+                                      : "Đã từ chối"}
+                                  </span>
+                                ) : (
+                                  <span className="badge bg-secondary">
+                                    Chưa bỏ phiếu
+                                  </span>
+                                )}
+                              </span>
+                              <small className="text-muted">
+                                Nhận lúc: {formatDateTime(member.assignedAt)}
+                              </small>
+                            </div>
+                          );
+                        })}
                       </div>
                     ) : (
                       <span className="text-muted fst-italic">

@@ -16,6 +16,7 @@ const STATUS_LABELS = {
   PUBLISHED: "Đã xuất bản",
   CANCELLED: "Đã hủy",
   SUBMITTED_TO_EDITOR: "Đang chờ biên tập duyệt",
+  BOARD_REJECTED: "Hội đồng từ chối - chờ biên tập xử lý",
   APPROVED: "Đã duyệt - chờ xuất bản theo lịch",
 };
 
