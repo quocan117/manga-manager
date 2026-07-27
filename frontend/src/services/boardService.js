@@ -160,3 +160,18 @@ export const reviewChapter = async (chapterId, confirmed, comment) => {
   );
   return response.data;
 };
+
+export const getEditorAssignmentRequiredSeries = async () => {
+  const response = await api.get(
+    "/editorial-board/series/editor-assignment-required",
+  );
+  return response.data;
+};
+
+export const assignEditor = async (seriesId, editorId) => {
+  const response = await api.patch(
+    `/editorial-board/series/${seriesId}/assign-editor`,
+    { editorId },
+  );
+  return response.data;
+};

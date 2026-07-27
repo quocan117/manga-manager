@@ -10,8 +10,15 @@ import {
 import { useNavigate } from "react-router-dom";
 import { getPendingReviewChapters } from "../../../services/chapterEditorService";
 import { formatDateTime, formatDateOnly } from "../../../utils/formatDate";
+import RejectReasonModal from "../../../components/RejectReasonModal";
 
-const ASSIGNMENT_NOTIFICATION_TYPES = ["NEW_ASSIGNMENT", "SYSTEM_ASSIGNMENT"];
+const ASSIGNMENT_NOTIFICATION_TYPES = [
+  "NEW_ASSIGNMENT",
+  "SYSTEM_ASSIGNMENT",
+  "FORCED_EDITOR_ASSIGNMENT",
+];
+const LOCKED_ASSIGNMENT_TYPES = ["FORCED_EDITOR_ASSIGNMENT"];
+
 const PROGRESS_STATUS_LABELS = {
   PENDING_EDITOR: "Chờ xác nhận",
   TANTOU_REVIEW: "Đang kiểm tra",
@@ -41,6 +48,7 @@ export default function TantouDashboard() {
   const [pendingAssignments, setPendingAssignments] = useState([]);
   const [acceptingId, setAcceptingId] = useState(null);
   const [rejectingId, setRejectingId] = useState(null);
+  const [rejectTarget, setRejectTarget] = useState(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -95,20 +103,22 @@ export default function TantouDashboard() {
     }
   };
 
-  const handleReject = async (notification) => {
+  const handleReject = (notification) => {
+    if (!notification.referenceId) return;
+    setRejectTarget(notification);
+  };
+  const handleConfirmReject = async (reason) => {
+    const notification = rejectTarget;
+    if (!notification) return;
     const seriesId = notification.referenceId;
-    if (!seriesId) return;
-    const confirmed = window.confirm(
-      "Bạn có chắc muốn từ chối hồ sơ này? Hệ thống sẽ tự động chuyển cho biên tập viên đang có ít việc nhất.",
-    );
-    if (!confirmed) return;
     setRejectingId(notification.id);
     try {
-      await rejectSeries(seriesId);
+      await rejectSeries(seriesId, reason);
       await markNotificationRead(notification.id);
       setPendingAssignments((prev) =>
         prev.filter((n) => n.id !== notification.id),
       );
+      setRejectTarget(null);
       fetchDashboardData();
     } catch (error) {
       console.error("Lỗi từ chối hồ sơ:", error);
@@ -123,23 +133,20 @@ export default function TantouDashboard() {
   };
 
   if (loading) return <div className="p-4">Đang tải báo cáo Studio...</div>;
-  
+
   return (
     <div className="p-4 bg-light min-vh-100">
       <h2 className="mb-4">📊 Báo Cáo Tiến Độ Studio</h2>
       {pendingAssignments.length > 0 && (
         <div className="card shadow-sm mb-5 border-0 border-start border-4 border-warning">
-          <div className="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
-            <span>🆕 Hồ Sơ Mới Chờ Nhận ({pendingAssignments.length})</span>
-            <small className="text-muted">
-              Cần bấm "Nhận hồ sơ series" trong 24h, nếu không hệ thống sẽ tự
-              động chuyển cho biên tập viên khác.
-            </small>
+          <div className="card-header bg-white fw-bold">
+            🆕 Hồ Sơ Mới Chờ Nhận ({pendingAssignments.length})
           </div>
           <div className="card-body p-0">
             <ul className="list-group list-group-flush">
               {pendingAssignments.map((n) => {
                 const isAccepting = acceptingId === n.id;
+                const isLocked = LOCKED_ASSIGNMENT_TYPES.includes(n.type);
                 return (
                   <li
                     key={n.id}
@@ -151,6 +158,11 @@ export default function TantouDashboard() {
                       </span>
                       {n.message}
                       <div>
+                        <small className="text-muted d-block">
+                          {isLocked
+                            ? "Hồ sơ do Hội đồng Biên tập chỉ định trực tiếp — không thể từ chối."
+                            : 'Cần bấm "Nhận hồ sơ series" trong 24h, nếu không hệ thống sẽ tự động chuyển cho biên tập viên khác.'}
+                        </small>
                         <small className="text-muted">
                           {formatDateTime(n.createdAt)}
                         </small>
@@ -164,14 +176,16 @@ export default function TantouDashboard() {
                     >
                       {isAccepting ? "Đang nhận..." : "Nhận hồ sơ series"}
                     </button>
-                    <button
-                      type="button"
-                      className="btn btn-sm btn-outline-danger ms-2"
-                      disabled={isAccepting || rejectingId === n.id}
-                      onClick={() => handleReject(n)}
-                    >
-                      {rejectingId === n.id ? "Đang từ chối..." : "Từ chối"}
-                    </button>
+                    {!isLocked && (
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline-danger ms-2"
+                        disabled={isAccepting || rejectingId === n.id}
+                        onClick={() => handleReject(n)}
+                      >
+                        {rejectingId === n.id ? "Đang từ chối..." : "Từ chối"}
+                      </button>
+                    )}
                   </li>
                 );
               })}
@@ -265,6 +279,15 @@ export default function TantouDashboard() {
           </div>
         ))}
       </div>
+
+      {rejectTarget && (
+        <RejectReasonModal
+          seriesTitle={rejectTarget.message}
+          submitting={rejectingId === rejectTarget.id}
+          onCancel={() => setRejectTarget(null)}
+          onConfirm={handleConfirmReject}
+        />
+      )}
     </div>
   );
 }
