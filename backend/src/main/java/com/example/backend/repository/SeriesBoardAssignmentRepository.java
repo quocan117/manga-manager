@@ -12,7 +12,11 @@ import java.util.Optional;
 public interface SeriesBoardAssignmentRepository extends JpaRepository<SeriesBoardAssignment, Long> {
     List<SeriesBoardAssignment> findBySeriesSeriesIdOrderByAssignedAtAsc(Long seriesId);
 
+    List<SeriesBoardAssignment> findByBoardMemberUserIdOrderByAssignedAtDesc(Long boardMemberId);
+
     Optional<SeriesBoardAssignment> findBySeriesSeriesIdAndBoardMemberUserId(Long seriesId, Long boardMemberId);
+
+    boolean existsBySeriesSeriesIdAndBoardMemberUserId(Long seriesId, Long boardMemberId);
 
     boolean existsBySeriesSeriesIdAndBoardMemberEmailIgnoreCase(Long seriesId, String email);
 

@@ -13,6 +13,11 @@ public interface ChapterLikeLogRepository extends JpaRepository<ChapterLikeLog, 
 
     boolean existsByGuestLogLogIdAndChapterChapterId(Long logId, Long chapterId);
 
+    long countByChapterSeriesSeriesIdAndLikedAtBetween(
+            Long seriesId,
+            LocalDateTime periodStart,
+            LocalDateTime periodEnd);
+
     List<ChapterLikeLog> findByLikedAtBetweenOrderByLikedAtDesc(LocalDateTime from, LocalDateTime to);
 
     @Query("""

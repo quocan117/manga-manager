@@ -190,7 +190,8 @@ public final class MangakaDtos {
             Integer position,
             Float score,
             Integer voteCount,
-            String period,
+            LocalDateTime periodStart,
+            LocalDateTime periodEnd,
             LocalDateTime calculatedAt) {
     }
 

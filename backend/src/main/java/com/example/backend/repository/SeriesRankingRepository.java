@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -13,14 +14,34 @@ public interface SeriesRankingRepository extends JpaRepository<SeriesRanking, Lo
 
     List<SeriesRanking> findAllByOrderByCalculatedAtDesc();
 
-    Optional<SeriesRanking> findBySeriesSeriesIdAndPeriod(Long seriesId, String period);
+    Optional<SeriesRanking> findBySeriesSeriesIdAndPeriodStartAndPeriodEnd(
+            Long seriesId,
+            LocalDateTime periodStart,
+            LocalDateTime periodEnd);
 
     // Lấy bảng xếp hạng của MỘT chu kỳ cụ thể, sắp theo vị trí xếp hạng
-    List<SeriesRanking> findByPeriodOrderByRankingPositionAsc(String period);
+    List<SeriesRanking> findByPeriodStartAndPeriodEndOrderByRankingPositionAsc(
+            LocalDateTime periodStart,
+            LocalDateTime periodEnd);
 
     // Danh sách các chu kỳ đã từng tổng hợp (mới nhất trước), để FE render dropdown filter
-    @Query("SELECT DISTINCT r.period FROM SeriesRanking r ORDER BY r.period DESC")
-    List<String> findDistinctPeriods();
+    @Query("""
+            SELECT DISTINCT r.periodStart AS periodStart, r.periodEnd AS periodEnd
+            FROM SeriesRanking r
+            WHERE r.periodStart IS NOT NULL AND r.periodEnd IS NOT NULL
+            ORDER BY r.periodStart DESC, r.periodEnd DESC
+            """)
+    List<RankingPeriod> findDistinctPeriods();
+
+    @Query("""
+            SELECT r
+            FROM SeriesRanking r
+            WHERE r.periodStart = :periodStart AND r.periodEnd = :periodEnd
+            ORDER BY r.voteCount DESC, r.series.title ASC
+            """)
+    List<SeriesRanking> findForPositionRecalculation(
+            @Param("periodStart") LocalDateTime periodStart,
+            @Param("periodEnd") LocalDateTime periodEnd);
 
     // Tổng lượt bình chọn CỘNG DỒN qua mọi chu kỳ, theo từng series (từ khi phát hành đến nay)
     @Query("""
@@ -38,5 +59,11 @@ public interface SeriesRankingRepository extends JpaRepository<SeriesRanking, Lo
         String getSeriesTitle();
 
         Long getTotalVotes();
+    }
+
+    interface RankingPeriod {
+        LocalDateTime getPeriodStart();
+
+        LocalDateTime getPeriodEnd();
     }
 }

@@ -23,6 +23,7 @@ public class SeriesRanking {
     private Integer rankingPosition;
     private Float score;
     private LocalDateTime calculatedAt;
-    private String period;
+    private LocalDateTime periodStart;
+    private LocalDateTime periodEnd;
     private Integer voteCount;
 }

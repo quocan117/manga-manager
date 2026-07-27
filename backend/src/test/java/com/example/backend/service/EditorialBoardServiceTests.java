@@ -4,8 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -401,22 +399,28 @@ class EditorialBoardServiceTests {
     }
 
     @Test
-    void importReaderFeedbackCalculatesRankingsFromReaderLikes() {
+    void importReaderFeedbackCalculatesRankingForAssignedSeries() {
         User board = user(1L, "Editorial Board One", BOARD_EMAIL, role("EDITORIAL_BOARD"));
-        MangaSeries firstSeries = series(5L, "Five Votes", "Published");
-        MangaSeries secondSeries = series(6L, "Ten Votes", "Published");
+        MangaSeries assignedSeries = series(5L, "Five Votes", "Published");
         LocalDateTime from = LocalDateTime.of(2026, 7, 1, 0, 0);
         LocalDateTime to = LocalDateTime.of(2026, 7, 8, 0, 0);
 
         when(userRepository.findByEmail(BOARD_EMAIL)).thenReturn(Optional.of(board));
-        when(chapterLikeLogRepository.countVotesBySeriesBetween(from, to))
-                .thenReturn(List.of(voteCount(5L, "Five Votes", 5L), voteCount(6L, "Ten Votes", 10L)));
-        when(mangaSeriesRepository.findById(5L)).thenReturn(Optional.of(firstSeries));
-        when(mangaSeriesRepository.findById(6L)).thenReturn(Optional.of(secondSeries));
-        when(readerFeedbackImportRepository.findBySeriesSeriesIdAndPeriod(anyLong(), anyString()))
+        when(seriesBoardAssignmentRepository
+                .existsBySeriesSeriesIdAndBoardMemberUserId(5L, board.getUserId()))
+                .thenReturn(true);
+        when(mangaSeriesRepository.findById(5L)).thenReturn(Optional.of(assignedSeries));
+        when(chapterLikeLogRepository
+                .countByChapterSeriesSeriesIdAndLikedAtBetween(5L, from, to))
+                .thenReturn(5L);
+        when(readerFeedbackImportRepository
+                .findBySeriesSeriesIdAndPeriodStartAndPeriodEnd(5L, from, to))
                 .thenReturn(Optional.empty());
-        when(seriesRankingRepository.findBySeriesSeriesIdAndPeriod(anyLong(), anyString()))
+        when(seriesRankingRepository
+                .findBySeriesSeriesIdAndPeriodStartAndPeriodEnd(5L, from, to))
                 .thenReturn(Optional.empty());
+        when(seriesRankingRepository.findForPositionRecalculation(from, to))
+                .thenReturn(List.of());
         when(readerFeedbackImportRepository.save(any(ReaderFeedbackImport.class))).thenAnswer(invocation -> {
             ReaderFeedbackImport saved = invocation.getArgument(0);
             saved.setImportId(saved.getSeries().getSeriesId() + 100L);
@@ -424,23 +428,88 @@ class EditorialBoardServiceTests {
         });
 
         var response = service.importReaderFeedback(new ImportReaderFeedbackRequest(
-                "2026-W27", from, to));
+                5L, from, to));
 
-        assertEquals(2, response.size());
-        assertEquals(6L, response.get(0).seriesId());
-        assertEquals(10, response.get(0).voteCount());
-        assertEquals(5L, response.get(1).seriesId());
-        assertEquals(5, response.get(1).voteCount());
+        assertEquals(5L, response.seriesId());
+        assertEquals(5, response.voteCount());
+        assertEquals(from, response.periodStart());
+        assertEquals(to, response.periodEnd());
 
         ArgumentCaptor<SeriesRanking> rankingCaptor = ArgumentCaptor.forClass(SeriesRanking.class);
-        verify(seriesRankingRepository, org.mockito.Mockito.times(2)).save(rankingCaptor.capture());
-        List<SeriesRanking> rankings = rankingCaptor.getAllValues();
-        assertEquals(6L, rankings.get(0).getSeries().getSeriesId());
-        assertEquals(1, rankings.get(0).getRankingPosition());
-        assertEquals(10, rankings.get(0).getVoteCount());
-        assertEquals(5L, rankings.get(1).getSeries().getSeriesId());
-        assertEquals(2, rankings.get(1).getRankingPosition());
-        assertEquals(5, rankings.get(1).getVoteCount());
+        verify(seriesRankingRepository).save(rankingCaptor.capture());
+        SeriesRanking ranking = rankingCaptor.getValue();
+        assertEquals(5L, ranking.getSeries().getSeriesId());
+        assertEquals(1, ranking.getRankingPosition());
+        assertEquals(5, ranking.getVoteCount());
+        assertEquals(from, ranking.getPeriodStart());
+        assertEquals(to, ranking.getPeriodEnd());
+    }
+
+    @Test
+    void importReaderFeedbackRejectsSeriesOutsideCurrentBoardPanel() {
+        User board = user(1L, "Editorial Board One", BOARD_EMAIL, role("EDITORIAL_BOARD"));
+        LocalDateTime from = LocalDateTime.of(2026, 7, 1, 0, 0);
+        LocalDateTime to = LocalDateTime.of(2026, 7, 8, 0, 0);
+
+        when(userRepository.findByEmail(BOARD_EMAIL)).thenReturn(Optional.of(board));
+        when(seriesBoardAssignmentRepository
+                .existsBySeriesSeriesIdAndBoardMemberUserId(5L, board.getUserId()))
+                .thenReturn(false);
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.importReaderFeedback(new ImportReaderFeedbackRequest(5L, from, to)));
+
+        assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
+        assertEquals("Bạn không được phân công xử lý Series này", exception.getReason());
+        verify(chapterLikeLogRepository, never())
+                .countByChapterSeriesSeriesIdAndLikedAtBetween(5L, from, to);
+        verify(readerFeedbackImportRepository, never()).save(any(ReaderFeedbackImport.class));
+    }
+
+    @Test
+    void getMyAssignedSeriesReturnsDropdownData() {
+        User board = user(1L, "Editorial Board One", BOARD_EMAIL, role("EDITORIAL_BOARD"));
+        MangaSeries assignedSeries = series(5L, "Assigned Series", "REVIEWING");
+        assignedSeries.setCoverImage("/covers/assigned.jpg");
+        SeriesBoardAssignment assignment = new SeriesBoardAssignment();
+        assignment.setSeries(assignedSeries);
+        assignment.setBoardMember(board);
+
+        when(userRepository.findByEmail(BOARD_EMAIL)).thenReturn(Optional.of(board));
+        when(seriesBoardAssignmentRepository
+                .findByBoardMemberUserIdOrderByAssignedAtDesc(board.getUserId()))
+                .thenReturn(List.of(assignment));
+
+        var response = service.getMyAssignedSeries();
+
+        assertEquals(1, response.size());
+        assertEquals(5L, response.get(0).id());
+        assertEquals("Assigned Series", response.get(0).title());
+        assertEquals("/covers/assigned.jpg", response.get(0).coverUrl());
+    }
+
+    @Test
+    void getSeriesFeedbackImportsReturnsSeriesHistory() {
+        LocalDateTime firstStart = LocalDateTime.of(2026, 7, 1, 0, 0);
+        LocalDateTime firstEnd = LocalDateTime.of(2026, 7, 8, 0, 0);
+        ReaderFeedbackImport feedbackImport = new ReaderFeedbackImport();
+        feedbackImport.setImportId(11L);
+        feedbackImport.setPeriodStart(firstStart);
+        feedbackImport.setPeriodEnd(firstEnd);
+        feedbackImport.setVoteCount(25);
+
+        when(mangaSeriesRepository.existsById(5L)).thenReturn(true);
+        when(readerFeedbackImportRepository.findBySeriesSeriesIdOrderByImportedAtDesc(5L))
+                .thenReturn(List.of(feedbackImport));
+
+        var response = service.getSeriesFeedbackImports(5L);
+
+        assertEquals(1, response.size());
+        assertEquals(11L, response.get(0).importId());
+        assertEquals(firstStart, response.get(0).periodStart());
+        assertEquals(firstEnd, response.get(0).periodEnd());
+        assertEquals(25, response.get(0).voteCount());
     }
 
     private User user(Long id, String username, String email, Role role) {

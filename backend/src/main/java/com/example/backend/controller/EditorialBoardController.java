@@ -8,9 +8,12 @@ import com.example.backend.dto.EditorialBoardDtos.BoardChapterResponse;
 import com.example.backend.dto.EditorialBoardDtos.ChapterBoardReviewRequest;
 import com.example.backend.dto.EditorialBoardDtos.ImportReaderFeedbackRequest;
 import com.example.backend.dto.EditorialBoardDtos.ApprovedSeriesManagementResponse;
+import com.example.backend.dto.EditorialBoardDtos.AssignedSeriesResponse;
+import com.example.backend.dto.EditorialBoardDtos.RankingPeriodResponse;
 import com.example.backend.dto.EditorialBoardDtos.ReaderFeedbackImportResponse;
 import com.example.backend.dto.EditorialBoardDtos.ReaderVoteResponse;
 import com.example.backend.dto.EditorialBoardDtos.ReviewSeriesResponse;
+import com.example.backend.dto.EditorialBoardDtos.SeriesFeedbackImportResponse;
 import com.example.backend.dto.EditorialBoardDtos.SeriesVoteSummaryResponse;
 import com.example.backend.dto.EditorialBoardDtos.UpdateUserRequest;
 import com.example.backend.dto.EditorialBoardDtos.UserResponse;
@@ -61,6 +64,11 @@ public class EditorialBoardController {
     @GetMapping("/series/editor-assignment-required")
     public List<ReviewSeriesResponse> getEditorAssignmentRequiredSeries() {
         return service.getEditorAssignmentRequiredSeries();
+    }
+
+    @GetMapping("/series/my-assigned")
+    public List<AssignedSeriesResponse> getMyAssignedSeries() {
+        return service.getMyAssignedSeries();
     }
 
     @PreAuthorize("hasRole('EDITORIAL_BOARD')")
@@ -146,7 +154,7 @@ public class EditorialBoardController {
 
     @PreAuthorize("hasRole('EDITORIAL_BOARD')")
     @PostMapping("/reader-feedback-imports")
-    public List<ReaderFeedbackImportResponse> importReaderFeedback(
+    public ReaderFeedbackImportResponse importReaderFeedback(
             @Valid @RequestBody ImportReaderFeedbackRequest request) {
         return service.importReaderFeedback(request);
     }
@@ -157,14 +165,24 @@ public class EditorialBoardController {
         return service.getReaderFeedbackImports();
     }
 
+    @GetMapping("/series/{seriesId}/feedback-imports")
+    public List<SeriesFeedbackImportResponse> getSeriesFeedbackImports(@PathVariable Long seriesId) {
+        return service.getSeriesFeedbackImports(seriesId);
+    }
+
     @PreAuthorize("hasRole('EDITORIAL_BOARD')")
     @GetMapping("/rankings")
-    public List<RankingResponse> getRankings(@RequestParam(required = false) String period) {
-        return service.getRankings(period);
+    public List<RankingResponse> getRankings(
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime periodStart,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime periodEnd) {
+        return service.getRankings(periodStart, periodEnd);
     }
+
     @PreAuthorize("hasRole('EDITORIAL_BOARD')")
     @GetMapping("/rankings/periods")
-    public List<String> getRankingPeriods() {
+    public List<RankingPeriodResponse> getRankingPeriods() {
         return service.getRankingPeriods();
     }
     @PreAuthorize("hasRole('EDITORIAL_BOARD')")

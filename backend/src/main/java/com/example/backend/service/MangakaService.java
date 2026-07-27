@@ -705,7 +705,8 @@ public class MangakaService {
                         ranking.getRankingPosition(),
                         ranking.getScore(),
                         ranking.getVoteCount(),
-                        ranking.getPeriod(),
+                        ranking.getPeriodStart(),
+                        ranking.getPeriodEnd(),
                         ranking.getCalculatedAt()))
                 .toList();
     }

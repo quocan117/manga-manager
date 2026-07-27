@@ -8,7 +8,9 @@ import com.example.backend.dto.EditorialBoardDtos.BoardMemberAssignmentResponse;
 import com.example.backend.dto.EditorialBoardDtos.BoardChapterResponse;
 import com.example.backend.dto.EditorialBoardDtos.ChapterBoardReviewRequest;
 import com.example.backend.dto.EditorialBoardDtos.ChapterBoardReviewResponse;
+import com.example.backend.dto.EditorialBoardDtos.AssignedSeriesResponse;
 import com.example.backend.dto.EditorialBoardDtos.ImportReaderFeedbackRequest;
+import com.example.backend.dto.EditorialBoardDtos.RankingPeriodResponse;
 import com.example.backend.dto.EditorialBoardDtos.ReaderFeedbackImportResponse;
 import com.example.backend.dto.EditorialBoardDtos.ReaderVoteResponse;
 import com.example.backend.dto.EditorialBoardDtos.RejectedEditorResponse;
@@ -17,6 +19,7 @@ import com.example.backend.dto.EditorialBoardDtos.ApprovedSeriesManagementRespon
 import com.example.backend.dto.EditorialBoardDtos.ScheduleRequest;
 import com.example.backend.dto.EditorialBoardDtos.ScheduleResponse;
 import com.example.backend.dto.EditorialBoardDtos.SeriesVoteSummaryResponse;
+import com.example.backend.dto.EditorialBoardDtos.SeriesFeedbackImportResponse;
 import com.example.backend.dto.EditorialBoardDtos.UpdateUserRequest;
 import com.example.backend.dto.EditorialBoardDtos.UserResponse;
 import com.example.backend.dto.MangakaDtos.NotificationResponse;
@@ -212,6 +215,21 @@ public class EditorialBoardService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<AssignedSeriesResponse> getMyAssignedSeries() {
+        User currentUser = currentEditorialBoard();
+        return seriesBoardAssignmentRepository
+                .findByBoardMemberUserIdOrderByAssignedAtDesc(currentUser.getUserId())
+                .stream()
+                .map(SeriesBoardAssignment::getSeries)
+                .filter(series -> series != null)
+                .map(series -> new AssignedSeriesResponse(
+                        series.getSeriesId(),
+                        series.getTitle(),
+                        series.getCoverImage()))
+                .toList();
+    }
+
     @Transactional
     public ScheduleResponse createSchedule(ScheduleRequest request) {
         User currentUser = currentEditorialBoard();
@@ -368,18 +386,30 @@ public class EditorialBoardService {
     }
 
     @Transactional
-    public List<ReaderFeedbackImportResponse> importReaderFeedback(ImportReaderFeedbackRequest request) {
+    public ReaderFeedbackImportResponse importReaderFeedback(ImportReaderFeedbackRequest request) {
         validatePeriodRange(request.periodStart(), request.periodEnd());
-        String period = request.period().trim();
         User boardUser = currentEditorialBoard();
-        LocalDateTime now = LocalDateTime.now();
-        List<ChapterLikeLogRepository.SeriesVoteCount> voteCounts = sortedVoteCounts(
-                request.periodStart(), request.periodEnd());
+        if (!seriesBoardAssignmentRepository.existsBySeriesSeriesIdAndBoardMemberUserId(
+                request.seriesId(),
+                boardUser.getUserId())) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "Bạn không được phân công xử lý Series này");
+        }
 
-        return voteCounts.stream()
-                .map(voteCount -> saveReaderFeedbackImport(voteCount, period, boardUser, now,
-                        voteCounts.indexOf(voteCount) + 1))
-                .toList();
+        MangaSeries series = mangaSeriesRepository.findById(request.seriesId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Series not found"));
+        long voteCount = chapterLikeLogRepository.countByChapterSeriesSeriesIdAndLikedAtBetween(
+                request.seriesId(),
+                request.periodStart(),
+                request.periodEnd());
+        return saveReaderFeedbackImport(
+                series,
+                Math.toIntExact(voteCount),
+                request.periodStart(),
+                request.periodEnd(),
+                boardUser,
+                LocalDateTime.now());
     }
 
     @Transactional(readOnly = true)
@@ -391,18 +421,50 @@ public class EditorialBoardService {
     }
 
     @Transactional(readOnly = true)
-    public List<RankingResponse> getRankings(String period) {
-        List<SeriesRanking> source = (period == null || period.isBlank())
-                ? seriesRankingRepository.findAllByOrderByCalculatedAtDesc()
-                : seriesRankingRepository.findByPeriodOrderByRankingPositionAsc(period.trim());
+    public List<SeriesFeedbackImportResponse> getSeriesFeedbackImports(Long seriesId) {
+        if (!mangaSeriesRepository.existsById(seriesId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Series not found");
+        }
+        return readerFeedbackImportRepository.findBySeriesSeriesIdOrderByImportedAtDesc(seriesId)
+                .stream()
+                .map(feedbackImport -> new SeriesFeedbackImportResponse(
+                        feedbackImport.getImportId(),
+                        feedbackImport.getPeriodStart(),
+                        feedbackImport.getPeriodEnd(),
+                        feedbackImport.getVoteCount()))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<RankingResponse> getRankings(
+            LocalDateTime periodStart,
+            LocalDateTime periodEnd) {
+        if ((periodStart == null) != (periodEnd == null)) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "periodStart and periodEnd must be provided together");
+        }
+        List<SeriesRanking> source;
+        if (periodStart == null) {
+            source = seriesRankingRepository.findAllByOrderByCalculatedAtDesc();
+        } else {
+            validatePeriodRange(periodStart, periodEnd);
+            source = seriesRankingRepository
+                    .findByPeriodStartAndPeriodEndOrderByRankingPositionAsc(periodStart, periodEnd);
+        }
         return source.stream()
                 .map(this::toRankingResponse)
                 .toList();
     }
 
     @Transactional(readOnly = true)
-    public List<String> getRankingPeriods() {
-        return seriesRankingRepository.findDistinctPeriods();
+    public List<RankingPeriodResponse> getRankingPeriods() {
+        return seriesRankingRepository.findDistinctPeriods()
+                .stream()
+                .map(period -> new RankingPeriodResponse(
+                        period.getPeriodStart(),
+                        period.getPeriodEnd()))
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -648,21 +710,22 @@ public class EditorialBoardService {
     }
 
     private ReaderFeedbackImportResponse saveReaderFeedbackImport(
-            ChapterLikeLogRepository.SeriesVoteCount voteCount,
-            String period,
+            MangaSeries series,
+            int votes,
+            LocalDateTime periodStart,
+            LocalDateTime periodEnd,
             User boardUser,
-            LocalDateTime calculatedAt,
-            int rankingPosition) {
-        MangaSeries series = mangaSeriesRepository.findById(voteCount.getSeriesId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Series not found"));
-        int votes = Math.toIntExact(voteCount.getVoteCount() == null ? 0L : voteCount.getVoteCount());
-
+            LocalDateTime calculatedAt) {
         ReaderFeedbackImport feedbackImport = readerFeedbackImportRepository
-                .findBySeriesSeriesIdAndPeriod(series.getSeriesId(), period)
+                .findBySeriesSeriesIdAndPeriodStartAndPeriodEnd(
+                        series.getSeriesId(),
+                        periodStart,
+                        periodEnd)
                 .orElseGet(ReaderFeedbackImport::new);
         feedbackImport.setSeries(series);
         feedbackImport.setImportedBy(boardUser);
-        feedbackImport.setPeriod(period);
+        feedbackImport.setPeriodStart(periodStart);
+        feedbackImport.setPeriodEnd(periodEnd);
         feedbackImport.setVoteCount(votes);
         feedbackImport.setAvgScore((float) votes);
         feedbackImport.setSourceNote("Tổng hợp tự động từ lượt thích độc giả");
@@ -670,17 +733,33 @@ public class EditorialBoardService {
         ReaderFeedbackImport savedImport = readerFeedbackImportRepository.save(feedbackImport);
 
         SeriesRanking ranking = seriesRankingRepository
-                .findBySeriesSeriesIdAndPeriod(series.getSeriesId(), period)
+                .findBySeriesSeriesIdAndPeriodStartAndPeriodEnd(
+                        series.getSeriesId(),
+                        periodStart,
+                        periodEnd)
                 .orElseGet(SeriesRanking::new);
         ranking.setSeries(series);
-        ranking.setRankingPosition(rankingPosition);
+        ranking.setRankingPosition(1);
         ranking.setScore((float) votes);
         ranking.setVoteCount(votes);
-        ranking.setPeriod(period);
+        ranking.setPeriodStart(periodStart);
+        ranking.setPeriodEnd(periodEnd);
         ranking.setCalculatedAt(calculatedAt);
         seriesRankingRepository.save(ranking);
+        recalculateRankingPositions(periodStart, periodEnd);
 
         return toReaderFeedbackImportResponse(savedImport);
+    }
+
+    private void recalculateRankingPositions(LocalDateTime periodStart, LocalDateTime periodEnd) {
+        List<SeriesRanking> rankings = seriesRankingRepository
+                .findForPositionRecalculation(periodStart, periodEnd);
+        for (int index = 0; index < rankings.size(); index++) {
+            rankings.get(index).setRankingPosition(index + 1);
+        }
+        if (!rankings.isEmpty()) {
+            seriesRankingRepository.saveAll(rankings);
+        }
     }
 
     private List<ChapterLikeLogRepository.SeriesVoteCount> sortedVoteCounts(LocalDateTime from, LocalDateTime to) {
@@ -1211,7 +1290,8 @@ public class EditorialBoardService {
                 feedbackImport.getImportId(),
                 series == null ? null : series.getSeriesId(),
                 series == null ? null : series.getTitle(),
-                feedbackImport.getPeriod(),
+                feedbackImport.getPeriodStart(),
+                feedbackImport.getPeriodEnd(),
                 feedbackImport.getVoteCount(),
                 feedbackImport.getImportedAt());
     }
@@ -1225,7 +1305,8 @@ public class EditorialBoardService {
                 ranking.getRankingPosition(),
                 ranking.getScore(),
                 ranking.getVoteCount(),
-                ranking.getPeriod(),
+                ranking.getPeriodStart(),
+                ranking.getPeriodEnd(),
                 ranking.getCalculatedAt());
     }
 

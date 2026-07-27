@@ -24,7 +24,8 @@ public class ReaderFeedbackImport {
     @JoinColumn(name = "imported_by")
     private User importedBy;
 
-    private String period;
+    private LocalDateTime periodStart;
+    private LocalDateTime periodEnd;
     private Integer voteCount;
     private Float avgScore;
 

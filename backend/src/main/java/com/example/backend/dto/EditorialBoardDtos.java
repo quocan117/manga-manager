@@ -138,6 +138,12 @@ public final class EditorialBoardDtos {
                         LocalDateTime rejectedAt) {
         }
 
+        public record AssignedSeriesResponse(
+                        Long id,
+                        String title,
+                        String coverUrl) {
+        }
+
         public record ReviewSeriesResponse(
                         Long id,
                         String title,
@@ -186,7 +192,7 @@ public final class EditorialBoardDtos {
         }
 
         public record ImportReaderFeedbackRequest(
-                        @NotBlank String period,
+                        @NotNull Long seriesId,
                         @NotNull LocalDateTime periodStart,
                         @NotNull LocalDateTime periodEnd) {
         }
@@ -195,9 +201,22 @@ public final class EditorialBoardDtos {
                         Long id,
                         Long seriesId,
                         String seriesTitle,
-                        String period,
+                        LocalDateTime periodStart,
+                        LocalDateTime periodEnd,
                         Integer voteCount,
                         LocalDateTime importedAt) {
+        }
+
+        public record SeriesFeedbackImportResponse(
+                        Long importId,
+                        LocalDateTime periodStart,
+                        LocalDateTime periodEnd,
+                        Integer voteCount) {
+        }
+
+        public record RankingPeriodResponse(
+                        LocalDateTime periodStart,
+                        LocalDateTime periodEnd) {
         }
 
         public record SeriesTotalVotesResponse(
