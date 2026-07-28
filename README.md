@@ -26,6 +26,8 @@ B3(Optional): chạy query trong backend/database (Chỉ dùng khi có cập nh�
 12. add_chapter_manuscript_files_and_revision_descriptions<br>
 13. add_series_editor_rejection_reason<br>
 14. replace_feedback_period_with_range<br>
+15. seed_dashboard_ranking_history (optional demo data)<br>
+16. cleanup_dashboard_ranking_seed (optional, removes only dashboard demo data)<br>
 <h5><strong>Lưu ý: số lượng like sẽ khác nhau ở mỗi máy vì dùng %*00 + *0 </strong></h5>
 
 <h3>Tài khoản:</h3>
