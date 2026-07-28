@@ -76,9 +76,9 @@ export const getReaderVotes = async (from, to) => {
   return response.data;
 };
 
-export const importReaderFeedback = async (period, periodStart, periodEnd) => {
+export const importReaderFeedback = async (seriesId, periodStart, periodEnd) => {
   const response = await api.post("/editorial-board/reader-feedback-imports", {
-    period,
+    seriesId,
     periodStart,
     periodEnd,
   });
@@ -173,5 +173,15 @@ export const assignEditor = async (seriesId, editorId) => {
     `/editorial-board/series/${seriesId}/assign-editor`,
     { editorId },
   );
+  return response.data;
+};
+
+export const getMyAssignedSeries = async () => {
+  const response = await api.get("/editorial-board/series/my-assigned");
+  return response.data;
+};
+
+export const getSeriesFeedbackHistory = async (seriesId) => {
+  const response = await api.get(`/editorial-board/series/${seriesId}/feedback-imports`);
   return response.data;
 };

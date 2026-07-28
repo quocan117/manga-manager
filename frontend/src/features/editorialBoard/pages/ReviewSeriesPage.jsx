@@ -5,12 +5,16 @@ import {
 } from "../../../services/boardService";
 import { formatDateTime } from "../../../utils/formatDate";
 import SeriesFileList from "../../../components/SeriesFileList";
+import RejectReasonModal from "../../../components/RejectReasonModal";
 import "../styles/EditorialBoard.css";
 
 export default function ReviewSeriesPage() {
   const [seriesList, setSeriesList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [previewSeries, setPreviewSeries] = useState(null);
+
+  const [rejectTarget, setRejectTarget] = useState(null);
+  const [submittingVote, setSubmittingVote] = useState(false);
 
   useEffect(() => {
     fetchReviewingSeries();
@@ -28,19 +32,26 @@ export default function ReviewSeriesPage() {
     }
   };
 
-  const handleVote = async (seriesId, title, decisionType) => {
-    const actionText =
-      decisionType === "APPROVE" ? "DUYỆT" : "YÊU CẦU SỬA/TỪ CHỐI";
+  const handleVote = async (seriesId, title, decisionType, reason = "") => {
+    const actionText = decisionType === "APPROVE" ? "DUYỆT" : "TỪ CHỐI";
     try {
-      await voteSeriesDecision(seriesId, decisionType);
+      setSubmittingVote(true);
+      await voteSeriesDecision(seriesId, decisionType, reason);
       alert(`Đã gửi quyết định: ${actionText} thành công!`);
+      setRejectTarget(null);
       fetchReviewingSeries();
     } catch (error) {
       console.error("Lỗi khi gửi quyết định:", error);
       alert(
         error.response?.data?.message || "Không thể gửi quyết định lúc này.",
       );
+    } finally {
+      setSubmittingVote(false);
     }
+  };
+
+  const triggerReject = (series) => {
+    setRejectTarget(series);
   };
 
   if (loading)
@@ -112,7 +123,7 @@ export default function ReviewSeriesPage() {
                           return (
                             <div
                               key={member.boardMemberId}
-                              className="mb-1"
+                              className="mb-2 p-1 border-bottom"
                               style={{
                                 display: "flex",
                                 flexDirection: "column",
@@ -138,7 +149,13 @@ export default function ReviewSeriesPage() {
                                   </span>
                                 )}
                               </span>
-                              <small className="text-muted">
+                              {decision?.decisionType === "REJECT" &&
+                                decision.reason && (
+                                  <small className="text-danger mt-1 fst-italic">
+                                    Lý do: {decision.reason}
+                                  </small>
+                                )}
+                              <small className="text-muted mt-1">
                                 Nhận lúc: {formatDateTime(member.assignedAt)}
                               </small>
                             </div>
@@ -193,14 +210,14 @@ export default function ReviewSeriesPage() {
                           onClick={() =>
                             handleVote(series.id, series.title, "APPROVE")
                           }
+                          disabled={submittingVote}
                         >
                           ✅ Duyệt
                         </button>
                         <button
                           className="btn-reject-sm"
-                          onClick={() =>
-                            handleVote(series.id, series.title, "REJECT")
-                          }
+                          onClick={() => triggerReject(series)}
+                          disabled={submittingVote}
                         >
                           ❌ Từ chối
                         </button>
@@ -247,6 +264,17 @@ export default function ReviewSeriesPage() {
             <SeriesFileList files={previewSeries.uploadedFiles} />
           </div>
         </div>
+      )}
+
+      {rejectTarget && (
+        <RejectReasonModal
+          seriesTitle={rejectTarget.title}
+          submitting={submittingVote}
+          onCancel={() => setRejectTarget(null)}
+          onConfirm={(reason) =>
+            handleVote(rejectTarget.id, rejectTarget.title, "REJECT", reason)
+          }
+        />
       )}
     </div>
   );

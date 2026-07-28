@@ -6,7 +6,7 @@ import {
   getChapterForReview,
   saveChapterRevisionNote,
   sendChapterRevisionToMangaka,
-  submitChapterToBoard,
+  approveAndReadyChapter,
 } from "../../../services/chapterEditorService";
 
 export default function ChapterReviewPage() {
@@ -32,27 +32,30 @@ export default function ChapterReviewPage() {
     }
   };
 
-  const handleSubmitToBoard = async () => {
+  const handleSubmitToPublish = async () => {
     if (
       !window.confirm(
-        "Xác nhận gửi chapter này lên Hội đồng Biên tập để xác nhận đủ điều kiện xuất bản?",
+        "Xác nhận phê duyệt Chapter này? Chapter sẽ được đưa vào hàng đợi xuất bản theo lịch của Series.",
       )
     )
       return;
     try {
       setSubmitting(true);
-      await submitChapterToBoard(chapterId);
-      alert("Đã gửi chapter lên Hội đồng Biên tập!");
+      await approveAndReadyChapter(chapterId); 
+      alert("Đã phê duyệt Chapter thành công!");
       navigate("/tantou");
     } catch (error) {
       console.error(error);
-      alert("Lỗi khi gửi chapter lên Hội đồng.");
+      alert("Lỗi khi phê duyệt chapter.");
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleSaveNote = async (index, { canvasData, previewImageUrl, description },) => {
+  const handleSaveNote = async (
+    index,
+    { canvasData, previewImageUrl, description },
+  ) => {
     return saveChapterRevisionNote(chapterId, {
       previewImageUrl,
       canvasData,
@@ -120,15 +123,15 @@ export default function ChapterReviewPage() {
       </div>
       <div className="card shadow-sm border-0">
         <div className="card-header bg-white fw-bold">
-          Gửi lên Hội đồng Biên tập
+          Quyết định của Biên tập viên
         </div>
         <div className="card-body">
           <button
             className="btn btn-success fw-bold"
-            onClick={handleSubmitToBoard}
+            onClick={handleSubmitToPublish}
             disabled={submitting}
           >
-            {submitting ? "Đang gửi..." : "📤 Gửi lên Hội đồng"}
+            {submitting ? "Đang xử lý..." : "✅ Phê duyệt & Chờ xuất bản"}
           </button>
         </div>
       </div>
