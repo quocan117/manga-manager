@@ -85,9 +85,9 @@ public class TantouEditorController {
         return service.requestChapterRevision(chapterId);
     }
 
-    @PostMapping("/chapters/{chapterId}/submit-to-board")
-    public ChapterManuscriptResponse submitChapterToBoard(@PathVariable Long chapterId) {
-        return service.submitChapterToBoard(chapterId);
+    @PostMapping("/chapters/{chapterId}/approve-and-ready")
+    public ChapterManuscriptResponse approveAndReadyChapter(@PathVariable Long chapterId) {
+        return service.approveAndReadyChapter(chapterId);
     }
 
     @GetMapping("/series/{seriesId}/manuscript")

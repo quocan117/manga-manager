@@ -1,0 +1,9 @@
+SET XACT_ABORT ON;
+BEGIN TRANSACTION;
+
+IF OBJECT_ID('chapter_board_reviews', 'U') IS NOT NULL
+BEGIN
+    DROP TABLE chapter_board_reviews;
+END;
+
+COMMIT TRANSACTION;

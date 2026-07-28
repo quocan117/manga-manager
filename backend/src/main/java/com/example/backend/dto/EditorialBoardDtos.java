@@ -88,21 +88,6 @@ public final class EditorialBoardDtos {
                         boolean isPublicationCoordinator) {
         }
 
-        public record ChapterBoardReviewRequest(
-                        @NotNull Boolean confirmed,
-                        String comment) {
-        }
-
-        public record ChapterBoardReviewResponse(
-                        Long id,
-                        Long chapterId,
-                        Long boardMemberId,
-                        String boardMemberName,
-                        Boolean confirmed,
-                        String comment,
-                        LocalDateTime reviewedAt) {
-        }
-
         public record BoardChapterResponse(
                         Long id,
                         Integer chapterNumber,
@@ -111,8 +96,7 @@ public final class EditorialBoardDtos {
                         String seriesTitle,
                         List<UploadedFileResponse> manuscriptFiles,
                         String status,
-                        LocalDateTime releaseDate,
-                        List<ChapterBoardReviewResponse> reviews) {
+                        LocalDateTime releaseDate) {
         }
 
         public record ApprovedSeriesManagementResponse(
@@ -126,7 +110,8 @@ public final class EditorialBoardDtos {
                         long chapterCount,
                         long publishedChapterCount,
                         double progress,
-                        boolean isPublicationCoordinator) {
+                        boolean isPublicationCoordinator,
+                        List<UploadedFileResponse> uploadedFiles) {
         }
 
         public record RejectedEditorResponse(

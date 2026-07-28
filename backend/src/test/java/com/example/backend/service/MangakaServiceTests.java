@@ -529,7 +529,7 @@ class MangakaServiceTests {
     }
 
     @Test
-    void submitChapterToEditorCannotBypassBoardReview() {
+    void submitChapterToEditorCannotResubmitApprovedChapter() {
         User mangaka = user(1L, EMAIL);
         MangaSeries series = new MangaSeries();
         series.setSeriesId(20L);
@@ -538,7 +538,7 @@ class MangakaServiceTests {
         Chapter chapter = new Chapter();
         chapter.setChapterId(30L);
         chapter.setSeries(series);
-        chapter.setStatus("SUBMITTED_TO_BOARD");
+        chapter.setStatus("APPROVED");
         when(chapterRepository.findById(30L)).thenReturn(Optional.of(chapter));
 
         ResponseStatusException exception = assertThrows(

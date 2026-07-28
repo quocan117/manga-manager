@@ -5,7 +5,6 @@ import com.example.backend.dto.EditorialBoardDtos.AssignEditorRequest;
 import com.example.backend.dto.EditorialBoardDtos.BoardDecisionRequest;
 import com.example.backend.dto.EditorialBoardDtos.BoardDecisionResponse;
 import com.example.backend.dto.EditorialBoardDtos.BoardChapterResponse;
-import com.example.backend.dto.EditorialBoardDtos.ChapterBoardReviewRequest;
 import com.example.backend.dto.EditorialBoardDtos.ImportReaderFeedbackRequest;
 import com.example.backend.dto.EditorialBoardDtos.ApprovedSeriesManagementResponse;
 import com.example.backend.dto.EditorialBoardDtos.AssignedSeriesResponse;
@@ -97,23 +96,6 @@ public class EditorialBoardController {
     @GetMapping("/series/{id}/chapters")
     public List<BoardChapterResponse> getApprovedSeriesChapters(@PathVariable Long id) {
         return service.getApprovedSeriesChapters(id);
-    }
-
-    @GetMapping("/chapters/pending-review")
-    public List<BoardChapterResponse> getPendingChapterReviews() {
-        return service.getPendingChapterReviews();
-    }
-
-    @GetMapping("/chapters/{id}")
-    public BoardChapterResponse getChapterReview(@PathVariable Long id) {
-        return service.getChapterReview(id);
-    }
-
-    @PostMapping("/chapters/{id}/review")
-    public BoardChapterResponse reviewChapter(
-            @PathVariable Long id,
-            @Valid @RequestBody ChapterBoardReviewRequest request) {
-        return service.reviewChapter(id, request);
     }
 
     @PreAuthorize("hasRole('EDITORIAL_BOARD')")

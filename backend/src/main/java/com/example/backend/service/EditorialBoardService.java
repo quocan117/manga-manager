@@ -6,8 +6,6 @@ import com.example.backend.dto.EditorialBoardDtos.BoardDecisionRequest;
 import com.example.backend.dto.EditorialBoardDtos.BoardDecisionResponse;
 import com.example.backend.dto.EditorialBoardDtos.BoardMemberAssignmentResponse;
 import com.example.backend.dto.EditorialBoardDtos.BoardChapterResponse;
-import com.example.backend.dto.EditorialBoardDtos.ChapterBoardReviewRequest;
-import com.example.backend.dto.EditorialBoardDtos.ChapterBoardReviewResponse;
 import com.example.backend.dto.EditorialBoardDtos.AssignedSeriesResponse;
 import com.example.backend.dto.EditorialBoardDtos.ImportReaderFeedbackRequest;
 import com.example.backend.dto.EditorialBoardDtos.RankingPeriodResponse;
@@ -29,7 +27,6 @@ import com.example.backend.dto.ReviewRegistrationRequest;
 import com.example.backend.dto.EditorialBoardDtos.SeriesTotalVotesResponse;
 import com.example.backend.model.BoardDecision;
 import com.example.backend.model.Chapter;
-import com.example.backend.model.ChapterBoardReview;
 import com.example.backend.model.ChapterLikeLog;
 import com.example.backend.model.GuestAccessLog;
 import com.example.backend.model.MangaSeries;
@@ -43,7 +40,6 @@ import com.example.backend.model.SeriesRanking;
 import com.example.backend.model.User;
 import com.example.backend.model.Notification;
 import com.example.backend.repository.BoardDecisionRepository;
-import com.example.backend.repository.ChapterBoardReviewRepository;
 import com.example.backend.repository.ChapterLikeLogRepository;
 import com.example.backend.repository.ChapterRepository;
 import com.example.backend.repository.MangaSeriesRepository;
@@ -81,6 +77,7 @@ public class EditorialBoardService {
     private static final String BOARD_ROLE = "EDITORIAL_BOARD";
     private static final String ACTIVE_STATUS = "ACTIVE";
     private static final String REVIEWING_SERIES_STATUS = "REVIEWING";
+    private static final String PENDING_SCHEDULE_SERIES_STATUS = "PENDING_SCHEDULE";
     private static final String COMING_SOON_SERIES_STATUS = "COMING_SOON";
     private static final String PUBLISHING_SERIES_STATUS = "PUBLISHING";
     private static final String PUBLISHED_SERIES_STATUS = "PUBLISHED";
@@ -91,15 +88,15 @@ public class EditorialBoardService {
     private static final String APPROVE_DECISION = "APPROVE";
     private static final String REJECT_DECISION = "REJECT";
     private static final String CANCEL_DECISION = "CANCEL";
-    private static final String SUBMITTED_TO_BOARD_CHAPTER_STATUS = "SUBMITTED_TO_BOARD";
-    private static final String APPROVED_CHAPTER_STATUS = "APPROVED";
     private static final String PUBLISHED_CHAPTER_STATUS = "PUBLISHED";
     private static final String SERIES_SUBMISSION_PURPOSE = "SERIES_SUBMISSION";
     private static final String CHAPTER_MANUSCRIPT_PURPOSE = "CHAPTER_MANUSCRIPT";
-    private static final String CHAPTER_BOARD_REJECTED_STATUS = "BOARD_REJECTED";
     private static final int BOARD_PANEL_SIZE = 3;
     private static final Set<String> APPROVED_SERIES_STATUSES = Set.of(
-            COMING_SOON_SERIES_STATUS, PUBLISHING_SERIES_STATUS, PUBLISHED_SERIES_STATUS);
+            PENDING_SCHEDULE_SERIES_STATUS,
+            COMING_SOON_SERIES_STATUS,
+            PUBLISHING_SERIES_STATUS,
+            PUBLISHED_SERIES_STATUS);
 
     private static final Set<String> MANAGED_ROLES = Set.of(
             "MANGAKA", "ASSISTANT", "TANTOU_EDITOR", BOARD_ROLE);
@@ -112,7 +109,6 @@ public class EditorialBoardService {
     private final PasswordEncoder passwordEncoder;
     private final MangaSeriesRepository mangaSeriesRepository;
     private final ChapterRepository chapterRepository;
-    private final ChapterBoardReviewRepository chapterBoardReviewRepository;
     private final BoardDecisionRepository boardDecisionRepository;
     private final NotificationRepository notificationRepository;
     private final PublishScheduleRepository publishScheduleRepository;
@@ -131,7 +127,6 @@ public class EditorialBoardService {
             PasswordEncoder passwordEncoder,
             MangaSeriesRepository mangaSeriesRepository,
             ChapterRepository chapterRepository,
-            ChapterBoardReviewRepository chapterBoardReviewRepository,
             BoardDecisionRepository boardDecisionRepository,
             NotificationRepository notificationRepository,
             PublishScheduleRepository publishScheduleRepository,
@@ -148,7 +143,6 @@ public class EditorialBoardService {
         this.passwordEncoder = passwordEncoder;
         this.mangaSeriesRepository = mangaSeriesRepository;
         this.chapterRepository = chapterRepository;
-        this.chapterBoardReviewRepository = chapterBoardReviewRepository;
         this.boardDecisionRepository = boardDecisionRepository;
         this.notificationRepository = notificationRepository;
         this.publishScheduleRepository = publishScheduleRepository;
@@ -237,6 +231,7 @@ public class EditorialBoardService {
         PublishSchedule schedule = new PublishSchedule();
         applyScheduleRequest(schedule, request, currentUser);
         PublishSchedule savedSchedule = publishScheduleRepository.save(schedule);
+        activateApprovedSeriesAfterScheduling(savedSchedule);
         notifyBoardScheduleChange(savedSchedule, "PUBLISH_SCHEDULE_CREATED");
         return toScheduleResponse(savedSchedule, currentUser);
     }
@@ -249,6 +244,7 @@ public class EditorialBoardService {
         requirePublicationCoordinator(schedule.getSeries(), currentUser);
         applyScheduleRequest(schedule, request, currentUser);
         PublishSchedule savedSchedule = publishScheduleRepository.save(schedule);
+        activateApprovedSeriesAfterScheduling(savedSchedule);
         notifyBoardScheduleChange(savedSchedule, "PUBLISH_SCHEDULE_UPDATED");
         return toScheduleResponse(savedSchedule, currentUser);
     }
@@ -260,86 +256,6 @@ public class EditorialBoardService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Schedule not found"));
         requirePublicationCoordinator(schedule.getSeries(), currentUser);
         publishScheduleRepository.delete(schedule);
-    }
-
-    @Transactional(readOnly = true)
-    public List<BoardChapterResponse> getPendingChapterReviews() {
-        User boardMember = currentEditorialBoard();
-        return chapterBoardReviewRepository
-                .findByBoardMemberEmailIgnoreCaseAndConfirmedIsNullAndChapterStatusIgnoreCaseOrderByChapterCreatedAtDesc(
-                        boardMember.getEmail(), SUBMITTED_TO_BOARD_CHAPTER_STATUS)
-                .stream()
-                .map(ChapterBoardReview::getChapter)
-                .map(this::toBoardChapterResponse)
-                .toList();
-    }
-
-    @Transactional(readOnly = true)
-    public BoardChapterResponse getChapterReview(Long chapterId) {
-        User boardMember = currentEditorialBoard();
-        Chapter chapter = chapterRepository.findById(chapterId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Chapter not found"));
-        requireChapterReviewer(chapterId, boardMember);
-        return toBoardChapterResponse(chapter);
-    }
-
-    @Transactional
-    public BoardChapterResponse reviewChapter(Long chapterId, ChapterBoardReviewRequest request) {
-        User boardMember = currentEditorialBoard();
-        Chapter chapter = chapterRepository.findByIdForUpdate(chapterId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Chapter not found"));
-        if (!SUBMITTED_TO_BOARD_CHAPTER_STATUS.equalsIgnoreCase(chapter.getStatus())) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT, "Only chapters submitted to Editorial Board can be reviewed");
-        }
-
-        ChapterBoardReview review = requireChapterReviewer(chapterId, boardMember);
-        if (review.getConfirmed() != null) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Chapter review was already submitted");
-        }
-        if (Boolean.FALSE.equals(request.confirmed())
-                && (request.comment() == null || request.comment().isBlank())) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST, "comment is required when requesting revision");
-        }
-
-        review.setConfirmed(request.confirmed());
-        review.setComment(blankToNull(request.comment()));
-        review.setReviewedAt(LocalDateTime.now());
-        chapterBoardReviewRepository.save(review);
-
-        MangaSeries series = chapter.getSeries();
-        if (Boolean.FALSE.equals(request.confirmed())) {
-            chapter.setStatus(CHAPTER_BOARD_REJECTED_STATUS);
-            chapterRepository.save(chapter);
-            notify(series == null ? null : series.getTantouEditor(),
-                    "CHAPTER_REVISION_REQUESTED", chapterId,
-                    "Editorial Board requested revision for chapter \"" + chapter.getTitle()
-                            + "\". Vui lòng chờ Biên tập viên xem xét.");
-            notify(series == null ? null : series.getAuthor(),
-                    "CHAPTER_REVISION_REQUESTED", chapterId,
-                    "Editorial Board requested revision for chapter \"" + chapter.getTitle() + "\".");
-        } else {
-            long totalReviews = chapterBoardReviewRepository.countByChapterChapterId(chapterId);
-            long confirmedReviews = chapterBoardReviewRepository
-                    .countByChapterChapterIdAndConfirmedTrue(chapterId);
-            if (totalReviews == BOARD_PANEL_SIZE
-                    && confirmedReviews == BOARD_PANEL_SIZE
-                    && !chapterBoardReviewRepository.existsByChapterChapterIdAndConfirmedFalse(chapterId)) {
-                chapter.setStatus(APPROVED_CHAPTER_STATUS);
-                chapterRepository.save(chapter);
-                notify(series == null ? null : series.getPublicationCoordinator(),
-                        "CHAPTER_READY_FOR_SCHEDULE", chapterId,
-                        "Chapter \"" + chapter.getTitle() + "\" was confirmed by the full board panel.");
-                notify(series == null ? null : series.getTantouEditor(),
-                        "CHAPTER_APPROVED", chapterId,
-                        "Chapter \"" + chapter.getTitle() + "\" was confirmed by the full board panel.");
-                notify(series == null ? null : series.getAuthor(),
-                        "CHAPTER_APPROVED", chapterId,
-                        "Chapter \"" + chapter.getTitle() + "\" is ready for its publication schedule.");
-            }
-        }
-        return toBoardChapterResponse(chapter);
     }
 
     @Transactional(readOnly = true)
@@ -564,13 +480,19 @@ public class EditorialBoardService {
         }
 
         String decisionType = normalizeBoardDecision(request.decisionType(), false);
+        String reason = blankToNull(request.reason());
+        if (REJECT_DECISION.equals(decisionType) && reason == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Bắt buộc nhập lý do khi từ chối hồ sơ");
+        }
         BoardDecision decision = boardDecisionRepository
                 .findBySeriesSeriesIdAndBoardMemberUserId(seriesId, boardMember.getUserId())
                 .orElseGet(BoardDecision::new);
         decision.setSeries(series);
         decision.setBoardMember(boardMember);
         decision.setDecisionType(decisionType);
-        decision.setReason(blankToNull(request.reason()));
+        decision.setReason(reason);
         decision.setDecisionDate(LocalDateTime.now());
         boardDecisionRepository.save(decision);
 
@@ -859,20 +781,30 @@ public class EditorialBoardService {
         }
     }
 
-    private ChapterBoardReview requireChapterReviewer(Long chapterId, User boardMember) {
-        return chapterBoardReviewRepository
-                .findByChapterChapterIdAndBoardMemberUserId(chapterId, boardMember.getUserId())
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.FORBIDDEN,
-                        "You are not assigned to review this chapter"));
-    }
-
     private void notifyBoardScheduleChange(PublishSchedule schedule, String type) {
         MangaSeries series = schedule.getSeries();
         String message = "Publish schedule for \"" + (series == null ? "" : series.getTitle())
                 + "\" is " + schedule.getFrequency() + " at " + schedule.getPublishDate();
         userRepository.findByRoleRoleNameAndStatusOrderByUsernameAsc(BOARD_ROLE, ACTIVE_STATUS)
                 .forEach(board -> notify(board, type, schedule.getScheduleId(), message));
+    }
+
+    private void activateApprovedSeriesAfterScheduling(PublishSchedule schedule) {
+        MangaSeries series = schedule.getSeries();
+        if (series == null
+                || !PENDING_SCHEDULE_SERIES_STATUS.equalsIgnoreCase(series.getStatus())) {
+            return;
+        }
+
+        series.setStatus(COMING_SOON_SERIES_STATUS);
+        mangaSeriesRepository.save(series);
+        String message = "Series \"" + series.getTitle()
+                + "\" đã được Hội đồng duyệt và lên lịch xuất bản "
+                + schedule.getFrequency() + " / " + schedule.getPublishDate() + ".";
+        notify(series.getAuthor(), "SERIES_APPROVED_AND_SCHEDULED",
+                series.getSeriesId(), message);
+        notify(series.getTantouEditor(), "SERIES_APPROVED_AND_SCHEDULED",
+                series.getSeriesId(), message);
     }
 
     private String currentEmail() {
@@ -945,16 +877,16 @@ public class EditorialBoardService {
         long rejectVotes = countDecisions(series.getSeriesId(), REJECT_DECISION);
 
         if (approveVotes >= requiredVotes) {
-            series.setStatus(COMING_SOON_SERIES_STATUS);
+            series.setStatus(PENDING_SCHEDULE_SERIES_STATUS);
             assignPublicationCoordinator(series);
             mangaSeriesRepository.save(series);
-            notifyBoardResult(series, "SERIES_APPROVED",
-                    "Series \"" + series.getTitle() + "\" đã được Hội đồng Biên tập duyệt");
         } else if (rejectVotes >= requiredVotes) {
             series.setStatus(REVISION_REQUESTED_STATUS);
             mangaSeriesRepository.save(series);
             notifyBoardResult(series, "SERIES_REJECTED",
-                    "Series \"" + series.getTitle() + "\" bị Hội đồng Biên tập từ chối, cần chỉnh sửa");
+                    "Series \"" + series.getTitle()
+                            + "\" bị Hội đồng Biên tập từ chối với các lý do sau:\n"
+                            + rejectionReasonList(series.getSeriesId()));
         }
     }
 
@@ -985,6 +917,21 @@ public class EditorialBoardService {
     private void notifyBoardResult(MangaSeries series, String type, String message) {
         notify(series.getAuthor(), type, series.getSeriesId(), message);
         notify(series.getTantouEditor(), type, series.getSeriesId(), message);
+    }
+
+    private String rejectionReasonList(Long seriesId) {
+        List<String> reasons = boardDecisionRepository
+                .findPanelDecisionsBySeriesIdOrderByDecisionDateDesc(seriesId)
+                .stream()
+                .filter(decision -> REJECT_DECISION.equalsIgnoreCase(decision.getDecisionType()))
+                .map(BoardDecision::getReason)
+                .map(this::blankToNull)
+                .filter(reason -> reason != null)
+                .map(reason -> "- " + reason)
+                .toList();
+        return reasons.isEmpty()
+                ? "- Không có lý do chi tiết."
+                : String.join("\n", reasons);
     }
 
     private void notify(User user, String type, Long refId, String message) {
@@ -1206,12 +1153,7 @@ public class EditorialBoardService {
                 series == null ? null : series.getTitle(),
                 chapterManuscriptFiles(chapter.getChapterId()),
                 chapter.getStatus(),
-                chapter.getReleaseDate(),
-                chapterBoardReviewRepository
-                        .findByChapterChapterIdOrderByBoardMemberUsernameAsc(chapter.getChapterId())
-                        .stream()
-                        .map(this::toChapterBoardReviewResponse)
-                        .toList());
+                chapter.getReleaseDate());
     }
 
     private List<UploadedFileResponse> chapterManuscriptFiles(Long chapterId) {
@@ -1222,19 +1164,6 @@ public class EditorialBoardService {
                 .stream()
                 .map(this::toUploadedFileResponse)
                 .toList();
-    }
-
-    private ChapterBoardReviewResponse toChapterBoardReviewResponse(ChapterBoardReview review) {
-        Chapter chapter = review.getChapter();
-        User boardMember = review.getBoardMember();
-        return new ChapterBoardReviewResponse(
-                review.getReviewId(),
-                chapter == null ? null : chapter.getChapterId(),
-                boardMember == null ? null : boardMember.getUserId(),
-                boardMember == null ? null : boardMember.getUsername(),
-                review.getConfirmed(),
-                review.getComment(),
-                review.getReviewedAt());
     }
 
     private ApprovedSeriesManagementResponse toApprovedSeriesManagementResponse(
@@ -1268,7 +1197,14 @@ public class EditorialBoardService {
                 chapters.size(),
                 publishedChapterCount,
                 progress,
-                isPublicationCoordinator(series, currentUser));
+                isPublicationCoordinator(series, currentUser),
+                seriesFileRepository
+                        .findBySeriesSeriesIdAndPurposeAndActiveTrueOrderByUploadedAtDesc(
+                                series.getSeriesId(),
+                                SERIES_SUBMISSION_PURPOSE)
+                        .stream()
+                        .map(this::toUploadedFileResponse)
+                        .toList());
     }
 
     private ReaderVoteResponse toReaderVoteResponse(ChapterLikeLog likeLog) {
