@@ -227,11 +227,11 @@ export default function AssistantTasks() {
 
   return (
     <div>
-      <h2 className="mb-4">Assistant Tasks</h2>
+      <h2 className="mb-4">Giao việc trợ lý</h2>
       <div className="row">
         <div className="col-md-5">
           <div className="card shadow mb-4">
-            <div className="card-header bg-white fw-bold">Assign Task</div>
+            <div className="card-header bg-white fw-bold">Giao việc</div>
             <div className="card-body">
               <form onSubmit={handleAssign}>
                 <div className="mb-3">
@@ -271,7 +271,7 @@ export default function AssistantTasks() {
                 </div>
                 <div className="mb-3">
                   <label className="form-label text-primary fw-bold">
-                    3. Chọn Trang Truyện (Page)
+                    3. Chọn Trang Truyện 
                   </label>
                   <select
                     name="pageId"
@@ -335,7 +335,7 @@ export default function AssistantTasks() {
 
                 <hr className="my-4" />
                 <div className="mb-3">
-                  <label className="form-label">Chọn Trợ lý (Assistant)</label>
+                  <label className="form-label">Chọn Trợ lý </label>
                   <select
                     name="assistantId"
                     className="form-select"
@@ -353,7 +353,7 @@ export default function AssistantTasks() {
                 </div>
                 <div className="mb-3">
                   <label className="form-label">
-                    Loại Công Việc (Task Type)
+                    Loại Công Việc 
                   </label>
                   <select
                     name="taskType"
@@ -368,7 +368,7 @@ export default function AssistantTasks() {
                   </select>
                 </div>
                 <div className="mb-3">
-                  <label className="form-label">Tiêu đề (Title)</label>
+                  <label className="form-label">Tiêu đề</label>
                   <input
                     type="text"
                     name="title"
@@ -380,7 +380,7 @@ export default function AssistantTasks() {
                 </div>
                 <div className="mb-3">
                   <label className="form-label">
-                    Mô tả chi tiết (Description)
+                    Mô tả chi tiết 
                   </label>
                   <textarea
                     name="description"
@@ -391,7 +391,7 @@ export default function AssistantTasks() {
                   />
                 </div>
                 <div className="mb-4">
-                  <label className="form-label">Hạn chót (Due Date)</label>
+                  <label className="form-label">Hạn chót</label>
                   <input
                     type="datetime-local"
                     name="dueDate"
@@ -402,7 +402,7 @@ export default function AssistantTasks() {
                   />
                 </div>
                 <button type="submit" className="btn btn-success w-100 fw-bold">
-                  Assign Task
+                  Giao việc
                 </button>
               </form>
             </div>
@@ -412,7 +412,7 @@ export default function AssistantTasks() {
           <div className="card shadow">
             <div className="card-header bg-white py-3">
               <span className="fw-bold fs-5">
-                Current Tasks{" "}
+                Việc hiện tại{" "}
                 {selectedChapterData &&
                   `- Chapter ${selectedChapterData.chapterNumber}`}
               </span>

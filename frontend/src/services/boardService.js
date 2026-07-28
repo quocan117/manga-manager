@@ -17,10 +17,13 @@ export const createUser = async (userData) => {
   return response.data;
 };
 
-export const cancelSeries = async (seriesId) => {
+export const cancelSeries = async (
+  seriesId,
+  reason = "Chỉ số tương tác (Likes) rớt xuống mức cảnh báo.",
+) => {
   const response = await api.put(`/editorial-board/series/${seriesId}/cancel`, {
     decisionType: "CANCEL",
-    reason: "Chỉ số tương tác (Likes) rớt xuống mức cảnh báo.",
+    reason,
   });
   return response.data;
 };
@@ -76,7 +79,11 @@ export const getReaderVotes = async (from, to) => {
   return response.data;
 };
 
-export const importReaderFeedback = async (seriesId, periodStart, periodEnd) => {
+export const importReaderFeedback = async (
+  seriesId,
+  periodStart,
+  periodEnd,
+) => {
   const response = await api.post("/editorial-board/reader-feedback-imports", {
     seriesId,
     periodStart,
@@ -90,9 +97,9 @@ export const getReaderFeedbackImports = async () => {
   return response.data;
 };
 
-export const getRankings = async (period) => {
+export const getRankings = async (periodStart, periodEnd) => {
   const response = await api.get("/editorial-board/rankings", {
-    params: period ? { period } : {},
+    params: periodStart && periodEnd ? { periodStart, periodEnd } : {},
   });
   return response.data;
 };
@@ -182,6 +189,8 @@ export const getMyAssignedSeries = async () => {
 };
 
 export const getSeriesFeedbackHistory = async (seriesId) => {
-  const response = await api.get(`/editorial-board/series/${seriesId}/feedback-imports`);
+  const response = await api.get(
+    `/editorial-board/series/${seriesId}/feedback-imports`,
+  );
   return response.data;
 };

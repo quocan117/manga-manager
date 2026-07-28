@@ -77,6 +77,19 @@ export const markNotificationRead = async (notificationId) => {
   return response.data;
 };
 
+export const getSeriesFeedbackHistory = async (seriesId) => {
+  const response = await api.get(`/mangaka/series/${seriesId}/feedback-history`);
+  return response.data;
+};
+
+export const getSeriesRankingSummary = async (seriesId, periodStart, periodEnd) => {
+  const response = await api.get(
+    `/mangaka/series/${seriesId}/ranking-summary`,
+    { params: { periodStart, periodEnd } },
+  );
+  return response.data;
+};
+
 export const getChapterPages = async (chapterId) => {
   const response = await api.get(`/mangaka/chapters/${chapterId}/pages`);
   return response.data;

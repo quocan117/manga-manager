@@ -12,7 +12,7 @@ export default function MangakaLayout() {
   const handleLogout = () => {
     logout();
   };
-  
+
   return (
     <div className="mangaka-layout">
       <div className="sidebar">
@@ -26,7 +26,7 @@ export default function MangakaLayout() {
                 `sidebar-link ${isActive ? "active-link" : ""}`
               }
             >
-              📊 Dashboard
+              📊 Tổng quan
             </NavLink>
           </li>
           <li>
@@ -36,7 +36,7 @@ export default function MangakaLayout() {
                 `sidebar-link ${isActive ? "active-link" : ""}`
               }
             >
-              📚 My Series
+              📚 Tác phẩm của tôi
             </NavLink>
           </li>
           <li>
@@ -46,7 +46,7 @@ export default function MangakaLayout() {
                 `sidebar-link ${isActive ? "active-link" : ""}`
               }
             >
-              🎨 Assistant Tasks
+              🎨 Giao việc trợ lý
             </NavLink>
           </li>
           <li>
@@ -56,7 +56,7 @@ export default function MangakaLayout() {
                 `sidebar-link ${isActive ? "active-link" : ""}`
               }
             >
-              🏆 Ranking
+              📈 Thống kê hiệu suất
             </NavLink>
           </li>
           <li>
@@ -66,8 +66,8 @@ export default function MangakaLayout() {
                 `sidebar-link ${isActive ? "active-link" : ""}`
               }
             >
-              🔔 Notifications
-              {unreadCount > 0 && ( 
+              🔔 Thông báo
+              {unreadCount > 0 && (
                 <span className="badge bg-danger ms-2">{unreadCount}</span>
               )}
             </NavLink>
@@ -84,7 +84,7 @@ export default function MangakaLayout() {
           </li>
           <li className="mt-4">
             <button className="logout-btn" onClick={handleLogout}>
-              🚪 Logout
+              🚪 Đăng xuất
             </button>
           </li>
         </ul>

@@ -26,7 +26,7 @@ export default function MyTasks() {
   
   return (
     <div>
-      <h2>My Tasks</h2>
+      <h2>Công việc của tôi</h2>
       <div className="row">
         {tasks.length === 0 && (
           <div className="col-12 text-muted text-center">

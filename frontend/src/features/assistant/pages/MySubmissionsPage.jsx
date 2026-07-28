@@ -34,14 +34,14 @@ export default function MySubmissions() {
   
   return (
     <div>
-      <h2>My Submissions</h2>
+      <h2>Bài nộp của tôi</h2>
       <table className="table">
         <thead>
           <tr>
             <th>ID</th>
-            <th>Status</th>
-            <th>Review Note</th>
-            <th>Submitted At</th>
+            <th>Tình trạng</th>
+            <th>Xem ghi chú</th>
+            <th>Nộp vào</th>
           </tr>
         </thead>
         <tbody>

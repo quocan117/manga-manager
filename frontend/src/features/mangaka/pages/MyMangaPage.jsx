@@ -92,7 +92,7 @@ export default function MyManga() {
   return (
     <div>
       <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2>My Series</h2>
+        <h2>Tác phẩm của tôi</h2>
         <button
           className="btn btn-success"
           onClick={() => navigate("/mangaka/create-series")}

@@ -13,7 +13,7 @@
   margin: 0 0 10px 0;
   font-size: 32px;
 }
-.ranking-list {
+.reader-ranking-list {
   max-width: 800px;
   margin: 0 auto;
   padding: 0 20px 50px 20px;
@@ -21,7 +21,7 @@
   flex-direction: column;
   gap: 15px;
 }
-.ranking-item {
+.reader-ranking-item {
   display: flex;
   align-items: center;
   background: white;
@@ -30,7 +30,7 @@
   box-shadow: 0 4px 6px rgba(0,0,0,0.05);
   transition: transform 0.2s;
 }
-.ranking-item:hover {
+.reader-ranking-item:hover {
   transform: translateY(-3px);
   box-shadow: 0 8px 15px rgba(0,0,0,0.1);
 }

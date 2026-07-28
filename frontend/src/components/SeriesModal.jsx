@@ -4,20 +4,29 @@ import { likeChapter } from "../services/chapterService";
 
 const SeriesModal = ({ series, onClose }) => {
   const [userLikes, setUserLikes] = useState(() => {
-    const savedLikes = localStorage.getItem("guest_liked_chapters");
-    return savedLikes ? JSON.parse(savedLikes) : {};
+    try {
+      const savedLikes = localStorage.getItem("manga_guest_likes_v2");
+      const parsed = savedLikes ? JSON.parse(savedLikes) : {};
+      return typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+    } catch (error) {
+      return {};
+    }
   });
 
   const [filter, setFilter] = useState("");
 
   const handleToggleLike = async (chapterId) => {
     const sessionToken = localStorage.getItem("guest_session_token");
-    if (userLikes[chapterId]) {
+    const globalKey = `${series.id}_${chapterId}`;
+
+    if (userLikes[globalKey]) {
       return;
     }
-    const newLikesState = { ...userLikes, [chapterId]: true };
+
+    const newLikesState = { ...userLikes, [globalKey]: true };
     setUserLikes(newLikesState);
-    localStorage.setItem("guest_liked_chapters", JSON.stringify(newLikesState));
+    localStorage.setItem("manga_guest_likes_v2", JSON.stringify(newLikesState));
+
     const targetChapter = series.chapters.find((c) => c.id === chapterId);
     if (targetChapter) {
       targetChapter.likes += 1;
@@ -30,7 +39,6 @@ const SeriesModal = ({ series, onClose }) => {
   };
 
   if (!series) return null;
-
   const isComingSoon = series.status === "Coming Soon";
   const filteredChapters =
     filter === ""
@@ -72,9 +80,8 @@ const SeriesModal = ({ series, onClose }) => {
         <div className="modal-chapters">
           {isComingSoon ? (
             <div className="coming-soon-notice">
-              📢 Series đang trong giai
-              đoạn <strong>chuẩn bị phát hành</strong>. Chương đầu tiên sẽ sớm
-              ra mắt, hãy quay lại sau nhé!
+              📢 Series đang trong giai đoạn <strong>chuẩn bị phát hành</strong>
+              . Chương đầu tiên sẽ sớm ra mắt, hãy quay lại sau nhé!
             </div>
           ) : (
             <>
@@ -97,7 +104,9 @@ const SeriesModal = ({ series, onClose }) => {
               </div>
               <div className="chapter-list">
                 {filteredChapters.map((chapter) => {
-                  const hasLikes = userLikes[chapter.id];
+                  const globalKey = `${series.id}_${chapter.id}`;
+                  const hasLikes = userLikes[globalKey] === true;
+
                   return (
                     <div key={chapter.id} className="chapter-item">
                       <span className="chapter-title">{chapter.title}</span>
@@ -132,4 +141,5 @@ const SeriesModal = ({ series, onClose }) => {
     </div>
   );
 };
+
 export default SeriesModal;

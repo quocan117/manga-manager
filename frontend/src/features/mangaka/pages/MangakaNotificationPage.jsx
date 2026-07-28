@@ -9,6 +9,8 @@ const getBadgeClass = (type) => {
       return "bg-danger";
     case "REVIEW":
       return "bg-warning text-dark";
+    case "SERIES_RANKING_AT_RISK":
+      return "bg-danger";
     default:
       return "bg-primary";
   }

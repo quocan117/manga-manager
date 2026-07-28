@@ -21,22 +21,22 @@ export default function AssistantLayout() {
           <ul className="nav flex-column mt-4">
             <li>
               <NavLink to="/assistant" end className="sidebar-link">
-                📊 Dashboard
+                📊 Tổng quan
               </NavLink>
             </li>
             <li>
               <NavLink to="/assistant/tasks" className="sidebar-link">
-                📋 My Tasks
+                📋 Công việc của tôi
               </NavLink>
             </li>
             <li>
               <NavLink to="/assistant/submissions" className="sidebar-link">
-                📤 My Submissions
+                📤 Bài nộp 
               </NavLink>
             </li>
             <li>
               <NavLink to="/assistant/notifications" className="sidebar-link">
-                🔔 Notifications
+                🔔 Thông báo
                 {unreadCount > 0 && (
                   <span className="badge bg-danger ms-2">{unreadCount}</span>
                 )}

@@ -397,8 +397,7 @@ export default function DashboardMangaka() {
 
   return (
     <div>
-      <h2 className="mb-4">Dashboard</h2>
-      {/* KPI cards */}
+      <h2 className="mb-4">Tổng quan</h2>
       <div className="row g-4">
         <div className="col-md-3">
           <div className="kpi-card">
@@ -437,7 +436,7 @@ export default function DashboardMangaka() {
           </div>
         </div>
       </div>
-      {/* Bar chart + Donut chart */}
+
       <div className="row g-4 mt-1">
         <div className="col-md-8">
           <div className="chart-card h-100">
@@ -484,12 +483,12 @@ export default function DashboardMangaka() {
           </div>
         </div>
       </div>
-      {/* Recent series + Ranking */}
+      
       <div className="row g-4 mt-1">
-        <div className="col-md-8">
+        <div>
           <div className="chart-card h-100">
             <div className="d-flex justify-content-between align-items-center mb-2">
-              <div className="chart-card-title mb-0">My Recent Series</div>
+              <div className="chart-card-title mb-0">Series hiện tại</div>
               <button
                 className="btn btn-sm btn-outline-primary"
                 onClick={() => navigate("/mangaka/manga")}
@@ -525,37 +524,8 @@ export default function DashboardMangaka() {
             )}
           </div>
         </div>
-        <div className="col-md-4">
-          <div className="chart-card h-100">
-            <div className="chart-card-title">Bảng xếp hạng của tôi</div>
-            {topRankings.length === 0 ? (
-              <p className="empty-text">Chưa có dữ liệu xếp hạng.</p>
-            ) : (
-              <ul className="ranking-list">
-                {topRankings.map((r) => (
-                  <li className="ranking-item" key={r.id}>
-                    <span className="ranking-pos">
-                      {r.position === 1 && "🥇"}
-                      {r.position === 2 && "🥈"}
-                      {r.position === 3 && "🥉"}
-                      {r.position > 3 && `#${r.position}`}
-                    </span>
-                    <span className="ranking-title">{r.seriesTitle}</span>
-                    <span className="ranking-score">{r.score}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <button
-              className="btn btn-warning btn-sm panel-cta-btn"
-              onClick={() => navigate("/mangaka/ranking")}
-            >
-              Xem bảng xếp hạng
-            </button>
-          </div>
-        </div>
       </div>
-      {/* Activity area chart + mini calendar */}
+      
       <div className="row g-4 mt-1">
         <div className="col-md-8">
           <div className="chart-card h-100">
@@ -572,7 +542,6 @@ export default function DashboardMangaka() {
           </div>
         </div>
       </div>
-      {/* Notifications */}
       <div className="chart-card mt-4">
         <div className="d-flex justify-content-between align-items-center mb-2">
           <div className="chart-card-title mb-0">Thông báo gần đây</div>

@@ -6,14 +6,21 @@ export default function RejectReasonModal({
   submitting,
   onCancel,
   onConfirm,
+  title = "Từ chối hồ sơ series",
+  description = "Lý do này sẽ được lưu lại và hiển thị cho Hội đồng Biên tập nếu tất cả biên tập viên đều từ chối.",
+  confirmLabel = "Xác nhận từ chối",
+  submittingLabel = "Đang gửi...",
+  confirmButtonClass = "btn btn-danger",
+  requireReason = true,
+  errorMessage = "Vui lòng nhập lý do từ chối trước khi tiếp tục.",
 }) {
   const [reason, setReason] = useState("");
   const [error, setError] = useState("");
 
   const handleConfirm = () => {
     const trimmed = reason.trim();
-    if (!trimmed) {
-      setError("Vui lòng nhập lý do từ chối trước khi tiếp tục.");
+    if (requireReason && !trimmed) {
+      setError(errorMessage);
       return;
     }
     setError("");
@@ -29,17 +36,15 @@ export default function RejectReasonModal({
         <button className="close-btn" onClick={onCancel} aria-label="Đóng">
           ✕
         </button>
-        <h4 className="mb-2">Từ chối hồ sơ series</h4>
+        <h4 className="mb-2">{title}</h4>
         {seriesTitle && <p className="text-muted mb-3">{seriesTitle}</p>}
-        <p className="mb-2">
-          Lý do này sẽ được lưu lại và hiển thị cho Hội đồng Biên tập nếu tất cả
-          biên tập viên đều từ chối.
-        </p>
+        <p className="mb-2">{description}</p>
         <textarea
           className="form-control mb-2"
           rows="4"
           value={reason}
           onChange={(e) => setReason(e.target.value)}
+          placeholder={requireReason ? "" : "Không bắt buộc"}
           autoFocus
         />
         {error && <div className="text-danger mb-2">{error}</div>}
@@ -52,11 +57,11 @@ export default function RejectReasonModal({
             Hủy
           </button>
           <button
-            className="btn btn-danger"
+            className={confirmButtonClass}
             onClick={handleConfirm}
             disabled={submitting}
           >
-            {submitting ? "Đang gửi..." : "Xác nhận từ chối"}
+            {submitting ? submittingLabel : confirmLabel}
           </button>
         </div>
       </div>

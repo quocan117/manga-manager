@@ -56,12 +56,12 @@ const RankingPage = () => {
         <h1>BẢNG XẾP HẠNG MANGA STUDIO</h1>
         <p>Cập nhật liên tục dựa trên lượt LIKE của độc giả</p>
       </div>
-      <div className="ranking-list">
+      <div className="reader-ranking-list">
         {rankedSeries.map((series, index) => {
           const totalLikes =
             series.chapters?.reduce((sum, ch) => sum + ch.likes, 0) || 0;
           return (
-            <div key={series.id} className="ranking-item">
+            <div key={series.id} className="reader-ranking-item">
               <div className="rank-number">{getRankBadge(index)}</div>
               <img
                 src={

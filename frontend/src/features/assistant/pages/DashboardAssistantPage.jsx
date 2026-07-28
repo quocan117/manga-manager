@@ -27,12 +27,12 @@ export default function DashboardAssistant() {
   
   return (
     <div>
-      <h2 className="mb-4">Assistant Dashboard</h2>
+      <h2 className="mb-4">Tổng quan</h2>
       <div className="row">
         <div className="col-md-3">
           <div className="card shadow">
             <div className="card-body text-center">
-              <h6>Total Tasks</h6>
+              <h6>Tổng công việc</h6>
               <h2>{tasks.length}</h2>
             </div>
           </div>
@@ -40,7 +40,7 @@ export default function DashboardAssistant() {
         <div className="col-md-3">
           <div className="card shadow">
             <div className="card-body text-center">
-              <h6>Pending Tasks</h6>
+              <h6>Đang xử lý</h6>
               <h2>{pendingCount}</h2>
             </div>
           </div>
@@ -48,7 +48,7 @@ export default function DashboardAssistant() {
         <div className="col-md-3">
           <div className="card shadow">
             <div className="card-body text-center">
-              <h6>Submitted</h6>
+              <h6>Đã nộp</h6>
               <h2>{submittedCount}</h2>
             </div>
           </div>
