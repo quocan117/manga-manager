@@ -89,6 +89,7 @@ public class EditorialBoardService {
         private static final String REJECT_DECISION = "REJECT";
         private static final String CANCEL_DECISION = "CANCEL";
         private static final String PUBLISHED_CHAPTER_STATUS = "PUBLISHED";
+        private static final String SERIES_RANKING_AT_RISK_NOTIFICATION = "SERIES_RANKING_AT_RISK";
         private static final String SERIES_SUBMISSION_PURPOSE = "SERIES_SUBMISSION";
         private static final String CHAPTER_MANUSCRIPT_PURPOSE = "CHAPTER_MANUSCRIPT";
         private static final int BOARD_PANEL_SIZE = 3;
@@ -685,6 +686,7 @@ public class EditorialBoardService {
                 ranking.setCalculatedAt(calculatedAt);
                 seriesRankingRepository.save(ranking);
                 recalculateRankingPositions(periodStart, periodEnd);
+                notifyIfSeriesRankingAtRisk(series);
 
                 return toReaderFeedbackImportResponse(savedImport);
         }
@@ -698,6 +700,41 @@ public class EditorialBoardService {
                 if (!rankings.isEmpty()) {
                         seriesRankingRepository.saveAll(rankings);
                 }
+        }
+
+        private void notifyIfSeriesRankingAtRisk(MangaSeries series) {
+                List<SeriesRanking> rankingHistory = seriesRankingRepository
+                                .findBySeriesSeriesIdOrderByPeriodStartAsc(series.getSeriesId())
+                                .stream()
+                                .filter(ranking -> ranking.getPeriodStart() != null
+                                                && ranking.getRankingPosition() != null)
+                                .toList();
+                if (rankingHistory.size() < 4) {
+                        return;
+                }
+
+                List<SeriesRanking> latestRankings = rankingHistory.subList(
+                                rankingHistory.size() - 4,
+                                rankingHistory.size());
+                for (int index = 1; index < latestRankings.size(); index++) {
+                        if (latestRankings.get(index).getRankingPosition() <= latestRankings.get(index - 1)
+                                        .getRankingPosition()) {
+                                return;
+                        }
+                }
+
+                if (notificationRepository.existsByTypeAndReferenceId(
+                                SERIES_RANKING_AT_RISK_NOTIFICATION,
+                                series.getSeriesId())) {
+                        return;
+                }
+
+                notify(
+                                series.getAuthor(),
+                                SERIES_RANKING_AT_RISK_NOTIFICATION,
+                                series.getSeriesId(),
+                                "Series của bạn đang có nguy cơ bị hủy do thứ hạng giảm liên tiếp "
+                                                + "trong 3 kỳ gần nhất.");
         }
 
         private List<ChapterLikeLogRepository.SeriesVoteCount> sortedVoteCounts(LocalDateTime from, LocalDateTime to) {

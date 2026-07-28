@@ -48,8 +48,10 @@ import com.example.backend.model.Chapter;
 import com.example.backend.model.ChapterPage;
 import com.example.backend.model.MangaSeries;
 import com.example.backend.model.Notification;
+import com.example.backend.model.ReaderFeedbackImport;
 import com.example.backend.model.Role;
 import com.example.backend.model.SeriesFile;
+import com.example.backend.model.SeriesRanking;
 import com.example.backend.model.Submission;
 import com.example.backend.model.Task;
 import com.example.backend.model.TaskMarkupPage;
@@ -60,6 +62,7 @@ import com.example.backend.repository.ChapterRevisionNoteRepository;
 import com.example.backend.repository.BoardDecisionRepository;
 import com.example.backend.repository.MangaSeriesRepository;
 import com.example.backend.repository.NotificationRepository;
+import com.example.backend.repository.ReaderFeedbackImportRepository;
 import com.example.backend.repository.RoleRepository;
 import com.example.backend.repository.SeriesFileRepository;
 import com.example.backend.repository.SeriesRankingRepository;
@@ -95,6 +98,8 @@ class MangakaServiceTests {
     private SubmissionRepository submissionRepository;
     @Mock
     private SeriesRankingRepository seriesRankingRepository;
+    @Mock
+    private ReaderFeedbackImportRepository readerFeedbackImportRepository;
     @Mock
     private SeriesFileRepository seriesFileRepository;
     @Mock
@@ -403,6 +408,8 @@ class MangakaServiceTests {
         chapter.setChapterNumber(1);
         chapter.setTitle("Chapter 1");
         chapter.setStatus("DRAFT");
+        LocalDateTime releaseDate = LocalDateTime.of(2026, 7, 28, 10, 0);
+        chapter.setReleaseDate(releaseDate);
         when(mangaSeriesRepository.findById(20L)).thenReturn(Optional.of(series));
         when(chapterRepository.findBySeriesSeriesIdOrderByChapterNumberAsc(20L))
                 .thenReturn(List.of(chapter));
@@ -412,6 +419,80 @@ class MangakaServiceTests {
         assertEquals(1, response.size());
         assertEquals(30L, response.get(0).id());
         assertEquals(1, response.get(0).chapterNumber());
+        assertEquals(releaseDate, response.get(0).releaseDate());
+    }
+
+    @Test
+    void getsFeedbackHistoryOnlyAfterOwnershipCheck() {
+        MangaSeries series = new MangaSeries();
+        series.setSeriesId(20L);
+        series.setAuthor(user(1L, EMAIL));
+        LocalDateTime periodStart = LocalDateTime.of(2026, 7, 1, 0, 0);
+        LocalDateTime periodEnd = LocalDateTime.of(2026, 7, 8, 0, 0);
+        ReaderFeedbackImport feedbackImport = new ReaderFeedbackImport();
+        feedbackImport.setImportId(50L);
+        feedbackImport.setPeriodStart(periodStart);
+        feedbackImport.setPeriodEnd(periodEnd);
+        feedbackImport.setVoteCount(125);
+        when(mangaSeriesRepository.findById(20L)).thenReturn(Optional.of(series));
+        when(readerFeedbackImportRepository.findBySeriesSeriesIdOrderByImportedAtDesc(20L))
+                .thenReturn(List.of(feedbackImport));
+
+        var response = service.getSeriesFeedbackHistory(20L);
+
+        assertEquals(1, response.size());
+        assertEquals(50L, response.get(0).importId());
+        assertEquals(periodStart, response.get(0).periodStart());
+        assertEquals(periodEnd, response.get(0).periodEnd());
+        assertEquals(125, response.get(0).voteCount());
+    }
+
+    @Test
+    void rejectsFeedbackHistoryForAnotherMangakasSeries() {
+        MangaSeries series = new MangaSeries();
+        series.setSeriesId(20L);
+        series.setAuthor(user(2L, "other@manga.test"));
+        when(mangaSeriesRepository.findById(20L)).thenReturn(Optional.of(series));
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.getSeriesFeedbackHistory(20L));
+
+        assertSame(HttpStatus.FORBIDDEN, exception.getStatusCode());
+        verify(readerFeedbackImportRepository, never())
+                .findBySeriesSeriesIdOrderByImportedAtDesc(20L);
+    }
+
+    @Test
+    void getsOwnedSeriesRankingSummaryWithoutExposingOtherSeries() {
+        MangaSeries series = new MangaSeries();
+        series.setSeriesId(20L);
+        series.setAuthor(user(1L, EMAIL));
+        LocalDateTime periodStart = LocalDateTime.of(2026, 7, 1, 0, 0);
+        LocalDateTime periodEnd = LocalDateTime.of(2026, 7, 8, 0, 0);
+        SeriesRanking ranking = new SeriesRanking();
+        ranking.setSeries(series);
+        ranking.setPeriodStart(periodStart);
+        ranking.setPeriodEnd(periodEnd);
+        ranking.setRankingPosition(4);
+        ranking.setScore(125.0F);
+        ranking.setVoteCount(125);
+        when(mangaSeriesRepository.findById(20L)).thenReturn(Optional.of(series));
+        when(seriesRankingRepository.findBySeriesSeriesIdAndPeriodStartAndPeriodEnd(
+                20L, periodStart, periodEnd))
+                .thenReturn(Optional.of(ranking));
+        when(seriesRankingRepository.countByPeriodStartAndPeriodEnd(periodStart, periodEnd))
+                .thenReturn(12);
+        when(seriesRankingRepository.sumVoteCountByPeriodStartAndPeriodEnd(periodStart, periodEnd))
+                .thenReturn(1500L);
+
+        var response = service.getSeriesRankingSummary(20L, periodStart, periodEnd);
+
+        assertEquals(20L, response.seriesId());
+        assertEquals(4, response.position());
+        assertEquals(125, response.voteCount());
+        assertEquals(12, response.totalSeriesInPeriod());
+        assertEquals(1500L, response.totalVotesInPeriod());
     }
 
     @Test

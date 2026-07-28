@@ -19,6 +19,21 @@ public interface SeriesRankingRepository extends JpaRepository<SeriesRanking, Lo
             LocalDateTime periodStart,
             LocalDateTime periodEnd);
 
+    List<SeriesRanking> findBySeriesSeriesIdOrderByPeriodStartAsc(Long seriesId);
+
+    int countByPeriodStartAndPeriodEnd(
+            LocalDateTime periodStart,
+            LocalDateTime periodEnd);
+
+    @Query("""
+            SELECT COALESCE(SUM(r.voteCount), 0)
+            FROM SeriesRanking r
+            WHERE r.periodStart = :periodStart AND r.periodEnd = :periodEnd
+            """)
+    long sumVoteCountByPeriodStartAndPeriodEnd(
+            @Param("periodStart") LocalDateTime periodStart,
+            @Param("periodEnd") LocalDateTime periodEnd);
+
     // Lấy bảng xếp hạng của MỘT chu kỳ cụ thể, sắp theo vị trí xếp hạng
     List<SeriesRanking> findByPeriodStartAndPeriodEndOrderByRankingPositionAsc(
             LocalDateTime periodStart,

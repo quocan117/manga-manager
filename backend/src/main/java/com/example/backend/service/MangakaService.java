@@ -34,9 +34,11 @@ import com.example.backend.dto.MangakaDtos.ChapterResponse;
 import com.example.backend.dto.MangakaDtos.CreateChapterRequest;
 import com.example.backend.dto.MangakaDtos.CreatePageRequest;
 import com.example.backend.dto.MangakaDtos.CreateSeriesRequest;
+import com.example.backend.dto.MangakaDtos.FeedbackHistoryResponse;
 import com.example.backend.dto.MangakaDtos.NotificationResponse;
 import com.example.backend.dto.MangakaDtos.PageResponse;
 import com.example.backend.dto.MangakaDtos.RankingResponse;
+import com.example.backend.dto.MangakaDtos.RankingSummaryResponse;
 import com.example.backend.dto.MangakaDtos.ReviewSubmissionRequest;
 import com.example.backend.dto.MangakaDtos.ReviseTaskRequest;
 import com.example.backend.dto.MangakaDtos.SeriesResponse;
@@ -62,6 +64,7 @@ import com.example.backend.repository.ChapterRevisionNoteRepository;
 import com.example.backend.repository.BoardDecisionRepository;
 import com.example.backend.repository.MangaSeriesRepository;
 import com.example.backend.repository.NotificationRepository;
+import com.example.backend.repository.ReaderFeedbackImportRepository;
 import com.example.backend.repository.RoleRepository;
 import com.example.backend.repository.SeriesFileRepository;
 import com.example.backend.repository.SeriesRankingRepository;
@@ -124,6 +127,7 @@ public class MangakaService {
     private final TaskRepository taskRepository;
     private final SubmissionRepository submissionRepository;
     private final SeriesRankingRepository seriesRankingRepository;
+    private final ReaderFeedbackImportRepository readerFeedbackImportRepository;
     private final SeriesFileRepository seriesFileRepository;
     private final NotificationRepository notificationRepository;
     private final TaskMarkupPageRepository taskMarkupPageRepository;
@@ -154,6 +158,7 @@ public class MangakaService {
             TaskRepository taskRepository,
             SubmissionRepository submissionRepository,
             SeriesRankingRepository seriesRankingRepository,
+            ReaderFeedbackImportRepository readerFeedbackImportRepository,
             SeriesFileRepository seriesFileRepository,
             NotificationRepository notificationRepository,
             TaskMarkupPageRepository taskMarkupPageRepository,
@@ -170,6 +175,7 @@ public class MangakaService {
         this.taskRepository = taskRepository;
         this.submissionRepository = submissionRepository;
         this.seriesRankingRepository = seriesRankingRepository;
+        this.readerFeedbackImportRepository = readerFeedbackImportRepository;
         this.seriesFileRepository = seriesFileRepository;
         this.notificationRepository = notificationRepository;
         this.taskMarkupPageRepository = taskMarkupPageRepository;
@@ -232,6 +238,43 @@ public class MangakaService {
                 .stream()
                 .map(this::toChapterResponse)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<FeedbackHistoryResponse> getSeriesFeedbackHistory(Long seriesId) {
+        ownedSeries(seriesId);
+        return readerFeedbackImportRepository.findBySeriesSeriesIdOrderByImportedAtDesc(seriesId)
+                .stream()
+                .map(feedbackImport -> new FeedbackHistoryResponse(
+                        feedbackImport.getImportId(),
+                        feedbackImport.getPeriodStart(),
+                        feedbackImport.getPeriodEnd(),
+                        feedbackImport.getVoteCount()))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public RankingSummaryResponse getSeriesRankingSummary(
+            Long seriesId,
+            LocalDateTime periodStart,
+            LocalDateTime periodEnd) {
+        ownedSeries(seriesId);
+        validatePeriodRange(periodStart, periodEnd);
+        var ranking = seriesRankingRepository
+                .findBySeriesSeriesIdAndPeriodStartAndPeriodEnd(
+                        seriesId,
+                        periodStart,
+                        periodEnd)
+                .orElseThrow(() -> notFound("Ranking not found for this series and period"));
+        return new RankingSummaryResponse(
+                seriesId,
+                ranking.getPeriodStart(),
+                ranking.getPeriodEnd(),
+                ranking.getRankingPosition(),
+                ranking.getScore(),
+                ranking.getVoteCount(),
+                seriesRankingRepository.countByPeriodStartAndPeriodEnd(periodStart, periodEnd),
+                seriesRankingRepository.sumVoteCountByPeriodStartAndPeriodEnd(periodStart, periodEnd));
     }
 
     @Transactional
@@ -841,7 +884,7 @@ public class MangakaService {
         return new ChapterResponse(
                 chapter.getChapterId(), chapter.getSeries().getSeriesId(), chapter.getChapterNumber(),
                 chapter.getTitle(), chapterManuscriptFiles(chapter.getChapterId()),
-                chapter.getStatus(), chapter.getCreatedAt());
+                chapter.getStatus(), chapter.getReleaseDate(), chapter.getCreatedAt());
     }
 
     private ChapterRevisionNoteResponse toChapterRevisionNoteResponse(ChapterRevisionNote note) {
@@ -1050,6 +1093,15 @@ public class MangakaService {
 
     private ResponseStatusException conflict(String message) {
         return new ResponseStatusException(HttpStatus.CONFLICT, message);
+    }
+
+    private void validatePeriodRange(LocalDateTime periodStart, LocalDateTime periodEnd) {
+        if (periodStart == null || periodEnd == null) {
+            throw badRequest("periodStart and periodEnd are required");
+        }
+        if (!periodStart.isBefore(periodEnd)) {
+            throw badRequest("periodStart must be before periodEnd");
+        }
     }
 
     private User assignTantouEditor(User currentEditor) {

@@ -119,6 +119,7 @@ public final class MangakaDtos {
             String title,
             List<UploadedFileResponse> manuscriptFiles,
             String status,
+            LocalDateTime releaseDate,
             LocalDateTime createdAt) {
     }
 
@@ -193,6 +194,24 @@ public final class MangakaDtos {
             LocalDateTime periodStart,
             LocalDateTime periodEnd,
             LocalDateTime calculatedAt) {
+    }
+
+    public record FeedbackHistoryResponse(
+            Long importId,
+            LocalDateTime periodStart,
+            LocalDateTime periodEnd,
+            Integer voteCount) {
+    }
+
+    public record RankingSummaryResponse(
+            Long seriesId,
+            LocalDateTime periodStart,
+            LocalDateTime periodEnd,
+            Integer position,
+            Float score,
+            Integer voteCount,
+            int totalSeriesInPeriod,
+            long totalVotesInPeriod) {
     }
 
     public record NotificationResponse(

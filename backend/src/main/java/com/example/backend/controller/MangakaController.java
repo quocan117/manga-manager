@@ -1,9 +1,11 @@
 package com.example.backend.controller;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,9 +30,11 @@ import com.example.backend.dto.MangakaDtos.ChapterResponse;
 import com.example.backend.dto.MangakaDtos.CreateChapterRequest;
 import com.example.backend.dto.MangakaDtos.CreatePageRequest;
 import com.example.backend.dto.MangakaDtos.CreateSeriesRequest;
+import com.example.backend.dto.MangakaDtos.FeedbackHistoryResponse;
 import com.example.backend.dto.MangakaDtos.NotificationResponse;
 import com.example.backend.dto.MangakaDtos.PageResponse;
 import com.example.backend.dto.MangakaDtos.RankingResponse;
+import com.example.backend.dto.MangakaDtos.RankingSummaryResponse;
 import com.example.backend.dto.MangakaDtos.ReviewSubmissionRequest;
 import com.example.backend.dto.MangakaDtos.ReviseTaskRequest;
 import com.example.backend.dto.MangakaDtos.SeriesResponse;
@@ -101,6 +105,21 @@ public class MangakaController {
     @GetMapping("/series/{seriesId}/assistants")
     public List<AssistantParticipationResponse> getSeriesAssistants(@PathVariable Long seriesId) {
         return service.getSeriesAssistants(seriesId);
+    }
+
+    @GetMapping("/series/{seriesId}/feedback-history")
+    public List<FeedbackHistoryResponse> getSeriesFeedbackHistory(@PathVariable Long seriesId) {
+        return service.getSeriesFeedbackHistory(seriesId);
+    }
+
+    @GetMapping("/series/{seriesId}/ranking-summary")
+    public RankingSummaryResponse getSeriesRankingSummary(
+            @PathVariable Long seriesId,
+            @RequestParam
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime periodStart,
+            @RequestParam
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime periodEnd) {
+        return service.getSeriesRankingSummary(seriesId, periodStart, periodEnd);
     }
 
     @PostMapping("/chapters")

@@ -542,6 +542,96 @@ class EditorialBoardServiceTests {
         }
 
         @Test
+        void importReaderFeedbackNotifiesMangakaAfterThreeConsecutiveRankingDrops() {
+                User board = user(1L, "Editorial Board One", BOARD_EMAIL, role("EDITORIAL_BOARD"));
+                MangaSeries assignedSeries = series(5L, "At Risk Series", "PUBLISHED");
+                LocalDateTime from = LocalDateTime.of(2026, 7, 22, 0, 0);
+                LocalDateTime to = LocalDateTime.of(2026, 7, 29, 0, 0);
+
+                when(userRepository.findByEmail(BOARD_EMAIL)).thenReturn(Optional.of(board));
+                when(seriesBoardAssignmentRepository
+                                .existsBySeriesSeriesIdAndBoardMemberUserId(5L, board.getUserId()))
+                                .thenReturn(true);
+                when(mangaSeriesRepository.findById(5L)).thenReturn(Optional.of(assignedSeries));
+                when(chapterLikeLogRepository
+                                .countByChapterSeriesSeriesIdAndLikedAtBetween(5L, from, to))
+                                .thenReturn(80L);
+                when(readerFeedbackImportRepository
+                                .findBySeriesSeriesIdAndPeriodStartAndPeriodEnd(5L, from, to))
+                                .thenReturn(Optional.empty());
+                when(seriesRankingRepository
+                                .findBySeriesSeriesIdAndPeriodStartAndPeriodEnd(5L, from, to))
+                                .thenReturn(Optional.empty());
+                when(seriesRankingRepository.findForPositionRecalculation(from, to))
+                                .thenReturn(List.of());
+                when(seriesRankingRepository.findBySeriesSeriesIdOrderByPeriodStartAsc(5L))
+                                .thenReturn(List.of(
+                                                ranking(assignedSeries, LocalDateTime.of(2026, 7, 1, 0, 0), 2),
+                                                ranking(assignedSeries, LocalDateTime.of(2026, 7, 8, 0, 0), 4),
+                                                ranking(assignedSeries, LocalDateTime.of(2026, 7, 15, 0, 0), 7),
+                                                ranking(assignedSeries, LocalDateTime.of(2026, 7, 22, 0, 0), 9)));
+                when(notificationRepository.existsByTypeAndReferenceId("SERIES_RANKING_AT_RISK", 5L))
+                                .thenReturn(false);
+                when(readerFeedbackImportRepository.save(any(ReaderFeedbackImport.class))).thenAnswer(invocation -> {
+                        ReaderFeedbackImport saved = invocation.getArgument(0);
+                        saved.setImportId(105L);
+                        return saved;
+                });
+
+                service.importReaderFeedback(new ImportReaderFeedbackRequest(5L, from, to));
+
+                ArgumentCaptor<Notification> notificationCaptor = ArgumentCaptor.forClass(Notification.class);
+                verify(notificationRepository).save(notificationCaptor.capture());
+                Notification notification = notificationCaptor.getValue();
+                assertEquals("SERIES_RANKING_AT_RISK", notification.getType());
+                assertEquals(5L, notification.getReferenceId());
+                assertEquals(assignedSeries.getAuthor(), notification.getUser());
+                assertTrue(notification.getMessage().contains("thứ hạng giảm liên tiếp"));
+        }
+
+        @Test
+        void importReaderFeedbackDoesNotDuplicateExistingRankingRiskNotification() {
+                User board = user(1L, "Editorial Board One", BOARD_EMAIL, role("EDITORIAL_BOARD"));
+                MangaSeries assignedSeries = series(5L, "At Risk Series", "PUBLISHED");
+                LocalDateTime from = LocalDateTime.of(2026, 7, 22, 0, 0);
+                LocalDateTime to = LocalDateTime.of(2026, 7, 29, 0, 0);
+
+                when(userRepository.findByEmail(BOARD_EMAIL)).thenReturn(Optional.of(board));
+                when(seriesBoardAssignmentRepository
+                                .existsBySeriesSeriesIdAndBoardMemberUserId(5L, board.getUserId()))
+                                .thenReturn(true);
+                when(mangaSeriesRepository.findById(5L)).thenReturn(Optional.of(assignedSeries));
+                when(chapterLikeLogRepository
+                                .countByChapterSeriesSeriesIdAndLikedAtBetween(5L, from, to))
+                                .thenReturn(80L);
+                when(readerFeedbackImportRepository
+                                .findBySeriesSeriesIdAndPeriodStartAndPeriodEnd(5L, from, to))
+                                .thenReturn(Optional.empty());
+                when(seriesRankingRepository
+                                .findBySeriesSeriesIdAndPeriodStartAndPeriodEnd(5L, from, to))
+                                .thenReturn(Optional.empty());
+                when(seriesRankingRepository.findForPositionRecalculation(from, to))
+                                .thenReturn(List.of());
+                when(seriesRankingRepository.findBySeriesSeriesIdOrderByPeriodStartAsc(5L))
+                                .thenReturn(List.of(
+                                                ranking(assignedSeries, LocalDateTime.of(2026, 7, 1, 0, 0), 2),
+                                                ranking(assignedSeries, LocalDateTime.of(2026, 7, 8, 0, 0), 4),
+                                                ranking(assignedSeries, LocalDateTime.of(2026, 7, 15, 0, 0), 7),
+                                                ranking(assignedSeries, LocalDateTime.of(2026, 7, 22, 0, 0), 9)));
+                when(notificationRepository.existsByTypeAndReferenceId("SERIES_RANKING_AT_RISK", 5L))
+                                .thenReturn(true);
+                when(readerFeedbackImportRepository.save(any(ReaderFeedbackImport.class))).thenAnswer(invocation -> {
+                        ReaderFeedbackImport saved = invocation.getArgument(0);
+                        saved.setImportId(105L);
+                        return saved;
+                });
+
+                service.importReaderFeedback(new ImportReaderFeedbackRequest(5L, from, to));
+
+                verify(notificationRepository, never()).save(any(Notification.class));
+        }
+
+        @Test
         void importReaderFeedbackRejectsSeriesOutsideCurrentBoardPanel() {
                 User board = user(1L, "Editorial Board One", BOARD_EMAIL, role("EDITORIAL_BOARD"));
                 LocalDateTime from = LocalDateTime.of(2026, 7, 1, 0, 0);
@@ -641,6 +731,15 @@ class EditorialBoardServiceTests {
                 chapter.setChapterNumber(id.intValue());
                 chapter.setStatus(status);
                 return chapter;
+        }
+
+        private SeriesRanking ranking(MangaSeries series, LocalDateTime periodStart, int position) {
+                SeriesRanking ranking = new SeriesRanking();
+                ranking.setSeries(series);
+                ranking.setPeriodStart(periodStart);
+                ranking.setPeriodEnd(periodStart.plusDays(7));
+                ranking.setRankingPosition(position);
+                return ranking;
         }
 
         private ChapterLikeLogRepository.SeriesVoteCount voteCount(Long seriesId, String title, Long count) {
