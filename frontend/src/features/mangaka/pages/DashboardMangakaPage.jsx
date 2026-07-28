@@ -40,6 +40,11 @@ const STATUS_META = {
     group: "approved",
     color: "#a78bfa",
   },
+  PENDING_SCHEDULE: {
+    label: "Chờ xếp lịch",
+    group: "approved",
+    color: "#a78bfa",
+  },
   PUBLISHED: { label: "Đã xuất bản", group: "published", color: "#22c55e" },
   CANCELLED: { label: "Đã huỷ", group: "cancelled", color: "#ef4444" },
 };
@@ -75,7 +80,7 @@ function BarChart({ data }) {
   const max = Math.max(4, ...data.map((d) => d.value));
   const barWidth = 44;
   const gap = 28;
-  const topGap = 28; 
+  const topGap = 28;
   const barAreaHeight = 120;
   const labelAreaHeight = 40;
   const width = data.length * (barWidth + gap) + gap;
@@ -298,7 +303,7 @@ export default function DashboardMangaka() {
       const [seriesData, notificationData, rankingData] = await Promise.all([
         getMySeries(),
         getNotifications(),
-        getRankings().catch(() => []), 
+        getRankings().catch(() => []),
       ]);
       setSeries(seriesData || []);
       setNotifications(notificationData || []);
@@ -389,7 +394,7 @@ export default function DashboardMangaka() {
       </div>
     );
   }
-  
+
   return (
     <div>
       <h2 className="mb-4">Dashboard</h2>
@@ -511,9 +516,7 @@ export default function DashboardMangaka() {
                         <StatusBadge status={item.status} />
                       </td>
                       <td>
-                        {item.createdAt
-                          ? formatDateOnly(item.createdAt)
-                          : "-"}
+                        {item.createdAt ? formatDateOnly(item.createdAt) : "-"}
                       </td>
                     </tr>
                   ))}

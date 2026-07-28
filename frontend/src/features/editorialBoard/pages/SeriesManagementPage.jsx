@@ -4,14 +4,15 @@ import {
   getSeriesChapters,
 } from "../../../services/boardService";
 import { formatDateTime } from "../../../utils/formatDate";
-import { useNavigate } from "react-router-dom";
+import SeriesFileList from "../../../components/SeriesFileList"; 
 
 export default function SeriesManagementPage() {
   const [seriesList, setSeriesList] = useState([]);
   const [expandedId, setExpandedId] = useState(null);
   const [chaptersBySeries, setChaptersBySeries] = useState({});
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
+
+  const [viewDossierSeries, setViewDossierSeries] = useState(null);
 
   useEffect(() => {
     getApprovedSeries()
@@ -51,7 +52,7 @@ export default function SeriesManagementPage() {
               <th>Publication Coordinator</th>
               <th>Ban Phụ Trách</th>
               <th>Tiến Độ</th>
-              <th></th>
+              <th>Hành động</th>
             </tr>
           </thead>
           <tbody>
@@ -74,12 +75,20 @@ export default function SeriesManagementPage() {
                     {s.chapterCount} chapter · {s.progress}%
                   </td>
                   <td>
-                    <button
-                      className="btn btn-outline-primary btn-sm"
-                      onClick={() => toggleExpand(s.id)}
-                    >
-                      {expandedId === s.id ? "Ẩn" : "Xem Chapter"}
-                    </button>
+                    <div className="d-flex gap-2">
+                      <button
+                        className="btn btn-outline-info btn-sm"
+                        onClick={() => setViewDossierSeries(s)}
+                      >
+                        Xem Hồ Sơ
+                      </button>
+                      <button
+                        className="btn btn-outline-primary btn-sm"
+                        onClick={() => toggleExpand(s.id)}
+                      >
+                        {expandedId === s.id ? "Ẩn Chapter" : "Xem Chapter"}
+                      </button>
+                    </div>
                   </td>
                 </tr>
                 {expandedId === s.id && (
@@ -91,85 +100,21 @@ export default function SeriesManagementPage() {
                             <th>Chapter</th>
                             <th>Trạng Thái</th>
                             <th>Ngày Xuất Bản</th>
-                            <th></th>
                           </tr>
                         </thead>
                         <tbody>
                           {(chaptersBySeries[s.id] || []).map((c) => (
-                            <React.Fragment key={c.id}>
-                              <tr>
-                                <td>
-                                  #{c.chapterNumber} {c.title}
-                                </td>
-                                <td>{c.status}</td>
-                                <td>
-                                  {c.releaseDate
-                                    ? formatDateTime(c.releaseDate)
-                                    : "-"}
-                                </td>
-                                <td>
-                                  {(c.status === "SUBMITTED_TO_BOARD" ||
-                                    c.status === "BOARD_REJECTED" ||
-                                    c.status === "APPROVED") && (
-                                    <button
-                                      className="btn btn-sm btn-success"
-                                      onClick={() =>
-                                        navigate(
-                                          `/board/chapters/${c.id}/review`,
-                                        )
-                                      }
-                                    >
-                                      {c.status === "SUBMITTED_TO_BOARD"
-                                        ? "Xem & Xác nhận"
-                                        : "Xem chi tiết"}
-                                    </button>
-                                  )}
-                                </td>
-                              </tr>
-                              {c.reviews?.length > 0 && (
-                                <tr>
-                                  <td
-                                    colSpan={4}
-                                    style={{ background: "#f8f9fa" }}
-                                  >
-                                    <div className="d-flex flex-wrap gap-3 py-1">
-                                      {c.reviews.map((r) => (
-                                        <div
-                                          key={r.id}
-                                          style={{ fontSize: "0.85rem" }}
-                                        >
-                                          <strong>
-                                            👤 {r.boardMemberName}
-                                          </strong>{" "}
-                                          {r.confirmed === null ? (
-                                            <span className="badge bg-secondary">
-                                              Chưa bỏ phiếu
-                                            </span>
-                                          ) : (
-                                            <span
-                                              className={`badge ${
-                                                r.confirmed
-                                                  ? "bg-success"
-                                                  : "bg-danger"
-                                              }`}
-                                            >
-                                              {r.confirmed
-                                                ? "Đủ điều kiện"
-                                                : "Từ chối"}
-                                            </span>
-                                          )}
-                                          {r.comment && (
-                                            <div className="text-muted">
-                                              Lý do: {r.comment}
-                                            </div>
-                                          )}
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </td>
-                                </tr>
-                              )}
-                            </React.Fragment>
+                            <tr key={c.id}>
+                              <td>
+                                #{c.chapterNumber} {c.title}
+                              </td>
+                              <td>{c.status}</td>
+                              <td>
+                                {c.releaseDate
+                                  ? formatDateTime(c.releaseDate)
+                                  : "-"}
+                              </td>
+                            </tr>
                           ))}
                         </tbody>
                       </table>
@@ -181,6 +126,35 @@ export default function SeriesManagementPage() {
           </tbody>
         </table>
       </div>
+
+      {viewDossierSeries && (
+        <div
+          className="custom-modal-overlay"
+          onClick={() => setViewDossierSeries(null)}
+        >
+          <div
+            className="custom-modal-content series-review-preview-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="close-btn"
+              onClick={() => setViewDossierSeries(null)}
+              aria-label="Đóng"
+            >
+              ✕
+            </button>
+            <h4 className="mb-1">Hồ sơ lưu trữ: {viewDossierSeries.title}</h4>
+            <p className="text-muted mb-3 fst-italic">
+              Đây là các tài liệu đã được Hội đồng Biên tập phê duyệt ở vòng
+              duyệt cuối cùng.
+            </p>
+            <SeriesFileList
+              files={viewDossierSeries.uploadedFiles || []}
+              emptyText="Không có tệp hồ sơ đính kèm."
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

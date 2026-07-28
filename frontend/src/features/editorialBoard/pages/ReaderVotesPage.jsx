@@ -1,179 +1,151 @@
-import React, { useMemo, useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
-  getReaderVoteSummary,
-  getReaderVotes,
-  getReaderFeedbackImports,
+  getMyAssignedSeries,
   importReaderFeedback,
 } from "../../../services/boardService";
-import { formatDateTime, toBackendDateTime } from "../../../utils/formatDate";
+import { toBackendDateTime } from "../../../utils/formatDate";
 
 export default function ReaderVotesPage() {
-  const [period, setPeriod] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
-  const [summary, setSummary] = useState([]);
-  const [votes, setVotes] = useState([]);
+  const [assignedSeries, setAssignedSeries] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedSeriesId, setSelectedSeriesId] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const readerCodeByToken = useMemo(() => {
-    const map = new Map();
-    let counter = 0;
-    for (const v of votes) {
-      const token = v.guestSessionToken;
-      if (token && !map.has(token)) {
-        counter += 1;
-        map.set(token, `Guest-${String(counter).padStart(3, "0")}`);
+  useEffect(() => {
+    const fetchAssigned = async () => {
+      try {
+        const data = await getMyAssignedSeries();
+        setAssignedSeries(data || []);
+      } catch (err) {
+        console.error("Lỗi tải danh sách series được phân công:", err);
       }
-    }
-    return map;
-  }, [votes]);
+    };
+    fetchAssigned();
+  }, []);
 
-  const getReaderCode = (token) => {
-    if (!token) return "—";
-    return readerCodeByToken.get(token) || "Guest-???";
-  };
+  const filteredSeries = assignedSeries.filter((s) =>
+    s.title.toLowerCase().includes(searchQuery.toLowerCase()),
+  );
 
-  const handlePreview = async () => {
-    if (!from || !to) return alert("Vui lòng chọn khoảng thời gian.");
-    setLoading(true);
+  const handleImport = async () => {
+    if (!from || !to) return alert("Vui lòng chọn khoảng thời gian tổng hợp.");
+    if (!selectedSeriesId)
+      return alert("Vui lòng chọn một Series từ danh sách bên trên.");
+
+    if (
+      !window.confirm(
+        "Xác nhận tổng hợp dữ liệu bình chọn cho khoảng thời gian này?",
+      )
+    )
+      return;
+
     try {
+      setLoading(true);
       const fromParam = toBackendDateTime(from);
       const toParam = toBackendDateTime(to);
-      const [summaryData, voteData] = await Promise.all([
-        getReaderVoteSummary(fromParam, toParam),
-        getReaderVotes(fromParam, toParam),
-      ]);
-      setSummary(summaryData);
-      setVotes(voteData);
+
+      await importReaderFeedback(selectedSeriesId, fromParam, toParam);
+      alert("Đã tổng hợp dữ liệu thành công!");
+      setSelectedSeriesId("");
     } catch (err) {
-      alert("Không tải được dữ liệu bình chọn.");
+      alert(
+        err?.response?.data?.message ||
+          "Lỗi khi tổng hợp dữ liệu. Backend đã chặn nếu bạn không có quyền xử lý Series này.",
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  const handleImport = async () => {
-    const trimmedPeriod = period.trim();
-    if (!trimmedPeriod) return alert("Vui lòng đặt tên chu kỳ, ví dụ: 2026-T3");
-
-    try {
-      const existingImports = await getReaderFeedbackImports();
-      const periodAlreadyExists = (existingImports || []).some(
-        (imp) => (imp.period || "").trim() === trimmedPeriod,
-      );
-      if (periodAlreadyExists) {
-        const confirmOverwrite = window.confirm(
-          `Kỳ "${trimmedPeriod}" đã có dữ liệu tổng hợp trước đó!\n\n` +
-            `Nếu tiếp tục, dữ liệu CŨ của kỳ "${trimmedPeriod}" sẽ bị GHI ĐÈ bằng số liệu mới ` +
-            `(không tạo kỳ mới).\n\n` +
-            `- Nếu bạn thực sự muốn cập nhật lại kỳ này, bấm OK.\n` +
-            `- Nếu bạn đang muốn tổng hợp cho một kỳ MỚI, bấm Hủy và đổi tên chu kỳ ` +
-            `(ví dụ đổi "${trimmedPeriod}" thành kỳ tiếp theo) rồi thử lại.`,
-        );
-        if (!confirmOverwrite) return;
-      }
-    } catch (err) {
-      alert("Lưu ý: Không thể kiểm tra lịch sử trùng kỳ do lỗi kết nối.");
-    }
-
-    if (
-      !window.confirm(
-        `Xác nhận tổng hợp dữ liệu bình chọn cho kỳ "${trimmedPeriod}"? Hệ thống sẽ tự tính bảng xếp hạng.`,
-      )
-    )
-      return;
-    try {
-      await importReaderFeedback(trimmedPeriod, from, to);
-      alert("Đã tổng hợp dữ liệu và cập nhật bảng xếp hạng!");
-      setPeriod("");
-      setFrom("");
-      setTo("");
-      setSummary([]);
-      setVotes([]);
-    } catch (err) {
-      alert(err?.response?.data?.message || "Lỗi khi tổng hợp dữ liệu.");
-    }
-  };
-
   return (
     <div className="tab-content">
-      <h2>🗳️ Bình Chọn Độc Giả Theo Kỳ</h2>
-      <p>
-        Xem độc giả nào đã like series nào trong kỳ, sau đó tổng hợp thành dữ
-        liệu chính thức để hệ thống tự tính bảng xếp hạng.
+      <h2>🗳️ Nhập Dữ Liệu Bình Chọn</h2>
+      <p className="text-muted">
+        Tổng hợp lượt vote theo khoảng thời gian cho các Series bạn phụ trách.
       </p>
-      <div className="board-header" style={{ gap: 10, flexWrap: "wrap" }}>
-        <input
-          type="text"
-          placeholder="Chu kỳ (VD: 2026-T3)"
-          value={period}
-          onChange={(e) => setPeriod(e.target.value)}
-        />
-        <input
-          type="datetime-local"
-          value={from}
-          onChange={(e) => setFrom(e.target.value)}
-        />
-        <input
-          type="datetime-local"
-          value={to}
-          onChange={(e) => setTo(e.target.value)}
-        />
-        <button
-          className="btn-cancel-series"
-          onClick={handlePreview}
-          disabled={loading}
-        >
-          Xem dữ liệu
-        </button>
-        <button
-          className="btn btn-primary"
-          onClick={handleImport}
-          disabled={summary.length === 0}
-        >
-          Tổng hợp & Tính Xếp Hạng
-        </button>
+
+      <div className="card shadow-sm mb-4">
+        <div className="card-body">
+          <div className="row g-3">
+            <div className="col-md-6">
+              <label className="form-label fw-bold">Từ thời điểm</label>
+              <input
+                type="datetime-local"
+                className="form-control"
+                value={from}
+                onChange={(e) => setFrom(e.target.value)}
+              />
+            </div>
+            <div className="col-md-6">
+              <label className="form-label fw-bold">Đến thời điểm</label>
+              <input
+                type="datetime-local"
+                className="form-control"
+                value={to}
+                onChange={(e) => setTo(e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
       </div>
-      <h3 style={{ marginTop: 20 }}>Tổng số lượt bình chọn theo Series</h3>
-      <table className="admin-table">
-        <thead>
-          <tr>
-            <th>Series</th>
-            <th>Tổng lượt bình chọn</th>
-          </tr>
-        </thead>
-        <tbody>
-          {summary.map((s) => (
-            <tr key={s.seriesId}>
-              <td>{s.seriesTitle}</td>
-              <td>{s.voteCount}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <h3 style={{ marginTop: 20 }}>Chi tiết độc giả đã bình chọn</h3>
-      <table className="admin-table">
-        <thead>
-          <tr>
-            <th>Series</th>
-            <th>Chapter</th>
-            <th>Mã độc giả</th>
-            <th>Thời điểm</th>
-          </tr>
-        </thead>
-        <tbody>
-          {votes.map((v) => (
-            <tr key={v.likeId}>
-              <td>{v.seriesTitle}</td>
-              <td>
-                Chương {v.chapterNumber} - {v.chapterTitle}
-              </td>
-              <td>{getReaderCode(v.guestSessionToken)}</td>
-              <td>{formatDateTime(v.likedAt)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+
+      <div className="card shadow-sm mb-4">
+        <div className="card-header bg-white fw-bold">
+          Chọn Series Phụ Trách
+        </div>
+        <div className="card-body">
+          <input
+            type="text"
+            className="form-control mb-3"
+            placeholder="🔍 Tìm kiếm Series..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+
+          <div
+            className="list-group mb-4"
+            style={{ maxHeight: "250px", overflowY: "auto" }}
+          >
+            {filteredSeries.length === 0 && (
+              <div className="list-group-item text-muted text-center py-4">
+                Không tìm thấy Series phù hợp.
+              </div>
+            )}
+            {filteredSeries.map((s) => {
+              const sId = s.id || s.seriesId;
+              return (
+                <button
+                  key={sId}
+                  type="button"
+                  className={`list-group-item list-group-item-action d-flex justify-content-between align-items-center ${
+                    selectedSeriesId === sId ? "active" : ""
+                  }`}
+                  onClick={() => setSelectedSeriesId(sId)}
+                >
+                  <span>
+                    <strong>#{sId}</strong> - {s.title}
+                  </span>
+                  {selectedSeriesId === sId && (
+                    <span className="badge bg-light text-primary">
+                      Đang chọn
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          <button
+            className="btn btn-primary w-100 fw-bold"
+            onClick={handleImport}
+            disabled={loading}
+          >
+            {loading ? "Đang xử lý..." : "Tổng hợp dữ liệu cho Series này"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

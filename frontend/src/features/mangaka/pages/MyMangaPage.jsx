@@ -17,7 +17,8 @@ const STATUS_LABELS = {
   CANCELLED: "Đã hủy",
   SUBMITTED_TO_EDITOR: "Đang chờ biên tập duyệt",
   BOARD_REJECTED: "Hội đồng từ chối - chờ biên tập xử lý",
-  APPROVED: "Đã duyệt - chờ xuất bản theo lịch",
+  APPROVED: "Đã có lịch - Sắp xuất bản",
+  PENDING_SCHEDULE: "Hội đồng đã duyệt - Chờ xếp lịch",
 };
 
 function StatusBadge({ status }) {

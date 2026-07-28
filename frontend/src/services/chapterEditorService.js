@@ -78,9 +78,9 @@ export const sendChapterRevisionToMangaka = async (chapterId) => {
   return { id: chapterId, status: "REVISION_REQUESTED" };
 };
 
-export const submitChapterToBoard = async (chapterId) => {
+export const approveAndReadyChapter = async (chapterId) => {
   const response = await api.post(
-    `/tantou-editor/chapters/${chapterId}/submit-to-board`,
+    `/tantou-editor/chapters/${chapterId}/approve-and-ready`, 
   );
   return response.data;
 };
