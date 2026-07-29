@@ -122,12 +122,12 @@ export default function AssistantTasks() {
     let reviewNote = null;
     if (decision === "REVISION_REQUESTED") {
       reviewNote = window.prompt(
-        `Nhập lý do yêu cầu trợ lý sửa lại bài "${submission.id}":`,
+        `Nhập lý do yêu cầu trợ lý sửa lại bài:`,
         "",
       );
       if (reviewNote === null) return;
       if (!reviewNote.trim()) {
-        alert("Vui lòng nhập lý do khi yêu cầu sửa lại.");
+        alert("Vui lòng nhập lý do khi yêu cầu sửa lại");
         return;
       }
     }

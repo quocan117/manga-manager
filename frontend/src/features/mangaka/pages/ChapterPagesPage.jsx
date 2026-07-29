@@ -138,7 +138,7 @@ export default function ChapterPages() {
                       })
                     }
                   >
-                    🖌️ Chỉnh sửa / Đánh dấu
+                    🖌️ Đánh dấu
                   </button>
                 </div>
               </div>

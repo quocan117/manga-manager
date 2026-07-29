@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { getPageDrawing, finalizeDrawing } from "../../../services/drawingService";
+import {
+  getPageDrawing,
+  finalizeDrawing,
+} from "../../../services/drawingService";
 import { resolveImageUrl } from "../../../utils/imageUrl";
 import CanvasMarkupTool from "../../../components/CanvasMarkupTool";
 import "../styles/drawing.css";
@@ -12,7 +15,7 @@ export default function DrawingPage() {
   const [drawing, setDrawing] = useState(null);
   const [loading, setLoading] = useState(true);
   const originalImageUrl = resolveImageUrl(location.state?.originalImageUrl);
-  const isFinalized = drawing?.status === "FINALIZED"; 
+  const isFinalized = drawing?.status === "FINALIZED";
 
   useEffect(() => {
     loadDrawing();
@@ -42,7 +45,7 @@ export default function DrawingPage() {
       return;
     try {
       const data = await finalizeDrawing(pageId, drawing?.version || 0);
-      setDrawing(data); 
+      setDrawing(data);
       alert("Chốt bản vẽ thành công!");
       navigate(-1);
     } catch (error) {
@@ -62,11 +65,11 @@ export default function DrawingPage() {
       </div>
     );
   }
-  
+
   return (
     <div className="container-fluid mt-4 drawing-page-container">
       <div className="d-flex justify-content-between align-items-center mb-3">
-        <h2>Khu vực vẽ / Đánh dấu - Trang {pageId}</h2>
+        <h2>Khu Đánh dấu - Trang {pageId}</h2>
         <button className="btn btn-secondary" onClick={() => navigate(-1)}>
           ⬅ Quay lại
         </button>
@@ -81,9 +84,13 @@ export default function DrawingPage() {
               <CanvasMarkupTool
                 pageId={pageId}
                 backgroundImageUrl={originalImageUrl}
-                readOnly={isFinalized} 
+                readOnly={isFinalized}
                 onStatusChange={(status) =>
-                  setDrawing((prev) => (prev ? { ...prev, status } : prev))}
+                  setDrawing((prev) => (prev ? { ...prev, status } : prev))
+                }
+                onVersionChange={(version) =>
+                  setDrawing((prev) => (prev ? { ...prev, version } : prev))
+                }
               />
             </div>
           </div>
@@ -102,27 +109,13 @@ export default function DrawingPage() {
                   {drawing?.status ?? "BẢN NHÁP"}
                 </span>
               </div>
-              <div className="info-item mb-3">
-                <strong>Phiên bản hiện tại: </strong> v{drawing?.version ?? 0}
-              </div>
               <hr />
-              <p className="text-muted small text-justify">
-                * Việc lưu nháp được thực hiện trực tiếp trong thanh công cụ của
-                khu vực vẽ.
-                {isFinalized && (
-                  <>
-                    {" "}
-                    Trang này đã được <strong>chốt</strong>, không thể vẽ hoặc
-                    lưu thêm.
-                  </>
-                )}
-              </p>
               <button
                 className="btn btn-danger w-100 btn-finalize mt-2"
                 onClick={handleFinalize}
                 disabled={isFinalized}
               >
-                🔒 Chốt Bản Vẽ (Finalize)
+                🔒 Chốt Bản đánh dấu
               </button>
             </div>
           </div>

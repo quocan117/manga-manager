@@ -41,7 +41,7 @@ export default function ChapterReviewPage() {
       return;
     try {
       setSubmitting(true);
-      await approveAndReadyChapter(chapterId); 
+      await approveAndReadyChapter(chapterId);
       alert("Đã phê duyệt Chapter thành công!");
       navigate("/tantou");
     } catch (error) {
@@ -84,8 +84,7 @@ export default function ChapterReviewPage() {
           {chapter?.seriesTitle && (
             <div className="text-muted fs-6 mb-1">{chapter.seriesTitle}</div>
           )}
-          Duyệt Chapter {chapter?.chapterNumber ?? chapterId}
-          {chapter?.title ? `: ${chapter.title}` : ""}
+          Duyệt {`${chapter.title}`}
         </h2>
         <button
           className="btn btn-secondary"
@@ -107,7 +106,7 @@ export default function ChapterReviewPage() {
       </div>
       <div className="card shadow-sm border-0 mb-4">
         <div className="card-header bg-white fw-bold">
-          Đánh dấu các trang cần chỉnh sửa (nếu có)
+          Đánh dấu các trang cần chỉnh sửa 
         </div>
         <div className="card-body">
           <p className="text-muted small">

@@ -93,7 +93,7 @@ export default function EditorReviewPage() {
                 className="btn btn-outline-danger w-100"
                 onClick={() => handleAction(false)}
               >
-                ❌ Yêu cầu Studio/Mangaka sửa lại
+                ❌ Yêu cầu sửa lại
               </button>
             </div>
           </div>

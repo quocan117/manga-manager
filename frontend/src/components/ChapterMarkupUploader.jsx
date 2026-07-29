@@ -74,7 +74,7 @@ export default function ChapterMarkupUploader({ onSaveNote, onSendAll }) {
     <div className="chapter-markup-uploader">
       <div className="mb-3 p-3 border rounded bg-light">
         <label className="fw-bold mb-2 d-block">
-          Upload ảnh trang truyện cần chỉnh sửa (chọn từ máy)
+          Upload ảnh trang truyện cần chỉnh sửa 
         </label>
         <input
           type="file"

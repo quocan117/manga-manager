@@ -21,9 +21,7 @@ export default function TantouLayout() {
       <aside className="tantou-sidebar">
         <div className="sidebar-header">
           <h2 className="role-title">
-            <span className="role-highlight">TANTOU</span>
-            <br />
-            EDITOR
+            <span>TANTOU EDITOR</span>
           </h2>
           {user && (
             <p className="text-white-50 mb-0">Xin chào, {user.username}</p>

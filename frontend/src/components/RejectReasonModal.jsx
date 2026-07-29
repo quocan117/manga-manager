@@ -7,7 +7,7 @@ export default function RejectReasonModal({
   onCancel,
   onConfirm,
   title = "Từ chối hồ sơ series",
-  description = "Lý do này sẽ được lưu lại và hiển thị cho Hội đồng Biên tập nếu tất cả biên tập viên đều từ chối.",
+  description = "Nhập lý do từ chối.",
   confirmLabel = "Xác nhận từ chối",
   submittingLabel = "Đang gửi...",
   confirmButtonClass = "btn btn-danger",

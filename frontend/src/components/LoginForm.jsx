@@ -98,7 +98,7 @@ export default function LoginForm() {
       const lowerMessage = backendMessage.toLowerCase();
       if (lowerMessage.includes("chưa được tạo")) {
         setErrorMessage(
-          "Tài khoản Google này chưa được Hội đồng biên tập cấp quyền truy cập.",
+          "Tài khoản Google này chưa được cấp quyền truy cập.",
         );
       } else if (lowerMessage.includes("not active")) {
         setErrorMessage("Tài khoản đã bị khóa.");
