@@ -51,9 +51,11 @@ public class AssistantService {
     private static final String ASSIGNED_STATUS = "ASSIGNED";
     private static final String IN_PROGRESS_STATUS = "IN_PROGRESS";
     private static final String SUBMITTED_STATUS = "SUBMITTED";
+    private static final String REVISION_REQUESTED_STATUS = "REVISION_REQUESTED";
     private static final Set<String> WORKABLE_STATUSES = Set.of(
             ASSIGNED_STATUS,
-            IN_PROGRESS_STATUS);
+            IN_PROGRESS_STATUS,
+            REVISION_REQUESTED_STATUS);
 
     private final TaskRepository taskRepository;
     private final SubmissionRepository submissionRepository;
@@ -213,6 +215,9 @@ public class AssistantService {
             List<MultipartFile> resultFiles) {
         Task task = assignedTask(taskId);
         assertTaskCanBeWorkedOn(task);
+        if (REVISION_REQUESTED_STATUS.equals(task.getStatus())) {
+            task.setRoundNumber(currentRound(task) + 1);
+        }
         User assistant = currentUser();
         PageDrawing drawing = drawingRepository
                 .findByTaskTaskIdAndOwnerEmail(taskId, assistant.getEmail())
