@@ -72,6 +72,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.time.format.DateTimeFormatter;
 
@@ -173,11 +174,16 @@ public class EditorialBoardService {
                 .toList();
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public List<ReviewSeriesResponse> getReviewingSeries() {
         User currentUser = currentEditorialBoard();
-        return mangaSeriesRepository.findByStatusIgnoreCaseOrderBySubmittedAtDesc(REVIEWING_SERIES_STATUS)
+        return seriesBoardAssignmentRepository
+                .findByBoardMemberUserIdAndSeriesStatusIgnoreCaseOrderByAssignedAtDesc(
+                        currentUser.getUserId(),
+                        REVIEWING_SERIES_STATUS)
                 .stream()
+                .map(SeriesBoardAssignment::getSeries)
+                .filter(Objects::nonNull)
                 .map(series -> toReviewSeriesResponse(series, currentUser))
                 .toList();
     }
@@ -191,12 +197,13 @@ public class EditorialBoardService {
                 .toList();
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public ReviewSeriesResponse getSeriesReview(Long seriesId) {
         User currentUser = currentEditorialBoard();
         MangaSeries series = mangaSeriesRepository.findById(seriesId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Series not found"));
+        requireBoardPanelMembership(seriesId, currentUser);
         return toReviewSeriesResponse(series, currentUser);
     }
 
@@ -204,6 +211,7 @@ public class EditorialBoardService {
         if (!mangaSeriesRepository.existsById(seriesId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Series not found");
         }
+        requireBoardPanelMembership(seriesId, currentEditorialBoard());
         return boardDecisionRepository.findPanelDecisionsBySeriesIdOrderByDecisionDateDesc(seriesId)
                 .stream()
                 .map(this::toBoardDecisionResponse)
@@ -215,6 +223,7 @@ public class EditorialBoardService {
         if (!mangaSeriesRepository.existsById(seriesId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Series not found");
         }
+        requireBoardPanelMembership(seriesId, currentEditorialBoard());
         return seriesHistoryService.getSeriesHistory(seriesId)
                 .stream()
                 .map(this::toSeriesReviewHistoryResponse)
@@ -322,6 +331,7 @@ public class EditorialBoardService {
 
     @Transactional(readOnly = true)
     public List<BoardChapterResponse> getApprovedSeriesChapters(Long seriesId) {
+        User currentUser = currentEditorialBoard();
         MangaSeries series = mangaSeriesRepository.findById(seriesId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Series not found"));
@@ -330,6 +340,7 @@ public class EditorialBoardService {
                 .contains(series.getStatus().trim().toUpperCase(Locale.ROOT))) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Series has not been approved");
         }
+        requireBoardPanelMembership(seriesId, currentUser);
         return chapterRepository.findBySeriesSeriesIdOrderByChapterNumberAsc(seriesId)
                 .stream()
                 .map(this::toBoardChapterResponse)
@@ -540,7 +551,6 @@ public class EditorialBoardService {
         if (!REVIEWING_SERIES_STATUS.equalsIgnoreCase(series.getStatus())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Only reviewing series can be voted on");
         }
-        assignBoardPanel(series);
         if (seriesBoardAssignmentRepository
                 .findBySeriesSeriesIdAndBoardMemberUserId(seriesId, boardMember.getUserId())
                 .isEmpty()) {
@@ -1141,7 +1151,8 @@ public class EditorialBoardService {
     }
 
     private ReviewSeriesResponse toReviewSeriesResponse(MangaSeries series, User currentUser) {
-        List<SeriesBoardAssignment> assignments = assignBoardPanel(series);
+        List<SeriesBoardAssignment> assignments = seriesBoardAssignmentRepository
+                .findBySeriesSeriesIdOrderByAssignedAtAsc(series.getSeriesId());
         List<BoardDecisionResponse> decisions = boardDecisionRepository
                 .findPanelDecisionsBySeriesIdOrderByDecisionDateDesc(series.getSeriesId())
                 .stream()
@@ -1197,12 +1208,15 @@ public class EditorialBoardService {
                 assignments.stream()
                         .map(this::toBoardMemberAssignmentResponse)
                         .toList(),
-                seriesFileRepository.findBySeriesSeriesIdAndPurposeAndActiveTrueOrderByUploadedAtDesc(
-                                series.getSeriesId(),
-                                SERIES_SUBMISSION_PURPOSE)
-                        .stream()
-                        .map(this::toUploadedFileResponse)
-                        .toList(),
+                currentUserAssigned
+                        ? seriesFileRepository
+                                .findBySeriesSeriesIdAndPurposeAndActiveTrueOrderByUploadedAtDesc(
+                                        series.getSeriesId(),
+                                        SERIES_SUBMISSION_PURPOSE)
+                                .stream()
+                                .map(this::toUploadedFileResponse)
+                                .toList()
+                        : List.of(),
                 rejectedEditors,
                 seriesHistoryService.getSeriesHistory(series.getSeriesId())
                         .stream()
@@ -1331,6 +1345,14 @@ public class EditorialBoardService {
             MangaSeries series,
             User currentUser) {
         User coordinator = series.getPublicationCoordinator();
+        List<SeriesBoardAssignment> assignments = seriesBoardAssignmentRepository
+                .findBySeriesSeriesIdOrderByAssignedAtAsc(series.getSeriesId());
+        boolean currentUserAssigned = assignments.stream()
+                .map(SeriesBoardAssignment::getBoardMember)
+                .filter(Objects::nonNull)
+                .anyMatch(boardMember -> currentUser != null
+                        && currentUser.getUserId() != null
+                        && currentUser.getUserId().equals(boardMember.getUserId()));
         List<Chapter> chapters = chapterRepository
                 .findBySeriesSeriesIdOrderByChapterNumberAsc(series.getSeriesId());
         long publishedChapterCount = chapters.stream()
@@ -1349,9 +1371,7 @@ public class EditorialBoardService {
                 series.getStatus(),
                 coordinator == null ? null : coordinator.getUserId(),
                 coordinator == null ? null : coordinator.getUsername(),
-                seriesBoardAssignmentRepository
-                        .findBySeriesSeriesIdOrderByAssignedAtAsc(series.getSeriesId())
-                        .stream()
+                assignments.stream()
                         .map(this::toBoardMemberAssignmentResponse)
                         .toList(),
                 schedule,
@@ -1359,13 +1379,27 @@ public class EditorialBoardService {
                 publishedChapterCount,
                 progress,
                 isPublicationCoordinator(series, currentUser),
-                seriesFileRepository
-                        .findBySeriesSeriesIdAndPurposeAndActiveTrueOrderByUploadedAtDesc(
-                                series.getSeriesId(),
-                                SERIES_SUBMISSION_PURPOSE)
-                        .stream()
-                        .map(this::toUploadedFileResponse)
-                        .toList());
+                currentUserAssigned
+                        ? seriesFileRepository
+                                .findBySeriesSeriesIdAndPurposeAndActiveTrueOrderByUploadedAtDesc(
+                                        series.getSeriesId(),
+                                        SERIES_SUBMISSION_PURPOSE)
+                                .stream()
+                                .map(this::toUploadedFileResponse)
+                                .toList()
+                        : List.of());
+    }
+
+    private void requireBoardPanelMembership(Long seriesId, User currentUser) {
+        if (currentUser == null
+                || currentUser.getUserId() == null
+                || !seriesBoardAssignmentRepository.existsBySeriesSeriesIdAndBoardMemberUserId(
+                        seriesId,
+                        currentUser.getUserId())) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "You are not assigned to the Editorial Board panel for this series");
+        }
     }
 
     private ReaderVoteResponse toReaderVoteResponse(ChapterLikeLog likeLog) {

@@ -43,12 +43,6 @@ BEGIN
     ALTER TABLE tasks ALTER COLUMN description NVARCHAR(MAX) NULL;
 END;
 
-IF OBJECT_ID('payments', 'U') IS NOT NULL
-   AND COL_LENGTH('payments', 'description') IS NOT NULL
-BEGIN
-    ALTER TABLE payments ALTER COLUMN description NVARCHAR(MAX) NULL;
-END;
-
 IF OBJECT_ID('submissions', 'U') IS NOT NULL
    AND COL_LENGTH('submissions', 'note') IS NOT NULL
 BEGIN

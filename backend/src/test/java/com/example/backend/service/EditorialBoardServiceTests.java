@@ -216,10 +216,7 @@ class EditorialBoardServiceTests {
                 when(userRepository.findByEmail(BOARD_EMAIL)).thenReturn(Optional.of(board));
                 when(mangaSeriesRepository.findByIdForUpdate(5L)).thenReturn(Optional.of(series));
                 when(seriesBoardAssignmentRepository.findBySeriesSeriesIdOrderByAssignedAtAsc(5L))
-                                .thenReturn(List.of(), List.of(assignment));
-                when(userRepository.findByRoleRoleNameAndStatusOrderByUsernameAsc("EDITORIAL_BOARD", "ACTIVE"))
-                                .thenReturn(List.of(board));
-                when(seriesBoardAssignmentRepository.save(any(SeriesBoardAssignment.class))).thenReturn(assignment);
+                                .thenReturn(List.of(assignment));
                 when(seriesBoardAssignmentRepository.findBySeriesSeriesIdAndBoardMemberUserId(5L, 1L))
                                 .thenReturn(Optional.of(assignment));
                 when(seriesBoardAssignmentRepository.countBySeriesSeriesId(5L)).thenReturn(1L);
@@ -298,8 +295,6 @@ class EditorialBoardServiceTests {
 
                 when(userRepository.findByEmail(BOARD_EMAIL)).thenReturn(Optional.of(currentBoard));
                 when(mangaSeriesRepository.findByIdForUpdate(5L)).thenReturn(Optional.of(series));
-                when(seriesBoardAssignmentRepository.findBySeriesSeriesIdOrderByAssignedAtAsc(5L))
-                                .thenReturn(List.of(assignment));
                 when(seriesBoardAssignmentRepository.findBySeriesSeriesIdAndBoardMemberUserId(5L, 1L))
                                 .thenReturn(Optional.empty());
 
@@ -308,6 +303,109 @@ class EditorialBoardServiceTests {
                                 () -> service.voteSeries(5L, new BoardDecisionRequest("APPROVE", "Ready")));
 
                 assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
+        }
+
+        @Test
+        void reviewingSeriesOnlyReturnsTheCurrentMembersAssignedPanel() {
+                User board = user(1L, "Board One", BOARD_EMAIL, role("EDITORIAL_BOARD"));
+                MangaSeries series = series(5L, "Assigned Series", "REVIEWING");
+                SeriesBoardAssignment assignment = new SeriesBoardAssignment();
+                assignment.setSeries(series);
+                assignment.setBoardMember(board);
+
+                when(userRepository.findByEmail(BOARD_EMAIL)).thenReturn(Optional.of(board));
+                when(seriesBoardAssignmentRepository
+                                .findByBoardMemberUserIdAndSeriesStatusIgnoreCaseOrderByAssignedAtDesc(
+                                                1L,
+                                                "REVIEWING"))
+                                .thenReturn(List.of(assignment));
+                when(seriesBoardAssignmentRepository.findBySeriesSeriesIdOrderByAssignedAtAsc(5L))
+                                .thenReturn(List.of(assignment));
+
+                var response = service.getReviewingSeries();
+
+                assertEquals(1, response.size());
+                assertEquals(5L, response.get(0).id());
+                assertTrue(response.get(0).currentUserAssigned());
+                verify(mangaSeriesRepository, never())
+                                .findByStatusIgnoreCaseOrderBySubmittedAtDesc("REVIEWING");
+                verify(seriesBoardAssignmentRepository, never()).save(any(SeriesBoardAssignment.class));
+        }
+
+        @Test
+        void boardMemberOutsidePanelCannotOpenSeriesDossier() {
+                User board = user(1L, "Board One", BOARD_EMAIL, role("EDITORIAL_BOARD"));
+                MangaSeries series = series(5L, "Restricted Series", "REVIEWING");
+                when(userRepository.findByEmail(BOARD_EMAIL)).thenReturn(Optional.of(board));
+                when(mangaSeriesRepository.findById(5L)).thenReturn(Optional.of(series));
+                when(seriesBoardAssignmentRepository
+                                .existsBySeriesSeriesIdAndBoardMemberUserId(5L, 1L))
+                                .thenReturn(false);
+
+                ResponseStatusException exception = assertThrows(
+                                ResponseStatusException.class,
+                                () -> service.getSeriesReview(5L));
+
+                assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
+                verify(seriesFileRepository, never())
+                                .findBySeriesSeriesIdAndPurposeAndActiveTrueOrderByUploadedAtDesc(
+                                                5L,
+                                                "SERIES_SUBMISSION");
+                verify(seriesBoardAssignmentRepository, never()).save(any(SeriesBoardAssignment.class));
+        }
+
+        @Test
+        void assignedBoardMemberCanOpenSeriesDossierAndSubmissionFiles() {
+                User board = user(1L, "Board One", BOARD_EMAIL, role("EDITORIAL_BOARD"));
+                MangaSeries series = series(5L, "Assigned Series", "REVIEWING");
+                SeriesBoardAssignment assignment = new SeriesBoardAssignment();
+                assignment.setSeries(series);
+                assignment.setBoardMember(board);
+                SeriesFile file = new SeriesFile();
+                file.setFileId(40L);
+                file.setSeries(series);
+                file.setOriginalFileName("dossier.pdf");
+                file.setContentType("application/pdf");
+                file.setActive(true);
+
+                when(userRepository.findByEmail(BOARD_EMAIL)).thenReturn(Optional.of(board));
+                when(mangaSeriesRepository.findById(5L)).thenReturn(Optional.of(series));
+                when(seriesBoardAssignmentRepository
+                                .existsBySeriesSeriesIdAndBoardMemberUserId(5L, 1L))
+                                .thenReturn(true);
+                when(seriesBoardAssignmentRepository.findBySeriesSeriesIdOrderByAssignedAtAsc(5L))
+                                .thenReturn(List.of(assignment));
+                when(seriesFileRepository
+                                .findBySeriesSeriesIdAndPurposeAndActiveTrueOrderByUploadedAtDesc(
+                                                5L,
+                                                "SERIES_SUBMISSION"))
+                                .thenReturn(List.of(file));
+
+                var response = service.getSeriesReview(5L);
+
+                assertTrue(response.currentUserAssigned());
+                assertEquals(1, response.uploadedFiles().size());
+                assertEquals("dossier.pdf", response.uploadedFiles().get(0).originalFileName());
+                verify(seriesBoardAssignmentRepository, never()).save(any(SeriesBoardAssignment.class));
+        }
+
+        @Test
+        void boardMemberOutsidePanelCannotOpenApprovedChapterManuscripts() {
+                User board = user(1L, "Board One", BOARD_EMAIL, role("EDITORIAL_BOARD"));
+                MangaSeries series = series(5L, "Approved Series", "COMING_SOON");
+                when(userRepository.findByEmail(BOARD_EMAIL)).thenReturn(Optional.of(board));
+                when(mangaSeriesRepository.findById(5L)).thenReturn(Optional.of(series));
+                when(seriesBoardAssignmentRepository
+                                .existsBySeriesSeriesIdAndBoardMemberUserId(5L, 1L))
+                                .thenReturn(false);
+
+                ResponseStatusException exception = assertThrows(
+                                ResponseStatusException.class,
+                                () -> service.getApprovedSeriesChapters(5L));
+
+                assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
+                verify(chapterRepository, never())
+                                .findBySeriesSeriesIdOrderByChapterNumberAsc(5L);
         }
 
         @Test
@@ -320,8 +418,6 @@ class EditorialBoardServiceTests {
 
                 when(userRepository.findByEmail(BOARD_EMAIL)).thenReturn(Optional.of(board));
                 when(mangaSeriesRepository.findByIdForUpdate(5L)).thenReturn(Optional.of(series));
-                when(seriesBoardAssignmentRepository.findBySeriesSeriesIdOrderByAssignedAtAsc(5L))
-                                .thenReturn(List.of(assignment));
                 when(seriesBoardAssignmentRepository.findBySeriesSeriesIdAndBoardMemberUserId(5L, 1L))
                                 .thenReturn(Optional.of(assignment));
 
@@ -460,8 +556,11 @@ class EditorialBoardServiceTests {
                                 .thenReturn(List.of());
                 when(publishScheduleRepository.findFirstBySeriesSeriesIdOrderByPublishDateAsc(5L))
                                 .thenReturn(Optional.empty());
+                SeriesBoardAssignment assignment = new SeriesBoardAssignment();
+                assignment.setSeries(series);
+                assignment.setBoardMember(board);
                 when(seriesBoardAssignmentRepository.findBySeriesSeriesIdOrderByAssignedAtAsc(5L))
-                                .thenReturn(List.of());
+                                .thenReturn(List.of(assignment));
                 when(seriesFileRepository
                                 .findBySeriesSeriesIdAndPurposeAndActiveTrueOrderByUploadedAtDesc(
                                                 5L,

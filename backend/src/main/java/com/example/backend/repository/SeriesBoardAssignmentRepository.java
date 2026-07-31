@@ -14,6 +14,11 @@ public interface SeriesBoardAssignmentRepository extends JpaRepository<SeriesBoa
 
     List<SeriesBoardAssignment> findByBoardMemberUserIdOrderByAssignedAtDesc(Long boardMemberId);
 
+    List<SeriesBoardAssignment>
+            findByBoardMemberUserIdAndSeriesStatusIgnoreCaseOrderByAssignedAtDesc(
+                    Long boardMemberId,
+                    String status);
+
     Optional<SeriesBoardAssignment> findBySeriesSeriesIdAndBoardMemberUserId(Long seriesId, Long boardMemberId);
 
     boolean existsBySeriesSeriesIdAndBoardMemberUserId(Long seriesId, Long boardMemberId);
