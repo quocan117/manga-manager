@@ -46,6 +46,7 @@ import com.example.backend.dto.MangakaDtos.ReviewSubmissionRequest;
 import com.example.backend.dto.MangakaDtos.ReviseTaskRequest;
 import com.example.backend.model.Chapter;
 import com.example.backend.model.ChapterPage;
+import com.example.backend.model.ChapterPageHistory;
 import com.example.backend.model.MangaSeries;
 import com.example.backend.model.Notification;
 import com.example.backend.model.ReaderFeedbackImport;
@@ -57,6 +58,7 @@ import com.example.backend.model.Task;
 import com.example.backend.model.TaskMarkupPage;
 import com.example.backend.model.User;
 import com.example.backend.repository.ChapterPageRepository;
+import com.example.backend.repository.ChapterPageHistoryRepository;
 import com.example.backend.repository.ChapterRepository;
 import com.example.backend.repository.ChapterRevisionNoteRepository;
 import com.example.backend.repository.BoardDecisionRepository;
@@ -93,6 +95,8 @@ class MangakaServiceTests {
     @Mock
     private ChapterPageRepository chapterPageRepository;
     @Mock
+    private ChapterPageHistoryRepository chapterPageHistoryRepository;
+    @Mock
     private TaskRepository taskRepository;
     @Mock
     private SubmissionRepository submissionRepository;
@@ -108,6 +112,8 @@ class MangakaServiceTests {
     private TaskMarkupPageRepository taskMarkupPageRepository;
     @Mock
     private TaskFileStorageService taskFileStorageService;
+    @Mock
+    private SeriesHistoryService seriesHistoryService;
     @Spy
     private ObjectMapper objectMapper = new ObjectMapper();
 
@@ -553,6 +559,38 @@ class MangakaServiceTests {
     }
 
     @Test
+    void submitChapterToEditorUsesExistingPagesWithoutUploadingFiles() {
+        User mangaka = user(1L, EMAIL);
+        User editor = tantouEditor(3L, "editor@manga.test");
+        MangaSeries series = new MangaSeries();
+        series.setSeriesId(20L);
+        series.setAuthor(mangaka);
+        series.setTantouEditor(editor);
+        Chapter chapter = new Chapter();
+        chapter.setChapterId(30L);
+        chapter.setSeries(series);
+        chapter.setTitle("Chapter 1");
+        chapter.setStatus("DRAFT");
+        ChapterPage page = new ChapterPage();
+        page.setPageId(40L);
+        page.setChapter(chapter);
+        page.setPageNumber(1);
+        page.setImageUrl("pages/chapter-30/page-1.png");
+
+        when(chapterRepository.findById(30L)).thenReturn(Optional.of(chapter));
+        when(chapterPageRepository.findByChapterChapterIdOrderByPageNumberAsc(30L))
+                .thenReturn(List.of(page));
+        when(chapterRepository.save(chapter)).thenReturn(chapter);
+
+        var response = service.submitChapterToEditor(30L, null);
+
+        assertEquals("SUBMITTED_TO_EDITOR", response.status());
+        verify(seriesFileRepository).deactivateActiveChapterFiles(30L, "CHAPTER_MANUSCRIPT");
+        verify(seriesFileRepository, never()).save(any(SeriesFile.class));
+        verify(notificationRepository).save(any(Notification.class));
+    }
+
+    @Test
     void submitChapterToEditorRejectsMixedZipAndImages() {
         User mangaka = user(1L, EMAIL);
         User editor = tantouEditor(3L, "editor@manga.test");
@@ -798,6 +836,53 @@ class MangakaServiceTests {
     }
 
     @Test
+    void assignTaskUsesTheChapterPageAsTheDownloadableOriginal() {
+        User mangaka = user(1L, EMAIL);
+        User assistant = user(2L, "assistant@manga.test");
+        assistant.setStatus("ACTIVE");
+        assistant.setRole(role("ASSISTANT"));
+        MangaSeries series = new MangaSeries();
+        series.setSeriesId(20L);
+        series.setAuthor(mangaka);
+        Chapter chapter = new Chapter();
+        chapter.setChapterId(30L);
+        chapter.setSeries(series);
+        ChapterPage page = new ChapterPage();
+        page.setPageId(40L);
+        page.setPageNumber(1);
+        page.setImageUrl("pages/chapter-30/page-1.png");
+        page.setChapter(chapter);
+
+        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(mangaka));
+        when(chapterPageRepository.findById(40L)).thenReturn(Optional.of(page));
+        when(userRepository.findById(2L)).thenReturn(Optional.of(assistant));
+        when(taskRepository.save(any(Task.class))).thenAnswer(invocation -> {
+            Task task = invocation.getArgument(0);
+            task.setTaskId(60L);
+            return task;
+        });
+
+        var response = service.assignTask(new AssignTaskRequest(
+                40L,
+                2L,
+                "BACKGROUND",
+                "Draw background",
+                null,
+                LocalDateTime.now().plusDays(2),
+                0f,
+                0f,
+                100f,
+                100f,
+                List.of(),
+                null,
+                null));
+
+        assertEquals("/covers/pages/chapter-30/page-1.png", response.originalFileUrl());
+        verify(taskFileStorageService, never()).storeTaskFiles(
+                any(Task.class), any(User.class), any(), any(Integer.class), any(String.class));
+    }
+
+    @Test
     void reviseTaskIncrementsRoundAndKeepsAssignedAssistant() {
         User mangaka = user(1L, EMAIL);
         User assistant = user(2L, "assistant@manga.test");
@@ -845,7 +930,11 @@ class MangakaServiceTests {
     }
 
     @Test
-    void reviewSubmissionNotifiesAssistantWithDecision() {
+    void reviewSubmissionReplacesTheAssignedPageAndKeepsItsHistory(@TempDir Path tempDir) throws Exception {
+        Path seriesFileRoot = tempDir.resolve("series-files");
+        Path pageRoot = tempDir.resolve("pages");
+        ReflectionTestUtils.setField(service, "seriesFileUploadRootOverride", seriesFileRoot.toString());
+        ReflectionTestUtils.setField(service, "pageImageUploadRootOverride", pageRoot.toString());
         User mangaka = user(1L, EMAIL);
         User assistant = user(2L, "assistant@manga.test");
         MangaSeries series = new MangaSeries();
@@ -854,8 +943,17 @@ class MangakaServiceTests {
         Chapter chapter = new Chapter();
         chapter.setChapterId(30L);
         chapter.setSeries(series);
+        ChapterPage page = new ChapterPage();
+        page.setPageId(40L);
+        page.setChapter(chapter);
+        page.setPageNumber(1);
+        page.setImageUrl("pages/chapter-30/original-page-1.png");
+        page.setPageStatus("DRAWING");
         Task task = new Task();
         task.setTaskId(60L);
+        task.setChapter(chapter);
+        task.setPage(page);
+        task.setRoundNumber(1);
         task.setStatus("SUBMITTED");
         Submission submission = new Submission();
         submission.setSubmissionId(70L);
@@ -863,16 +961,47 @@ class MangakaServiceTests {
         submission.setChapter(chapter);
         submission.setSubmittedBy(assistant);
         submission.setStatus("SUBMITTED");
+        submission.setRoundNumber(1);
+        Path assistantImage = seriesFileRoot.resolve(
+                "series-20/tasks/task-60/round-1/assistant-page.png");
+        Files.createDirectories(assistantImage.getParent());
+        Files.writeString(assistantImage, "assistant result", StandardCharsets.UTF_8);
+        SeriesFile resultFile = new SeriesFile();
+        resultFile.setFileId(90L);
+        resultFile.setSeries(series);
+        resultFile.setTask(task);
+        resultFile.setOriginalFileName("assistant-page.png");
+        resultFile.setFileName("assistant-page.png");
+        resultFile.setFileUrl("series-files/series-20/tasks/task-60/round-1/assistant-page.png");
+        resultFile.setContentType("image/png");
+        resultFile.setPurpose(TaskFileStorageService.TASK_SUBMISSION);
+        resultFile.setRoundNumber(1);
+        resultFile.setActive(true);
 
         when(submissionRepository.findById(70L)).thenReturn(Optional.of(submission));
         when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(mangaka));
         when(submissionRepository.save(submission)).thenReturn(submission);
+        when(seriesFileRepository
+                .findByTaskTaskIdAndRoundNumberAndPurposeAndActiveTrueOrderByUploadedAtAsc(
+                        60L, 1, TaskFileStorageService.TASK_SUBMISSION))
+                .thenReturn(List.of(resultFile));
 
         var response = service.reviewSubmission(70L, new ReviewSubmissionRequest("APPROVED", "Good"));
 
         assertEquals("APPROVED", response.status());
         assertEquals("APPROVED", task.getStatus());
+        assertEquals("DRAWING_FINALIZED", page.getPageStatus());
+        assertTrue(page.getImageUrl().startsWith("pages/chapter-30/page-1-submission-70-"));
+        assertTrue(Files.exists(pageRoot.resolve(
+                page.getImageUrl().substring("pages/".length()))));
         verify(taskRepository).save(task);
+        verify(chapterPageRepository).save(page);
+        ArgumentCaptor<ChapterPageHistory> historyCaptor =
+                ArgumentCaptor.forClass(ChapterPageHistory.class);
+        verify(chapterPageHistoryRepository).save(historyCaptor.capture());
+        assertEquals("pages/chapter-30/original-page-1.png",
+                historyCaptor.getValue().getPreviousImageUrl());
+        assertEquals(page.getImageUrl(), historyCaptor.getValue().getNewImageUrl());
 
         ArgumentCaptor<Notification> notificationCaptor = ArgumentCaptor.forClass(Notification.class);
         verify(notificationRepository).save(notificationCaptor.capture());

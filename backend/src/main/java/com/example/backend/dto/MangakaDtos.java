@@ -37,6 +37,9 @@ public final class MangakaDtos {
             Long fileSize,
             String fileType,
             boolean previewable,
+            Boolean active,
+            Integer roundNumber,
+            String purpose,
             LocalDateTime uploadedAt) {
     }
 
@@ -72,13 +75,13 @@ public final class MangakaDtos {
             @NotNull @Positive Float areaHeight,
             List<MultipartFile> markupImages,
             String markupCanvasData,
-            @NotEmpty List<MultipartFile> originalFiles) {
+            List<MultipartFile> originalFiles) {
     }
 
     public record ReviseTaskRequest(
             List<MultipartFile> markupImages,
             String markupCanvasData,
-            @NotEmpty List<MultipartFile> originalFiles) {
+            List<MultipartFile> originalFiles) {
     }
 
     public record TaskMarkupPageResponse(
@@ -129,6 +132,17 @@ public final class MangakaDtos {
             Integer pageNumber,
             String imageUrl,
             String status) {
+    }
+
+    public record PageHistoryResponse(
+            Long id,
+            Long pageId,
+            Long submissionId,
+            Long approvedById,
+            String approvedByName,
+            String previousImageUrl,
+            String newImageUrl,
+            LocalDateTime createdAt) {
     }
 
     public record TaskResponse(

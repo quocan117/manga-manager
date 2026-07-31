@@ -465,6 +465,9 @@ public class AssistantService {
                 file.getFileSize(),
                 file.getFileType(),
                 SeriesFileSupport.isPreviewable(file),
+                file.getActive(),
+                file.getRoundNumber(),
+                file.getPurpose(),
                 file.getUploadedAt());
     }
 

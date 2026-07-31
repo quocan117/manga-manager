@@ -13,7 +13,15 @@ public interface SeriesFileRepository extends JpaRepository<SeriesFile, Long> {
             Long seriesId,
             String purpose);
 
+    List<SeriesFile> findBySeriesSeriesIdAndPurposeOrderByUploadedAtDesc(
+            Long seriesId,
+            String purpose);
+
     List<SeriesFile> findByChapterChapterIdAndPurposeAndActiveTrueOrderByUploadedAtAsc(
+            Long chapterId,
+            String purpose);
+
+    List<SeriesFile> findByChapterChapterIdAndPurposeOrderByUploadedAtDesc(
             Long chapterId,
             String purpose);
 

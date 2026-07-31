@@ -56,7 +56,7 @@ public interface MangaSeriesRepository extends JpaRepository<MangaSeries, Long> 
 
     @Query("""
             select series from MangaSeries series
-            where series.tantouEditor is null or series.tantouEditor.email = :email
+            where lower(series.tantouEditor.email) = lower(:email)
             order by series.createdAt desc
             """)
     List<MangaSeries> findVisibleToTantouEditorOrderByCreatedAtDesc(@Param("email") String email);
@@ -64,7 +64,7 @@ public interface MangaSeriesRepository extends JpaRepository<MangaSeries, Long> 
     @Query("""
             select series from MangaSeries series
             where lower(series.status) = lower(:status)
-              and (series.tantouEditor is null or series.tantouEditor.email = :email)
+              and lower(series.tantouEditor.email) = lower(:email)
             order by series.submittedAt desc
             """)
     List<MangaSeries> findVisibleToTantouEditorByStatusOrderBySubmittedAtDesc(

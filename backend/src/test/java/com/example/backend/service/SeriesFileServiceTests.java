@@ -70,6 +70,18 @@ class SeriesFileServiceTests {
     }
 
     @Test
+    void authorCanStillDownloadAnInactiveHistoricalFile(@TempDir Path uploadRoot) throws Exception {
+        SeriesFile file = storedFile(uploadRoot, user(CURRENT_EMAIL), null);
+        file.setActive(false);
+        when(seriesFileRepository.findById(10L)).thenReturn(Optional.of(file));
+
+        var download = service.getAuthorizedDownload(10L);
+
+        assertTrue(download.resource().isReadable());
+        assertEquals("hồ sơ.pdf", download.originalFileName());
+    }
+
+    @Test
     void assignedEditorCanDownloadFile(@TempDir Path uploadRoot) throws Exception {
         SeriesFile file = storedFile(uploadRoot, user("author@manga.test"), user(CURRENT_EMAIL));
         when(seriesFileRepository.findById(10L)).thenReturn(Optional.of(file));

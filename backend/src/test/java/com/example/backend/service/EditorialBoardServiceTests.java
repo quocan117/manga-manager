@@ -98,6 +98,8 @@ class EditorialBoardServiceTests {
         private SeriesBoardAssignmentRepository seriesBoardAssignmentRepository;
         @Mock
         private MangakaService mangakaService;
+        @Mock
+        private SeriesHistoryService seriesHistoryService;
 
         @InjectMocks
         private EditorialBoardService service;
@@ -434,7 +436,7 @@ class EditorialBoardServiceTests {
                 notificationCaptor.getAllValues().forEach(notification -> {
                         assertEquals("SERIES_APPROVED_AND_SCHEDULED", notification.getType());
                         assertTrue(notification.getMessage().contains("WEEKLY"));
-                        assertTrue(notification.getMessage().contains(publishDate.toString()));
+                        assertTrue(notification.getMessage().contains("01/08/2026 09:00"));
                 });
         }
 

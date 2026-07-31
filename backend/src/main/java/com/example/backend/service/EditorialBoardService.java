@@ -18,6 +18,7 @@ import com.example.backend.dto.EditorialBoardDtos.ScheduleRequest;
 import com.example.backend.dto.EditorialBoardDtos.ScheduleResponse;
 import com.example.backend.dto.EditorialBoardDtos.SeriesVoteSummaryResponse;
 import com.example.backend.dto.EditorialBoardDtos.SeriesFeedbackImportResponse;
+import com.example.backend.dto.EditorialBoardDtos.SeriesReviewHistoryResponse;
 import com.example.backend.dto.EditorialBoardDtos.UpdateUserRequest;
 import com.example.backend.dto.EditorialBoardDtos.UserResponse;
 import com.example.backend.dto.MangakaDtos.NotificationResponse;
@@ -37,6 +38,7 @@ import com.example.backend.model.RegistrationRequest;
 import com.example.backend.model.ReaderFeedbackImport;
 import com.example.backend.model.Role;
 import com.example.backend.model.SeriesRanking;
+import com.example.backend.model.SeriesReviewHistory;
 import com.example.backend.model.User;
 import com.example.backend.model.Notification;
 import com.example.backend.repository.BoardDecisionRepository;
@@ -121,6 +123,7 @@ public class EditorialBoardService {
     private final SeriesEditorRejectionRepository seriesEditorRejectionRepository;
     private final SeriesBoardAssignmentRepository seriesBoardAssignmentRepository;
     private final MangakaService mangakaService;
+    private final SeriesHistoryService seriesHistoryService;
 
     public EditorialBoardService(
             RegistrationRequestRepository requestRepository,
@@ -138,7 +141,8 @@ public class EditorialBoardService {
             SeriesFileRepository seriesFileRepository,
             SeriesEditorRejectionRepository seriesEditorRejectionRepository,
             SeriesBoardAssignmentRepository seriesBoardAssignmentRepository,
-            MangakaService mangakaService) {
+            MangakaService mangakaService,
+            SeriesHistoryService seriesHistoryService) {
         this.requestRepository = requestRepository;
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
@@ -155,6 +159,7 @@ public class EditorialBoardService {
         this.seriesEditorRejectionRepository = seriesEditorRejectionRepository;
         this.seriesBoardAssignmentRepository = seriesBoardAssignmentRepository;
         this.mangakaService = mangakaService;
+        this.seriesHistoryService = seriesHistoryService;
     }
 
     public List<RegistrationRequest> getAllRequests() {
@@ -206,6 +211,17 @@ public class EditorialBoardService {
     }
 
     @Transactional(readOnly = true)
+    public List<SeriesReviewHistoryResponse> getSeriesReviewHistory(Long seriesId) {
+        if (!mangaSeriesRepository.existsById(seriesId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Series not found");
+        }
+        return seriesHistoryService.getSeriesHistory(seriesId)
+                .stream()
+                .map(this::toSeriesReviewHistoryResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public List<ScheduleResponse> getPublishSchedules() {
         User currentUser = currentEditorialBoard();
         return publishScheduleRepository.findAllByOrderByPublishDateAsc()
@@ -235,7 +251,18 @@ public class EditorialBoardService {
         PublishSchedule schedule = new PublishSchedule();
         applyScheduleRequest(schedule, request, currentUser);
         PublishSchedule savedSchedule = publishScheduleRepository.save(schedule);
+        String previousStatus = savedSchedule.getSeries() == null
+                ? null
+                : savedSchedule.getSeries().getStatus();
         activateApprovedSeriesAfterScheduling(savedSchedule);
+        seriesHistoryService.record(
+                savedSchedule.getSeries(),
+                currentUser,
+                "BOARD_CREATED_PUBLISH_SCHEDULE",
+                previousStatus,
+                savedSchedule.getSeries() == null ? null : savedSchedule.getSeries().getStatus(),
+                savedSchedule.getFrequency(),
+                savedSchedule.getScheduleId());
         notifyBoardScheduleChange(savedSchedule, "PUBLISH_SCHEDULE_CREATED");
         return toScheduleResponse(savedSchedule, currentUser);
     }
@@ -249,7 +276,18 @@ public class EditorialBoardService {
         requirePublicationCoordinator(schedule.getSeries(), currentUser);
         applyScheduleRequest(schedule, request, currentUser);
         PublishSchedule savedSchedule = publishScheduleRepository.save(schedule);
+        String previousStatus = savedSchedule.getSeries() == null
+                ? null
+                : savedSchedule.getSeries().getStatus();
         activateApprovedSeriesAfterScheduling(savedSchedule);
+        seriesHistoryService.record(
+                savedSchedule.getSeries(),
+                currentUser,
+                "BOARD_UPDATED_PUBLISH_SCHEDULE",
+                previousStatus,
+                savedSchedule.getSeries() == null ? null : savedSchedule.getSeries().getStatus(),
+                savedSchedule.getFrequency(),
+                savedSchedule.getScheduleId());
         notifyBoardScheduleChange(savedSchedule, "PUBLISH_SCHEDULE_UPDATED");
         return toScheduleResponse(savedSchedule, currentUser);
     }
@@ -261,7 +299,16 @@ public class EditorialBoardService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Schedule not found"));
         requirePublicationCoordinator(schedule.getSeries(), currentUser);
-        publishScheduleRepository.delete(schedule);
+        schedule.setStatus("CANCELLED");
+        publishScheduleRepository.save(schedule);
+        seriesHistoryService.record(
+                schedule.getSeries(),
+                currentUser,
+                "BOARD_CANCELLED_PUBLISH_SCHEDULE",
+                schedule.getSeries() == null ? null : schedule.getSeries().getStatus(),
+                schedule.getSeries() == null ? null : schedule.getSeries().getStatus(),
+                schedule.getFrequency(),
+                scheduleId);
     }
 
     @Transactional(readOnly = true)
@@ -460,11 +507,20 @@ public class EditorialBoardService {
                     "Selected user must be an active tantou editor");
         }
 
+        String previousStatus = series.getStatus();
         series.setTantouEditor(editor);
         series.setStatus(PENDING_EDITOR_STATUS);
         series.setEditorAssignmentLocked(true);
         series.setEditorAssignedAt(LocalDateTime.now());
         mangaSeriesRepository.save(series);
+        seriesHistoryService.record(
+                series,
+                boardMember,
+                "BOARD_FORCED_EDITOR_ASSIGNMENT",
+                previousStatus,
+                series.getStatus(),
+                editor.getUsername(),
+                editor.getUserId());
 
         notify(editor, "FORCED_EDITOR_ASSIGNMENT", seriesId,
                 "Editorial Board assigned you to series \"" + series.getTitle()
@@ -500,6 +556,7 @@ public class EditorialBoardService {
                     HttpStatus.BAD_REQUEST,
                     "Bắt buộc nhập lý do khi từ chối hồ sơ");
         }
+        String previousStatus = series.getStatus();
         BoardDecision decision = boardDecisionRepository
                 .findBySeriesSeriesIdAndBoardMemberUserId(seriesId, boardMember.getUserId())
                 .orElseGet(BoardDecision::new);
@@ -511,6 +568,14 @@ public class EditorialBoardService {
         boardDecisionRepository.save(decision);
 
         applyVotingResult(series);
+        seriesHistoryService.record(
+                series,
+                boardMember,
+                "BOARD_VOTE_" + decisionType,
+                previousStatus,
+                series.getStatus(),
+                reason,
+                decision.getDecisionId());
         return toReviewSeriesResponse(series, boardMember);
     }
 
@@ -524,6 +589,7 @@ public class EditorialBoardService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Series is already cancelled");
         }
 
+        String previousStatus = series.getStatus();
         BoardDecision decision = boardDecisionRepository
                 .findBySeriesSeriesIdAndBoardMemberUserId(seriesId, boardMember.getUserId())
                 .orElseGet(BoardDecision::new);
@@ -536,6 +602,14 @@ public class EditorialBoardService {
 
         series.setStatus(CANCELLED_SERIES_STATUS);
         mangaSeriesRepository.save(series);
+        seriesHistoryService.record(
+                series,
+                boardMember,
+                "BOARD_CANCELLED_SERIES",
+                previousStatus,
+                series.getStatus(),
+                decision.getReason(),
+                decision.getDecisionId());
         return toReviewSeriesResponse(series, boardMember);
     }
 
@@ -1129,7 +1203,11 @@ public class EditorialBoardService {
                         .stream()
                         .map(this::toUploadedFileResponse)
                         .toList(),
-                rejectedEditors);
+                rejectedEditors,
+                seriesHistoryService.getSeriesHistory(series.getSeriesId())
+                        .stream()
+                        .map(this::toSeriesReviewHistoryResponse)
+                        .toList());
     }
 
     private RejectedEditorResponse toRejectedEditorResponse(SeriesEditorRejection rejection) {
@@ -1157,6 +1235,23 @@ public class EditorialBoardService {
                 decision.getDecisionDate());
     }
 
+    private SeriesReviewHistoryResponse toSeriesReviewHistoryResponse(SeriesReviewHistory history) {
+        User actor = history.getActor();
+        MangaSeries series = history.getSeries();
+        return new SeriesReviewHistoryResponse(
+                history.getHistoryId(),
+                series == null ? null : series.getSeriesId(),
+                actor == null ? null : actor.getUserId(),
+                actor == null ? null : actor.getUsername(),
+                history.getActorRole(),
+                history.getAction(),
+                history.getPreviousStatus(),
+                history.getNewStatus(),
+                history.getReason(),
+                history.getReferenceId(),
+                history.getCreatedAt());
+    }
+
     private BoardMemberAssignmentResponse toBoardMemberAssignmentResponse(SeriesBoardAssignment assignment) {
         User boardMember = assignment.getBoardMember();
         return new BoardMemberAssignmentResponse(
@@ -1178,6 +1273,9 @@ public class EditorialBoardService {
                 file.getFileSize(),
                 file.getFileType(),
                 SeriesFileSupport.isPreviewable(file),
+                file.getActive(),
+                file.getRoundNumber(),
+                file.getPurpose(),
                 file.getUploadedAt());
     }
 

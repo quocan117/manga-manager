@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import com.example.backend.dto.MangakaDtos.UploadedFileResponse;
+import com.example.backend.dto.MangakaDtos.PageHistoryResponse;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -57,7 +58,8 @@ public final class TantouEditorDtos {
             Integer pageNumber,
             String imageUrl,
             String status,
-            List<CommentResponse> comments) {
+            List<CommentResponse> comments,
+            List<PageHistoryResponse> history) {
     }
 
     public record CommentRequest(

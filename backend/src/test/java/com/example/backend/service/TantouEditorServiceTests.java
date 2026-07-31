@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -13,7 +12,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
-import java.time.YearMonth;
 import java.util.List;
 import java.util.Optional;
 
@@ -46,6 +44,7 @@ import com.example.backend.model.Task;
 import com.example.backend.model.User;
 import com.example.backend.repository.BoardDecisionRepository;
 import com.example.backend.repository.ChapterPageRepository;
+import com.example.backend.repository.ChapterPageHistoryRepository;
 import com.example.backend.repository.ChapterRepository;
 import com.example.backend.repository.ChapterRevisionNoteRepository;
 import com.example.backend.repository.MangaSeriesRepository;
@@ -71,6 +70,8 @@ class TantouEditorServiceTests {
     @Mock
     private ChapterPageRepository pageRepository;
     @Mock
+    private ChapterPageHistoryRepository pageHistoryRepository;
+    @Mock
     private ReviewCommentRepository commentRepository;
     @Mock
     private PublishScheduleRepository scheduleRepository;
@@ -92,6 +93,8 @@ class TantouEditorServiceTests {
     private MangakaService mangakaService;
     @Mock
     private EditorialBoardService editorialBoardService;
+    @Mock
+    private SeriesHistoryService seriesHistoryService;
 
     private TantouEditorService service;
 
@@ -102,6 +105,7 @@ class TantouEditorServiceTests {
                 chapterRepository,
                 chapterRevisionNoteRepository,
                 pageRepository,
+                pageHistoryRepository,
                 commentRepository,
                 scheduleRepository,
                 boardDecisionRepository,
@@ -112,7 +116,8 @@ class TantouEditorServiceTests {
                 seriesFileRepository,
                 seriesEditorRejectionRepository,
                 mangakaService,
-                editorialBoardService);
+                editorialBoardService,
+                seriesHistoryService);
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(EMAIL, null, List.of()));
     }
@@ -208,6 +213,7 @@ class TantouEditorServiceTests {
         chapter.setStatus("SUBMITTED_TO_EDITOR");
         when(chapterRepository.findById(11L)).thenReturn(Optional.of(chapter));
         when(chapterRepository.save(chapter)).thenReturn(chapter);
+        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(series.getTantouEditor()));
         when(pageRepository.findByChapterChapterIdOrderByPageNumberAsc(11L)).thenReturn(List.of());
 
         var response = service.requestChapterRevision(11L);
@@ -230,6 +236,7 @@ class TantouEditorServiceTests {
         chapter.setStatus("SUBMITTED_TO_EDITOR");
         when(chapterRepository.findById(11L)).thenReturn(Optional.of(chapter));
         when(chapterRepository.save(chapter)).thenReturn(chapter);
+        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(series.getTantouEditor()));
         when(pageRepository.findByChapterChapterIdOrderByPageNumberAsc(11L)).thenReturn(List.of());
 
         var response = service.approveAndReadyChapter(11L);
@@ -340,30 +347,42 @@ class TantouEditorServiceTests {
     }
 
     @Test
-    void rejectSeriesIsBlockedAfterTwoRejectionsInCurrentMonth() {
+    void rejectSeriesMovesToAnEditorWhoHasNotRejectedIt() {
         User editor = user(1L, EMAIL);
+        User nextEditor = user(2L, "next-editor@manga.test");
         MangaSeries series = series(10L);
         series.setStatus("PENDING_EDITOR");
         series.setEditorAssignmentLocked(false);
+        SeriesEditorRejection rejection = new SeriesEditorRejection();
+        rejection.setSeries(series);
+        rejection.setEditor(editor);
         when(mangaSeriesRepository.findById(10L)).thenReturn(Optional.of(series));
         when(userRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(editor));
-        when(seriesEditorRejectionRepository
-                .countByEditorUserIdAndRejectedAtGreaterThanEqualAndRejectedAtLessThan(
-                        eq(1L), any(LocalDateTime.class), any(LocalDateTime.class)))
-                .thenReturn(2L);
+        when(seriesEditorRejectionRepository.findBySeriesSeriesIdAndEditorUserId(10L, 1L))
+                .thenReturn(Optional.empty());
+        when(seriesEditorRejectionRepository.findBySeriesSeriesId(10L)).thenReturn(List.of(rejection));
+        when(userRepository.findByRoleRoleNameAndStatusOrderByUsernameAsc("TANTOU_EDITOR", "ACTIVE"))
+                .thenReturn(List.of(editor, nextEditor));
+        when(mangakaService.getEditorWithLeastWorkloadExcluding(any())).thenReturn(nextEditor);
 
-        ResponseStatusException exception = assertThrows(
-                ResponseStatusException.class,
-                () -> service.rejectSeries(10L, "Không phù hợp chuyên môn"));
+        service.rejectSeries(10L, "Không phù hợp chuyên môn");
 
-        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
-        assertTrue(exception.getReason().contains("2 rejections"));
-        verify(seriesEditorRejectionRepository, never()).save(any(SeriesEditorRejection.class));
-        verify(mangaSeriesRepository, never()).save(any(MangaSeries.class));
+        assertEquals("PENDING_EDITOR", series.getStatus());
+        assertEquals(nextEditor, series.getTantouEditor());
+        verify(seriesEditorRejectionRepository).save(any(SeriesEditorRejection.class));
+        verify(mangaSeriesRepository).save(series);
+        verify(seriesHistoryService).record(
+                series,
+                editor,
+                "EDITOR_REJECTED_SERIES",
+                "PENDING_EDITOR",
+                "PENDING_EDITOR",
+                "Không phù hợp chuyên môn",
+                10L);
     }
 
     @Test
-    void rejectSeriesCountsOnlyTheCurrentCalendarMonth() {
+    void rejectSeriesRequiresBoardAssignmentAfterAllActiveEditorsRejected() {
         User editor = user(1L, EMAIL);
         MangaSeries series = series(10L);
         series.setStatus("PENDING_EDITOR");
@@ -373,10 +392,6 @@ class TantouEditorServiceTests {
         rejection.setEditor(editor);
         when(mangaSeriesRepository.findById(10L)).thenReturn(Optional.of(series));
         when(userRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(editor));
-        when(seriesEditorRejectionRepository
-                .countByEditorUserIdAndRejectedAtGreaterThanEqualAndRejectedAtLessThan(
-                        eq(1L), any(LocalDateTime.class), any(LocalDateTime.class)))
-                .thenReturn(0L);
         when(seriesEditorRejectionRepository.findBySeriesSeriesIdAndEditorUserId(10L, 1L))
                 .thenReturn(Optional.empty());
         when(seriesEditorRejectionRepository.findBySeriesSeriesId(10L)).thenReturn(List.of(rejection));
@@ -385,18 +400,12 @@ class TantouEditorServiceTests {
 
         service.rejectSeries(10L, "Khối lượng hiện tại đã đầy");
 
-        ArgumentCaptor<LocalDateTime> periodStart = ArgumentCaptor.forClass(LocalDateTime.class);
-        ArgumentCaptor<LocalDateTime> periodEnd = ArgumentCaptor.forClass(LocalDateTime.class);
-        verify(seriesEditorRejectionRepository)
-                .countByEditorUserIdAndRejectedAtGreaterThanEqualAndRejectedAtLessThan(
-                        eq(1L), periodStart.capture(), periodEnd.capture());
-        YearMonth currentMonth = YearMonth.now();
-        assertEquals(currentMonth.atDay(1).atStartOfDay(), periodStart.getValue());
-        assertEquals(currentMonth.plusMonths(1).atDay(1).atStartOfDay(), periodEnd.getValue());
         assertEquals("EDITOR_ASSIGNMENT_REQUIRED", series.getStatus());
+        assertEquals(null, series.getTantouEditor());
         ArgumentCaptor<SeriesEditorRejection> rejectionCaptor = ArgumentCaptor.forClass(SeriesEditorRejection.class);
         verify(seriesEditorRejectionRepository).save(rejectionCaptor.capture());
         assertEquals("Khối lượng hiện tại đã đầy", rejectionCaptor.getValue().getReason());
+        verify(mangakaService, never()).getEditorWithLeastWorkloadExcluding(any());
     }
 
     @Test
@@ -424,9 +433,7 @@ class TantouEditorServiceTests {
         assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
         assertTrue(series.getEditorAssignmentLocked());
         verify(userRepository, never()).findByIdForUpdate(any(Long.class));
-        verify(seriesEditorRejectionRepository, never())
-                .countByEditorUserIdAndRejectedAtGreaterThanEqualAndRejectedAtLessThan(
-                        any(Long.class), any(LocalDateTime.class), any(LocalDateTime.class));
+        verify(seriesEditorRejectionRepository, never()).save(any(SeriesEditorRejection.class));
     }
 
     private MangaSeries series(Long id) {

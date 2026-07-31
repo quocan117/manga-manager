@@ -13,6 +13,7 @@ import com.example.backend.dto.EditorialBoardDtos.ReaderFeedbackImportResponse;
 import com.example.backend.dto.EditorialBoardDtos.ReaderVoteResponse;
 import com.example.backend.dto.EditorialBoardDtos.ReviewSeriesResponse;
 import com.example.backend.dto.EditorialBoardDtos.SeriesFeedbackImportResponse;
+import com.example.backend.dto.EditorialBoardDtos.SeriesReviewHistoryResponse;
 import com.example.backend.dto.EditorialBoardDtos.SeriesVoteSummaryResponse;
 import com.example.backend.dto.EditorialBoardDtos.UpdateUserRequest;
 import com.example.backend.dto.EditorialBoardDtos.UserResponse;
@@ -80,6 +81,12 @@ public class EditorialBoardController {
     @GetMapping("/series/{id}/decisions")
     public List<BoardDecisionResponse> getSeriesDecisions(@PathVariable Long id) {
         return service.getSeriesDecisions(id);
+    }
+
+    @PreAuthorize("hasRole('EDITORIAL_BOARD')")
+    @GetMapping("/series/{id}/history")
+    public List<SeriesReviewHistoryResponse> getSeriesReviewHistory(@PathVariable Long id) {
+        return service.getSeriesReviewHistory(id);
     }
 
     @PreAuthorize("hasRole('EDITORIAL_BOARD')")

@@ -33,6 +33,7 @@ import com.example.backend.dto.MangakaDtos.CreateSeriesRequest;
 import com.example.backend.dto.MangakaDtos.FeedbackHistoryResponse;
 import com.example.backend.dto.MangakaDtos.NotificationResponse;
 import com.example.backend.dto.MangakaDtos.PageResponse;
+import com.example.backend.dto.MangakaDtos.PageHistoryResponse;
 import com.example.backend.dto.MangakaDtos.RankingResponse;
 import com.example.backend.dto.MangakaDtos.RankingSummaryResponse;
 import com.example.backend.dto.MangakaDtos.ReviewSubmissionRequest;
@@ -102,6 +103,11 @@ public class MangakaController {
         return service.getSeriesFiles(seriesId);
     }
 
+    @GetMapping("/series/{seriesId}/files/history")
+    public List<UploadedFileResponse> getSeriesFileHistory(@PathVariable Long seriesId) {
+        return service.getSeriesFileHistory(seriesId);
+    }
+
     @GetMapping("/series/{seriesId}/assistants")
     public List<AssistantParticipationResponse> getSeriesAssistants(@PathVariable Long seriesId) {
         return service.getSeriesAssistants(seriesId);
@@ -147,6 +153,16 @@ public class MangakaController {
         return service.getChapterPages(chapterId);
     }
 
+    @GetMapping("/pages/{pageId}/history")
+    public List<PageHistoryResponse> getPageHistory(@PathVariable Long pageId) {
+        return service.getPageHistory(pageId);
+    }
+
+    @GetMapping("/chapters/{chapterId}/files/history")
+    public List<UploadedFileResponse> getChapterFileHistory(@PathVariable Long chapterId) {
+        return service.getChapterFileHistory(chapterId);
+    }
+
     @GetMapping("/chapters/{chapterId}")
     public ChapterResponse getChapter(@PathVariable Long chapterId) {
         return service.getChapter(chapterId);
@@ -157,7 +173,7 @@ public class MangakaController {
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ChapterResponse submitChapterToEditor(
             @PathVariable Long chapterId,
-            @RequestParam("files") List<MultipartFile> files) {
+            @RequestParam(value = "files", required = false) List<MultipartFile> files) {
         return service.submitChapterToEditor(chapterId, files);
     }
 

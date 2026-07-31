@@ -36,6 +36,7 @@ import com.example.backend.dto.MangakaDtos.CreatePageRequest;
 import com.example.backend.dto.MangakaDtos.CreateSeriesRequest;
 import com.example.backend.dto.MangakaDtos.FeedbackHistoryResponse;
 import com.example.backend.dto.MangakaDtos.NotificationResponse;
+import com.example.backend.dto.MangakaDtos.PageHistoryResponse;
 import com.example.backend.dto.MangakaDtos.PageResponse;
 import com.example.backend.dto.MangakaDtos.RankingResponse;
 import com.example.backend.dto.MangakaDtos.RankingSummaryResponse;
@@ -49,6 +50,7 @@ import com.example.backend.dto.MangakaDtos.UpdateAssistantStatusRequest;
 import com.example.backend.dto.MangakaDtos.UploadedFileResponse;
 import com.example.backend.model.Chapter;
 import com.example.backend.model.ChapterPage;
+import com.example.backend.model.ChapterPageHistory;
 import com.example.backend.model.ChapterRevisionNote;
 import com.example.backend.model.MangaSeries;
 import com.example.backend.model.Notification;
@@ -59,6 +61,7 @@ import com.example.backend.model.Task;
 import com.example.backend.model.TaskMarkupPage;
 import com.example.backend.model.User;
 import com.example.backend.repository.ChapterPageRepository;
+import com.example.backend.repository.ChapterPageHistoryRepository;
 import com.example.backend.repository.ChapterRepository;
 import com.example.backend.repository.ChapterRevisionNoteRepository;
 import com.example.backend.repository.BoardDecisionRepository;
@@ -124,6 +127,7 @@ public class MangakaService {
     private final ChapterRepository chapterRepository;
     private final ChapterRevisionNoteRepository chapterRevisionNoteRepository;
     private final ChapterPageRepository chapterPageRepository;
+    private final ChapterPageHistoryRepository chapterPageHistoryRepository;
     private final TaskRepository taskRepository;
     private final SubmissionRepository submissionRepository;
     private final SeriesRankingRepository seriesRankingRepository;
@@ -132,6 +136,7 @@ public class MangakaService {
     private final NotificationRepository notificationRepository;
     private final TaskMarkupPageRepository taskMarkupPageRepository;
     private final TaskFileStorageService taskFileStorageService;
+    private final SeriesHistoryService seriesHistoryService;
     private final ObjectMapper objectMapper;
 
     @Value("${manga.upload.page-image-root:}")
@@ -155,6 +160,7 @@ public class MangakaService {
             ChapterRepository chapterRepository,
             ChapterRevisionNoteRepository chapterRevisionNoteRepository,
             ChapterPageRepository chapterPageRepository,
+            ChapterPageHistoryRepository chapterPageHistoryRepository,
             TaskRepository taskRepository,
             SubmissionRepository submissionRepository,
             SeriesRankingRepository seriesRankingRepository,
@@ -163,6 +169,7 @@ public class MangakaService {
             NotificationRepository notificationRepository,
             TaskMarkupPageRepository taskMarkupPageRepository,
             TaskFileStorageService taskFileStorageService,
+            SeriesHistoryService seriesHistoryService,
             ObjectMapper objectMapper) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
@@ -172,6 +179,7 @@ public class MangakaService {
         this.chapterRepository = chapterRepository;
         this.chapterRevisionNoteRepository = chapterRevisionNoteRepository;
         this.chapterPageRepository = chapterPageRepository;
+        this.chapterPageHistoryRepository = chapterPageHistoryRepository;
         this.taskRepository = taskRepository;
         this.submissionRepository = submissionRepository;
         this.seriesRankingRepository = seriesRankingRepository;
@@ -180,6 +188,7 @@ public class MangakaService {
         this.notificationRepository = notificationRepository;
         this.taskMarkupPageRepository = taskMarkupPageRepository;
         this.taskFileStorageService = taskFileStorageService;
+        this.seriesHistoryService = seriesHistoryService;
         this.objectMapper = objectMapper;
     }
 
@@ -197,7 +206,16 @@ public class MangakaService {
         series.setStatus("DRAFT");
         series.setEditorAssignmentLocked(false);
         series.setCreatedAt(LocalDateTime.now());
-        return toSeriesResponse(mangaSeriesRepository.save(series));
+        MangaSeries savedSeries = mangaSeriesRepository.save(series);
+        seriesHistoryService.record(
+                savedSeries,
+                mangaka,
+                "SERIES_CREATED",
+                null,
+                savedSeries.getStatus(),
+                null,
+                savedSeries.getSeriesId());
+        return toSeriesResponse(savedSeries);
     }
 
     @Transactional
@@ -285,6 +303,7 @@ public class MangakaService {
     private SeriesResponse submitSeriesInternal(Long seriesId, List<MultipartFile> files) {
         MangaSeries series = ownedSeries(seriesId);
         User mangaka = series.getAuthor();
+        String previousStatus = series.getStatus();
         List<MultipartFile> submissionFiles = requireSeriesSubmissionFiles(files);
         boolean resubmission = REVISION_REQUESTED_STATUS.equalsIgnoreCase(series.getStatus())
                 && series.getTantouEditor() != null;
@@ -297,6 +316,14 @@ public class MangakaService {
             boardDecisionRepository.deleteBySeriesSeriesId(series.getSeriesId());
             series.setStatus(TANTOU_REVIEW_STATUS);
             mangaSeriesRepository.save(series);
+            seriesHistoryService.record(
+                    series,
+                    mangaka,
+                    "SERIES_RESUBMITTED",
+                    previousStatus,
+                    series.getStatus(),
+                    null,
+                    series.getSeriesId());
             notify(series.getTantouEditor(), "SERIES_RESUBMITTED", series.getSeriesId(),
                     "Mangaka " + series.getAuthor().getUsername() + " đã gửi lại hồ sơ series '"
                             + series.getTitle() + "' sau khi chỉnh sửa.");
@@ -310,6 +337,14 @@ public class MangakaService {
         series.setEditorAssignedAt(LocalDateTime.now());
 
         mangaSeriesRepository.save(series);
+        seriesHistoryService.record(
+                series,
+                mangaka,
+                "SERIES_SUBMITTED",
+                previousStatus,
+                series.getStatus(),
+                null,
+                series.getSeriesId());
 
         Notification notif = new Notification();
         notif.setUser(assignedEditor);
@@ -433,6 +468,17 @@ public class MangakaService {
     }
 
     @Transactional(readOnly = true)
+    public List<PageHistoryResponse> getPageHistory(Long pageId) {
+        ChapterPage page = chapterPageRepository.findById(pageId)
+                .orElseThrow(() -> notFound("Chapter page not found"));
+        assertOwnedChapter(page.getChapter());
+        return chapterPageHistoryRepository.findByPagePageIdOrderByCreatedAtDesc(pageId)
+                .stream()
+                .map(this::toPageHistoryResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public ChapterResponse getChapter(Long chapterId) {
         Chapter chapter = ownedChapter(chapterId);
         return toChapterResponse(chapter);
@@ -454,16 +500,35 @@ public class MangakaService {
             throw conflict("This series has no assigned tantou editor");
         }
 
-        List<MultipartFile> manuscriptFiles = requireChapterManuscriptFiles(files);
-
-        if (REVISION_REQUESTED_STATUS.equalsIgnoreCase(chapter.getStatus())) {
-            chapterRevisionNoteRepository.deleteByChapterChapterId(chapterId);
+        List<MultipartFile> manuscriptFiles = files == null
+                ? List.of()
+                : files.stream()
+                        .filter(file -> file != null && !file.isEmpty())
+                        .toList();
+        List<ChapterPage> chapterPages = chapterPageRepository
+                .findByChapterChapterIdOrderByPageNumberAsc(chapterId);
+        if (manuscriptFiles.isEmpty() && chapterPages.isEmpty()) {
+            throw badRequest("Chapter must contain pages or uploaded manuscript files");
+        }
+        if (!manuscriptFiles.isEmpty()) {
+            manuscriptFiles = requireChapterManuscriptFiles(manuscriptFiles);
         }
 
         seriesFileRepository.deactivateActiveChapterFiles(chapterId, CHAPTER_MANUSCRIPT_PURPOSE);
-        storeChapterManuscriptFiles(series, chapter, series.getAuthor(), manuscriptFiles);
+        if (!manuscriptFiles.isEmpty()) {
+            storeChapterManuscriptFiles(series, chapter, series.getAuthor(), manuscriptFiles);
+        }
+        String previousStatus = chapter.getStatus();
         chapter.setStatus(SUBMITTED_TO_EDITOR_STATUS);
         Chapter savedChapter = chapterRepository.save(chapter);
+        seriesHistoryService.record(
+                series,
+                series.getAuthor(),
+                "CHAPTER_SUBMITTED_TO_EDITOR",
+                previousStatus,
+                savedChapter.getStatus(),
+                savedChapter.getTitle(),
+                savedChapter.getChapterId());
         notify(
                 editor,
                 "NEW_CHAPTER_SUBMISSION",
@@ -607,6 +672,7 @@ public class MangakaService {
         task.setAssignedBy(mangaka);
         task.setChapter(page.getChapter());
         task.setPage(page);
+        task.setOriginalFileUrl(pageAssetUrl(page.getImageUrl()));
         task.setTaskType(taskType);
         task.setAreaX(request.areaX());
         task.setAreaY(request.areaY());
@@ -617,12 +683,14 @@ public class MangakaService {
         task.setRoundNumber(1);
         task.setCreatedAt(LocalDateTime.now());
         Task savedTask = taskRepository.save(task);
-        taskFileStorageService.storeTaskFiles(
-                savedTask,
-                mangaka,
-                request.originalFiles(),
-                savedTask.getRoundNumber(),
-                TaskFileStorageService.TASK_ORIGINAL);
+        if (hasFiles(request.originalFiles())) {
+            taskFileStorageService.storeTaskFiles(
+                    savedTask,
+                    mangaka,
+                    request.originalFiles(),
+                    savedTask.getRoundNumber(),
+                    TaskFileStorageService.TASK_ORIGINAL);
+        }
         storeTaskMarkupPages(
                 savedTask,
                 savedTask.getRoundNumber(),
@@ -647,13 +715,18 @@ public class MangakaService {
         int nextRound = currentRound(task) + 1;
         task.setRoundNumber(nextRound);
         task.setStatus("ASSIGNED");
+        if (task.getPage() != null) {
+            task.setOriginalFileUrl(pageAssetUrl(task.getPage().getImageUrl()));
+        }
         Task savedTask = taskRepository.save(task);
-        taskFileStorageService.storeTaskFiles(
-                savedTask,
-                currentUser(),
-                request.originalFiles(),
-                nextRound,
-                TaskFileStorageService.TASK_ORIGINAL);
+        if (hasFiles(request.originalFiles())) {
+            taskFileStorageService.storeTaskFiles(
+                    savedTask,
+                    currentUser(),
+                    request.originalFiles(),
+                    nextRound,
+                    TaskFileStorageService.TASK_ORIGINAL);
+        }
         storeTaskMarkupPages(
                 savedTask,
                 nextRound,
@@ -720,10 +793,15 @@ public class MangakaService {
             throw conflict("This submission belongs to an earlier task round");
         }
 
+        User reviewer = currentUser();
+        if ("APPROVED".equals(decision)) {
+            replacePageWithApprovedSubmission(submission, reviewer);
+        }
+
         submission.setStatus(decision);
         submission.setReviewNote(request.reviewNote());
         submission.setReviewedAt(LocalDateTime.now());
-        submission.setReviewedBy(currentUser());
+        submission.setReviewedBy(reviewer);
         if (submission.getTask() != null) {
             submission.getTask().setStatus(decision);
             taskRepository.save(submission.getTask());
@@ -735,6 +813,41 @@ public class MangakaService {
                 submission.getTask() == null ? submission.getSubmissionId() : submission.getTask().getTaskId(),
                 "Bài nộp của bạn đã được duyệt với kết quả " + decision + ".");
         return toSubmissionResponse(savedSubmission);
+    }
+
+    private void replacePageWithApprovedSubmission(Submission submission, User reviewer) {
+        Task task = submission.getTask();
+        ChapterPage page = task == null ? null : task.getPage();
+        if (task == null || task.getTaskId() == null || page == null || page.getPageId() == null) {
+            throw conflict("Approved task submission is not linked to a chapter page");
+        }
+
+        SeriesFile approvedFile = seriesFileRepository
+                .findByTaskTaskIdAndRoundNumberAndPurposeAndActiveTrueOrderByUploadedAtAsc(
+                        task.getTaskId(),
+                        submissionRound(submission),
+                        TaskFileStorageService.TASK_SUBMISSION)
+                .stream()
+                .filter(this::isPageImageFile)
+                .findFirst()
+                .orElseThrow(() -> conflict(
+                        "Approved page submission must contain at least one image file"));
+
+        String previousImageUrl = page.getImageUrl();
+        String newImageUrl = copySubmissionImageToPage(approvedFile, page, submission.getSubmissionId());
+
+        ChapterPageHistory history = new ChapterPageHistory();
+        history.setPage(page);
+        history.setSubmission(submission);
+        history.setApprovedBy(reviewer);
+        history.setPreviousImageUrl(previousImageUrl);
+        history.setNewImageUrl(newImageUrl);
+        history.setCreatedAt(LocalDateTime.now());
+        chapterPageHistoryRepository.save(history);
+
+        page.setImageUrl(newImageUrl);
+        page.setPageStatus("DRAWING_FINALIZED");
+        chapterPageRepository.save(page);
     }
 
     @Transactional(readOnly = true)
@@ -908,10 +1021,47 @@ public class MangakaService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<UploadedFileResponse> getSeriesFileHistory(Long seriesId) {
+        ownedSeries(seriesId);
+        return seriesFileRepository
+                .findBySeriesSeriesIdAndPurposeOrderByUploadedAtDesc(
+                        seriesId,
+                        SERIES_SUBMISSION_PURPOSE)
+                .stream()
+                .map(this::toUploadedFileResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<UploadedFileResponse> getChapterFileHistory(Long chapterId) {
+        ownedChapter(chapterId);
+        return seriesFileRepository
+                .findByChapterChapterIdAndPurposeOrderByUploadedAtDesc(
+                        chapterId,
+                        CHAPTER_MANUSCRIPT_PURPOSE)
+                .stream()
+                .map(this::toUploadedFileResponse)
+                .toList();
+    }
+
     private PageResponse toPageResponse(ChapterPage page) {
         return new PageResponse(
                 page.getPageId(), page.getChapter().getChapterId(), page.getPageNumber(),
                 page.getImageUrl(), page.getPageStatus());
+    }
+
+    private PageHistoryResponse toPageHistoryResponse(ChapterPageHistory history) {
+        User approvedBy = history.getApprovedBy();
+        return new PageHistoryResponse(
+                history.getHistoryId(),
+                history.getPage() == null ? null : history.getPage().getPageId(),
+                history.getSubmission() == null ? null : history.getSubmission().getSubmissionId(),
+                approvedBy == null ? null : approvedBy.getUserId(),
+                approvedBy == null ? null : approvedBy.getUsername(),
+                history.getPreviousImageUrl(),
+                history.getNewImageUrl(),
+                history.getCreatedAt());
     }
 
     private TaskMarkupPageResponse toTaskMarkupPageResponse(TaskMarkupPage markupPage) {
@@ -1080,6 +1230,9 @@ public class MangakaService {
                 file.getFileSize(),
                 file.getFileType(),
                 SeriesFileSupport.isPreviewable(file),
+                file.getActive(),
+                file.getRoundNumber(),
+                file.getPurpose(),
                 file.getUploadedAt());
     }
 
@@ -1387,6 +1540,97 @@ public class MangakaService {
             throw badRequest("Image file extension is required");
         }
         return originalFilename.substring(extensionIndex).toLowerCase(Locale.ROOT);
+    }
+
+    private boolean hasFiles(List<MultipartFile> files) {
+        return files != null && files.stream().anyMatch(file -> file != null && !file.isEmpty());
+    }
+
+    private String pageAssetUrl(String imageUrl) {
+        String value = blankToNull(imageUrl);
+        if (value == null
+                || value.startsWith("http://")
+                || value.startsWith("https://")
+                || value.startsWith("data:")
+                || value.startsWith("/covers/")) {
+            return value;
+        }
+        String normalized = value.replace('\\', '/');
+        return normalized.startsWith("pages/")
+                ? "/covers/" + normalized
+                : normalized;
+    }
+
+    private boolean isPageImageFile(SeriesFile file) {
+        if (file == null) {
+            return false;
+        }
+        String contentType = blankToNull(file.getContentType());
+        if (contentType != null
+                && PAGE_IMAGE_CONTENT_TYPES.contains(contentType.toLowerCase(Locale.ROOT))) {
+            return true;
+        }
+        String name = blankToNull(file.getOriginalFileName());
+        if (name == null) {
+            name = blankToNull(file.getFileName());
+        }
+        if (name == null) {
+            return false;
+        }
+        String lowerName = name.toLowerCase(Locale.ROOT);
+        return PAGE_IMAGE_EXTENSIONS.stream().anyMatch(lowerName::endsWith);
+    }
+
+    private String copySubmissionImageToPage(
+            SeriesFile approvedFile,
+            ChapterPage page,
+            Long submissionId) {
+        String storedUrl = blankToNull(approvedFile.getFileUrl());
+        String normalizedUrl = storedUrl == null ? "" : storedUrl.replace('\\', '/');
+        String prefix = "series-files/";
+        if (!normalizedUrl.startsWith(prefix)) {
+            throw new ResponseStatusException(
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Approved submission file path is invalid");
+        }
+
+        Path sourceRoot = seriesFileUploadRoot();
+        Path source = sourceRoot.resolve(normalizedUrl.substring(prefix.length()))
+                .toAbsolutePath()
+                .normalize();
+        if (!source.startsWith(sourceRoot) || !Files.isRegularFile(source)) {
+            throw notFound("Approved submission image was not found on disk");
+        }
+
+        Chapter chapter = page.getChapter();
+        if (chapter == null || chapter.getChapterId() == null) {
+            throw conflict("Chapter page is not attached to a chapter");
+        }
+        String sourceName = blankToNull(approvedFile.getOriginalFileName());
+        if (sourceName == null) {
+            sourceName = approvedFile.getFileName();
+        }
+        String extension = fileExtension(sourceName);
+        Path chapterDirectory = pageImageUploadRoot()
+                .resolve("chapter-" + chapter.getChapterId())
+                .normalize();
+        try {
+            Files.createDirectories(chapterDirectory);
+            String fileName = "page-" + page.getPageNumber()
+                    + "-submission-" + submissionId
+                    + "-" + UUID.randomUUID() + extension;
+            Path target = chapterDirectory.resolve(fileName).normalize();
+            if (!target.startsWith(chapterDirectory)) {
+                throw badRequest("Invalid approved page file name");
+            }
+            Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING);
+            return "pages/chapter-" + chapter.getChapterId() + "/" + fileName;
+        } catch (IOException exception) {
+            throw new ResponseStatusException(
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Could not replace chapter page with the approved assistant file",
+                    exception);
+        }
     }
 
     private Path pageImageUploadRoot() {

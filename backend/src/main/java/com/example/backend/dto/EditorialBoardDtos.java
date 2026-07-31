@@ -70,6 +70,20 @@ public final class EditorialBoardDtos {
                         LocalDateTime decisionDate) {
         }
 
+        public record SeriesReviewHistoryResponse(
+                        Long id,
+                        Long seriesId,
+                        Long actorId,
+                        String actorName,
+                        String actorRole,
+                        String action,
+                        String previousStatus,
+                        String newStatus,
+                        String reason,
+                        Long referenceId,
+                        LocalDateTime createdAt) {
+        }
+
         public record ScheduleRequest(
                         @NotNull Long seriesId,
                         @NotNull LocalDateTime publishDate,
@@ -157,7 +171,8 @@ public final class EditorialBoardDtos {
                         long totalEligibleBoardMembers,
                         List<BoardMemberAssignmentResponse> assignedBoardMembers,
                         List<UploadedFileResponse> uploadedFiles,
-                        List<RejectedEditorResponse> rejectedEditors) {
+                        List<RejectedEditorResponse> rejectedEditors,
+                        List<SeriesReviewHistoryResponse> reviewHistory) {
         }
 
         public record ReaderVoteResponse(

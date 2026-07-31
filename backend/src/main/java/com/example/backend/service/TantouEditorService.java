@@ -6,7 +6,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
-import java.time.YearMonth;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
@@ -26,6 +25,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.example.backend.dto.ChapterRevisionNoteResponse;
 import com.example.backend.dto.MangakaDtos.NotificationResponse;
+import com.example.backend.dto.MangakaDtos.PageHistoryResponse;
 import com.example.backend.dto.TantouEditorDtos.BoardDecisionResponse;
 import com.example.backend.dto.TantouEditorDtos.ChapterManuscriptResponse;
 import com.example.backend.dto.TantouEditorDtos.CommentRequest;
@@ -39,6 +39,7 @@ import com.example.backend.dto.MangakaDtos.UploadedFileResponse;
 import com.example.backend.model.BoardDecision;
 import com.example.backend.model.Chapter;
 import com.example.backend.model.ChapterPage;
+import com.example.backend.model.ChapterPageHistory;
 import com.example.backend.model.ChapterRevisionNote;
 import com.example.backend.model.MangaSeries;
 import com.example.backend.model.PublishSchedule;
@@ -50,6 +51,7 @@ import com.example.backend.model.User;
 import com.example.backend.model.Notification;
 import com.example.backend.repository.BoardDecisionRepository;
 import com.example.backend.repository.ChapterPageRepository;
+import com.example.backend.repository.ChapterPageHistoryRepository;
 import com.example.backend.repository.ChapterRepository;
 import com.example.backend.repository.ChapterRevisionNoteRepository;
 import com.example.backend.repository.MangaSeriesRepository;
@@ -65,7 +67,7 @@ import com.example.backend.repository.NotificationRepository;
 @Service
 public class TantouEditorService {
     private static final Set<String> COMMENT_TYPES = Set.of("CONTENT", "DIALOGUE", "SCRIPT", "OTHER");
-    private static final Set<String> COMMENT_STATUSES = Set.of("OPEN", "RESOLVED");
+    private static final Set<String> COMMENT_STATUSES = Set.of("OPEN", "RESOLVED", "DELETED");
     private static final Set<String> FINAL_PAGE_STATUSES = Set.of("DRAWING_FINALIZED", "FINALIZED", "PUBLISHED");
     private static final Set<String> DONE_TASK_STATUSES = Set.of("SUBMITTED", "APPROVED");
     private static final String TANTOU_REVIEW_STATUS = "TANTOU_REVIEW";
@@ -76,7 +78,6 @@ public class TantouEditorService {
     private static final String EDITOR_ASSIGNMENT_REQUIRED_STATUS = "EDITOR_ASSIGNMENT_REQUIRED";
     private static final String SERIES_SUBMISSION_PURPOSE = "SERIES_SUBMISSION";
     private static final String CHAPTER_MANUSCRIPT_PURPOSE = "CHAPTER_MANUSCRIPT";
-    private static final int MAX_EDITOR_REJECTIONS_PER_MONTH = 2;
     private static final long MAX_REVISION_NOTE_IMAGE_SIZE_BYTES = 5L * 1024 * 1024;
     private static final Set<String> REVISION_NOTE_IMAGE_CONTENT_TYPES = Set.of(
             "image/jpeg", "image/png", "image/webp", "image/gif");
@@ -87,6 +88,7 @@ public class TantouEditorService {
     private final ChapterRepository chapterRepository;
     private final ChapterRevisionNoteRepository chapterRevisionNoteRepository;
     private final ChapterPageRepository pageRepository;
+    private final ChapterPageHistoryRepository pageHistoryRepository;
     private final ReviewCommentRepository commentRepository;
     private final PublishScheduleRepository scheduleRepository;
     private final BoardDecisionRepository boardDecisionRepository;
@@ -98,6 +100,7 @@ public class TantouEditorService {
     private final SeriesEditorRejectionRepository seriesEditorRejectionRepository;
     private final MangakaService mangakaService;
     private final EditorialBoardService editorialBoardService;
+    private final SeriesHistoryService seriesHistoryService;
 
     @Value("${manga.upload.chapter-revision-note-root:}")
     private String chapterRevisionNoteUploadRootOverride;
@@ -107,6 +110,7 @@ public class TantouEditorService {
             ChapterRepository chapterRepository,
             ChapterRevisionNoteRepository chapterRevisionNoteRepository,
             ChapterPageRepository pageRepository,
+            ChapterPageHistoryRepository pageHistoryRepository,
             ReviewCommentRepository commentRepository,
             PublishScheduleRepository scheduleRepository,
             BoardDecisionRepository boardDecisionRepository,
@@ -117,11 +121,13 @@ public class TantouEditorService {
             SeriesFileRepository seriesFileRepository,
             SeriesEditorRejectionRepository seriesEditorRejectionRepository,
             MangakaService mangakaService,
-            EditorialBoardService editorialBoardService) {
+            EditorialBoardService editorialBoardService,
+            SeriesHistoryService seriesHistoryService) {
         this.mangaSeriesRepository = mangaSeriesRepository;
         this.chapterRepository = chapterRepository;
         this.chapterRevisionNoteRepository = chapterRevisionNoteRepository;
         this.pageRepository = pageRepository;
+        this.pageHistoryRepository = pageHistoryRepository;
         this.commentRepository = commentRepository;
         this.scheduleRepository = scheduleRepository;
         this.boardDecisionRepository = boardDecisionRepository;
@@ -133,6 +139,7 @@ public class TantouEditorService {
         this.seriesEditorRejectionRepository = seriesEditorRejectionRepository;
         this.mangakaService = mangakaService;
         this.editorialBoardService = editorialBoardService;
+        this.seriesHistoryService = seriesHistoryService;
     }
 
     @Transactional(readOnly = true)
@@ -192,8 +199,17 @@ public class TantouEditorService {
         if (!TANTOU_REVIEW_STATUS.equalsIgnoreCase(series.getStatus())) {
             throw conflict("Only series waiting for tantou editor review can be submitted to editorial board");
         }
+        String previousStatus = series.getStatus();
         series.setStatus(BOARD_REVIEW_STATUS);
         mangaSeriesRepository.save(series);
+        seriesHistoryService.record(
+                series,
+                currentUser(),
+                "EDITOR_SUBMITTED_TO_BOARD",
+                previousStatus,
+                series.getStatus(),
+                note,
+                seriesId);
         editorialBoardService.assignBoardPanel(series);
         createSeriesLevelComment(series, note, "CONTENT", "RESOLVED");
         notify(series.getAuthor(), "SUBMITTED_TO_BOARD", seriesId,
@@ -209,8 +225,17 @@ public class TantouEditorService {
         if (!TANTOU_REVIEW_STATUS.equalsIgnoreCase(series.getStatus())) {
             throw conflict("Only series waiting for tantou editor review can be returned for revision");
         }
+        String previousStatus = series.getStatus();
         series.setStatus(REVISION_REQUESTED_STATUS);
         mangaSeriesRepository.save(series);
+        seriesHistoryService.record(
+                series,
+                currentUser(),
+                "EDITOR_REQUESTED_REVISION",
+                previousStatus,
+                series.getStatus(),
+                note,
+                seriesId);
         createSeriesLevelComment(series, note, "CONTENT", "OPEN");
         notify(series.getAuthor(), "REVISION_REQUESTED", seriesId,
                 "Biên tập yêu cầu chỉnh sửa hồ sơ series \"" + series.getTitle() + "\"" + (note != null ? ": " + note : ""));
@@ -269,7 +294,8 @@ public class TantouEditorService {
     public void deleteComment(Long commentId) {
         ReviewComment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> notFound("Comment not found"));
-        commentRepository.delete(comment);
+        comment.setStatus("DELETED");
+        commentRepository.save(comment);
     }
 
     @Transactional(readOnly = true)
@@ -333,9 +359,18 @@ public class TantouEditorService {
         if (!SUBMITTED_TO_EDITOR_STATUS.equalsIgnoreCase(chapter.getStatus())) {
             throw badRequest("Only submitted chapters can be returned for revision");
         }
+        String previousStatus = chapter.getStatus();
         chapter.setStatus(REVISION_REQUESTED_STATUS);
         Chapter savedChapter = chapterRepository.save(chapter);
         MangaSeries series = savedChapter.getSeries();
+        seriesHistoryService.record(
+                series,
+                currentUser(),
+                "EDITOR_REQUESTED_CHAPTER_REVISION",
+                previousStatus,
+                savedChapter.getStatus(),
+                savedChapter.getTitle(),
+                savedChapter.getChapterId());
         notify(series == null ? null : series.getAuthor(), "CHAPTER_REVISION_REQUESTED", savedChapter.getChapterId(),
                 "Chapter revision requested: " + savedChapter.getTitle());
         return toChapterManuscript(savedChapter);
@@ -352,8 +387,17 @@ public class TantouEditorService {
             throw conflict("Chapter is not attached to a series");
         }
 
+        String previousStatus = chapter.getStatus();
         chapter.setStatus(APPROVED_CHAPTER_STATUS);
         Chapter savedChapter = chapterRepository.save(chapter);
+        seriesHistoryService.record(
+                series,
+                currentUser(),
+                "EDITOR_APPROVED_CHAPTER",
+                previousStatus,
+                savedChapter.getStatus(),
+                savedChapter.getTitle(),
+                savedChapter.getChapterId());
         notify(series.getAuthor(), "CHAPTER_APPROVED", chapterId,
                 "Chapter \"" + chapter.getTitle() + "\" was approved by the Tantou Editor.");
         notify(series.getPublicationCoordinator(), "CHAPTER_READY_FOR_SCHEDULE", chapterId,
@@ -380,8 +424,17 @@ public class TantouEditorService {
                     "Hồ sơ này không được giao cho bạn.");
         }
 
+        String previousStatus = series.getStatus();
         series.setStatus("TANTOU_REVIEW");
         mangaSeriesRepository.save(series);
+        seriesHistoryService.record(
+                series,
+                series.getTantouEditor(),
+                "EDITOR_ACCEPTED_SERIES",
+                previousStatus,
+                series.getStatus(),
+                null,
+                seriesId);
         dismissAssignmentNotifications(seriesId, email);
 
         Notification notif = new Notification();
@@ -422,7 +475,6 @@ public class TantouEditorService {
 
         User oldEditor = userRepository.findByIdForUpdate(series.getTantouEditor().getUserId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Editor not found"));
-        enforceMonthlyRejectionLimit(oldEditor);
         dismissAssignmentNotifications(seriesId, email);
         recordEditorRejection(series, oldEditor, requiredReason);
         Set<Long> rejectedEditorIds = rejectedEditorIds(seriesId);
@@ -438,6 +490,14 @@ public class TantouEditorService {
             series.setTantouEditor(null);
             series.setEditorAssignedAt(null);
             mangaSeriesRepository.save(series);
+            seriesHistoryService.record(
+                    series,
+                    oldEditor,
+                    "EDITOR_REJECTED_SERIES",
+                    "PENDING_EDITOR",
+                    series.getStatus(),
+                    requiredReason,
+                    seriesId);
             notify(series.getAuthor(), "EDITOR_ASSIGNMENT_REQUIRED", seriesId,
                     "All tantou editors rejected series \"" + series.getTitle()
                             + "\". Editorial Board will assign an editor directly.");
@@ -452,6 +512,14 @@ public class TantouEditorService {
         series.setTantouEditor(newEditor);
         series.setEditorAssignedAt(LocalDateTime.now());
         mangaSeriesRepository.save(series);
+        seriesHistoryService.record(
+                series,
+                oldEditor,
+                "EDITOR_REJECTED_SERIES",
+                "PENDING_EDITOR",
+                series.getStatus(),
+                requiredReason,
+                seriesId);
 
         Notification toNewEditor = new Notification();
         toNewEditor.setUser(newEditor);
@@ -488,20 +556,6 @@ public class TantouEditorService {
         rejection.setReason(reason);
         rejection.setRejectedAt(LocalDateTime.now());
         seriesEditorRejectionRepository.save(rejection);
-    }
-
-    private void enforceMonthlyRejectionLimit(User editor) {
-        YearMonth currentMonth = YearMonth.now();
-        LocalDateTime periodStart = currentMonth.atDay(1).atStartOfDay();
-        LocalDateTime periodEnd = currentMonth.plusMonths(1).atDay(1).atStartOfDay();
-        long rejectionCount = seriesEditorRejectionRepository
-                .countByEditorUserIdAndRejectedAtGreaterThanEqualAndRejectedAtLessThan(
-                        editor.getUserId(), periodStart, periodEnd);
-        if (rejectionCount >= MAX_EDITOR_REJECTIONS_PER_MONTH) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Monthly editor rejection limit reached (2 rejections per calendar month)");
-        }
     }
 
     private Set<Long> rejectedEditorIds(Long seriesId) {
@@ -579,7 +633,24 @@ public class TantouEditorService {
                 commentRepository.findByPagePageIdOrderByCreatedAtDesc(page.getPageId())
                         .stream()
                         .map(this::toCommentResponse)
+                        .toList(),
+                pageHistoryRepository.findByPagePageIdOrderByCreatedAtDesc(page.getPageId())
+                        .stream()
+                        .map(this::toPageHistoryResponse)
                         .toList());
+    }
+
+    private PageHistoryResponse toPageHistoryResponse(ChapterPageHistory history) {
+        User approvedBy = history.getApprovedBy();
+        return new PageHistoryResponse(
+                history.getHistoryId(),
+                history.getPage() == null ? null : history.getPage().getPageId(),
+                history.getSubmission() == null ? null : history.getSubmission().getSubmissionId(),
+                approvedBy == null ? null : approvedBy.getUserId(),
+                approvedBy == null ? null : approvedBy.getUsername(),
+                history.getPreviousImageUrl(),
+                history.getNewImageUrl(),
+                history.getCreatedAt());
     }
 
     private void applyCommentRequest(ReviewComment comment, CommentRequest request, String defaultStatus) {
@@ -622,7 +693,9 @@ public class TantouEditorService {
         List<Task> tasks = taskRepository.findByChapterSeriesSeriesIdOrderByDueDateAsc(seriesId);
         long openComments = commentRepository.findByPageChapterSeriesSeriesIdOrderByCreatedAtDesc(seriesId)
                 .stream()
-                .filter(comment -> comment.getStatus() == null || !"RESOLVED".equalsIgnoreCase(comment.getStatus()))
+                .filter(comment -> comment.getStatus() == null
+                        || (!"RESOLVED".equalsIgnoreCase(comment.getStatus())
+                                && !"DELETED".equalsIgnoreCase(comment.getStatus())))
                 .count();
         long finalizedPages = pages.stream()
                 .filter(page -> page.getPageStatus() != null
@@ -708,6 +781,9 @@ public class TantouEditorService {
                 file.getFileSize(),
                 file.getFileType(),
                 SeriesFileSupport.isPreviewable(file),
+                file.getActive(),
+                file.getRoundNumber(),
+                file.getPurpose(),
                 file.getUploadedAt());
     }
 
@@ -858,7 +934,7 @@ public class TantouEditorService {
 
     private void assertVisibleToCurrentEditor(MangaSeries series) {
         User assignedEditor = series == null ? null : series.getTantouEditor();
-        if (assignedEditor != null && !currentEmail().equals(assignedEditor.getEmail())) {
+        if (assignedEditor == null || !currentEmail().equalsIgnoreCase(assignedEditor.getEmail())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You are not assigned to this manga series");
         }
     }
