@@ -122,7 +122,7 @@ public class PublishScheduleJob {
             next = switch (frequency.trim().toUpperCase(Locale.ROOT)) {
                 case "DAILY" -> next.plusDays(1);
                 case "WEEKLY" -> next.plusDays(7);
-                case "MONTHLY" -> next.plusDays(30);
+                case "MONTHLY" -> next.plusMonths(1);
                 default -> null;
             };
         } while (next != null && !next.isAfter(now));

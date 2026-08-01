@@ -93,6 +93,7 @@ public class EditorialBoardService {
     private static final String REJECT_DECISION = "REJECT";
     private static final String CANCEL_DECISION = "CANCEL";
     private static final String PUBLISHED_CHAPTER_STATUS = "PUBLISHED";
+    private static final Set<String> PUBLISH_FREQUENCIES = Set.of("DAILY", "WEEKLY", "MONTHLY");
     private static final String SERIES_RANKING_AT_RISK_NOTIFICATION = "SERIES_RANKING_AT_RISK";
     private static final String SERIES_SUBMISSION_PURPOSE = "SERIES_SUBMISSION";
     private static final String CHAPTER_MANUSCRIPT_PURPOSE = "CHAPTER_MANUSCRIPT";
@@ -900,13 +901,24 @@ public class EditorialBoardService {
             PublishSchedule schedule,
             ScheduleRequest request,
             User currentUser) {
+        if (request.publishDate() == null || !request.publishDate().isAfter(LocalDateTime.now())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Publish date must be in the future");
+        }
+        String frequency = request.frequency() == null
+                ? ""
+                : request.frequency().trim().toUpperCase(Locale.ROOT);
+        if (!PUBLISH_FREQUENCIES.contains(frequency)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Frequency must be DAILY, WEEKLY, or MONTHLY");
+        }
         MangaSeries series = mangaSeriesRepository.findById(request.seriesId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Series not found"));
         requirePublicationCoordinator(series, currentUser);
         schedule.setSeries(series);
         schedule.setPublishDate(request.publishDate());
-        schedule.setFrequency(request.frequency().trim().toUpperCase(Locale.ROOT));
+        schedule.setFrequency(frequency);
         schedule.setStatus(blankToDefault(request.status(), "PLANNED"));
     }
 

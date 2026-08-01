@@ -89,6 +89,36 @@ class PublishScheduleJobTests {
     }
 
     @Test
+    void publishesApprovedChapterAndMovesMonthlyScheduleByOneCalendarMonth() {
+        PublishScheduleJob job = new PublishScheduleJob(
+                publishScheduleRepository,
+                chapterRepository,
+                mangaSeriesRepository,
+                seriesBoardAssignmentRepository,
+                notificationRepository,
+                userRepository);
+        LocalDateTime dueDate = LocalDateTime.now().minusHours(1);
+        MangaSeries series = series(10L);
+        series.setStatus("PUBLISHED");
+        PublishSchedule schedule = schedule(20L, series, dueDate, "MONTHLY");
+        Chapter chapter = chapter(30L, series, 1);
+
+        when(publishScheduleRepository.findByStatusIgnoreCaseAndPublishDateLessThanEqualOrderByPublishDateAsc(
+                eq("PLANNED"), any(LocalDateTime.class))).thenReturn(List.of(schedule));
+        when(chapterRepository.findFirstBySeriesSeriesIdAndStatusIgnoreCaseOrderByChapterNumberAsc(
+                10L, "APPROVED")).thenReturn(Optional.of(chapter));
+        when(chapterRepository.findFirstBySeriesSeriesIdOrderByChapterNumberAsc(10L))
+                .thenReturn(Optional.of(chapter));
+
+        job.publishDueChapters();
+
+        assertEquals("PUBLISHED", chapter.getStatus());
+        assertEquals(dueDate.plusMonths(1), schedule.getPublishDate());
+        verify(chapterRepository).save(chapter);
+        verify(publishScheduleRepository).save(schedule);
+    }
+
+    @Test
     void skipsDueScheduleWhenNoChapterIsReady() {
         PublishScheduleJob job = new PublishScheduleJob(
                 publishScheduleRepository,

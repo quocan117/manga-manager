@@ -243,6 +243,39 @@ class MangakaServiceTests {
     }
 
     @Test
+    void submitSeriesMovesToBoardAssignmentWhenNoEditorIsAvailable(@TempDir Path tempDir) {
+        ReflectionTestUtils.setField(service, "seriesFileUploadRootOverride", tempDir.toString());
+        User mangaka = user(1L, EMAIL);
+        User board = user(9L, "board@manga.test");
+        MangaSeries series = new MangaSeries();
+        series.setSeriesId(20L);
+        series.setTitle("Needs Editor");
+        series.setAuthor(mangaka);
+        series.setStatus("DRAFT");
+        when(mangaSeriesRepository.findById(20L)).thenReturn(Optional.of(series));
+        when(userRepository.findByRoleRoleNameAndStatusOrderByUsernameAsc("TANTOU_EDITOR", "ACTIVE"))
+                .thenReturn(List.of());
+        when(userRepository.findByRoleRoleNameAndStatusOrderByUsernameAsc("EDITORIAL_BOARD", "ACTIVE"))
+                .thenReturn(List.of(board));
+        when(mangaSeriesRepository.save(series)).thenReturn(series);
+
+        var response = service.submitSeriesWithFiles(20L, List.of(seriesFile()));
+
+        assertEquals("EDITOR_ASSIGNMENT_REQUIRED", response.status());
+        assertEquals(null, series.getTantouEditor());
+        assertEquals(null, series.getEditorAssignedAt());
+        verify(seriesHistoryService).record(
+                series,
+                mangaka,
+                "SERIES_SUBMITTED_AWAITING_EDITOR",
+                "DRAFT",
+                "EDITOR_ASSIGNMENT_REQUIRED",
+                "No active tantou editor is available for automatic assignment",
+                20L);
+        verify(notificationRepository, times(2)).save(any(Notification.class));
+    }
+
+    @Test
     void submitSeriesAssignsLeastLoadedTantouEditor(@TempDir Path tempDir) {
         ReflectionTestUtils.setField(service, "seriesFileUploadRootOverride", tempDir.toString());
         MangaSeries series = new MangaSeries();
@@ -745,6 +778,32 @@ class MangakaServiceTests {
 
         assertSame(HttpStatus.PAYLOAD_TOO_LARGE, exception.getStatusCode());
         verify(chapterPageRepository, never()).save(any());
+    }
+
+    @Test
+    void assignTaskRejectsDeadlineLessThanTwentyFourHoursAway() {
+        AssignTaskRequest request = new AssignTaskRequest(
+                40L,
+                2L,
+                "BACKGROUND",
+                "Draw background",
+                null,
+                LocalDateTime.now().plusHours(23),
+                0f,
+                0f,
+                100f,
+                100f,
+                List.of(),
+                null,
+                null);
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.assignTask(request));
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
+        assertEquals("Task deadline must be at least 24 hours from now", exception.getReason());
+        verify(taskRepository, never()).save(any(Task.class));
     }
 
     @Test

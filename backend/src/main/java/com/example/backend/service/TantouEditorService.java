@@ -10,6 +10,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Stream;
@@ -486,28 +487,17 @@ public class TantouEditorService {
                 .allMatch(editor -> rejectedEditorIds.contains(editor.getUserId()));
 
         if (allEditorsRejected) {
-            series.setStatus(EDITOR_ASSIGNMENT_REQUIRED_STATUS);
-            series.setTantouEditor(null);
-            series.setEditorAssignedAt(null);
-            mangaSeriesRepository.save(series);
-            seriesHistoryService.record(
-                    series,
-                    oldEditor,
-                    "EDITOR_REJECTED_SERIES",
-                    "PENDING_EDITOR",
-                    series.getStatus(),
-                    requiredReason,
-                    seriesId);
-            notify(series.getAuthor(), "EDITOR_ASSIGNMENT_REQUIRED", seriesId,
-                    "All tantou editors rejected series \"" + series.getTitle()
-                            + "\". Editorial Board will assign an editor directly.");
-            notifyEditorialBoard("EDITOR_ASSIGNMENT_REQUIRED", seriesId,
-                    "Series \"" + series.getTitle()
-                            + "\" needs a forced tantou editor assignment because all editors rejected it.");
+            moveToBoardAssignmentRequired(series, oldEditor, requiredReason);
             return;
         }
 
-        User newEditor = mangakaService.getEditorWithLeastWorkloadExcluding(rejectedEditorIds);
+        Optional<User> newEditorCandidate = mangakaService
+                .findEditorWithLeastWorkloadExcluding(rejectedEditorIds);
+        if (newEditorCandidate.isEmpty()) {
+            moveToBoardAssignmentRequired(series, oldEditor, requiredReason);
+            return;
+        }
+        User newEditor = newEditorCandidate.get();
 
         series.setTantouEditor(newEditor);
         series.setEditorAssignedAt(LocalDateTime.now());
@@ -542,6 +532,29 @@ public class TantouEditorService {
         toAuthor.setCreatedAt(LocalDateTime.now());
         toAuthor.setIsRead(false);
         notificationRepository.save(toAuthor);
+    }
+
+    private void moveToBoardAssignmentRequired(MangaSeries series, User rejectedBy, String reason) {
+        String previousStatus = series.getStatus();
+        series.setStatus(EDITOR_ASSIGNMENT_REQUIRED_STATUS);
+        series.setTantouEditor(null);
+        series.setEditorAssignmentLocked(false);
+        series.setEditorAssignedAt(null);
+        mangaSeriesRepository.save(series);
+        seriesHistoryService.record(
+                series,
+                rejectedBy,
+                "EDITOR_REJECTED_SERIES",
+                previousStatus,
+                series.getStatus(),
+                reason,
+                series.getSeriesId());
+        notify(series.getAuthor(), "EDITOR_ASSIGNMENT_REQUIRED", series.getSeriesId(),
+                "All eligible tantou editors rejected or are unavailable for series \""
+                        + series.getTitle() + "\". Editorial Board will assign an editor directly.");
+        notifyEditorialBoard("EDITOR_ASSIGNMENT_REQUIRED", series.getSeriesId(),
+                "Series \"" + series.getTitle()
+                        + "\" needs a forced tantou editor assignment. Review the rejection list before assigning.");
     }
 
     private void recordEditorRejection(MangaSeries series, User editor, String reason) {

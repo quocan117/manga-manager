@@ -2,17 +2,24 @@ package com.example.backend.scheduler;
 
 import com.example.backend.model.MangaSeries;
 import com.example.backend.model.Notification;
+import com.example.backend.model.SeriesEditorRejection;
 import com.example.backend.model.User;
 import com.example.backend.repository.MangaSeriesRepository;
 import com.example.backend.repository.NotificationRepository;
+import com.example.backend.repository.SeriesEditorRejectionRepository;
+import com.example.backend.repository.UserRepository;
 import com.example.backend.service.MangakaService;
+import com.example.backend.service.SeriesHistoryService;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 
 @Component
 public class EditorAssignmentJob {
@@ -21,14 +28,23 @@ public class EditorAssignmentJob {
 
     private final MangaSeriesRepository mangaSeriesRepository;
     private final NotificationRepository notificationRepository;
+    private final SeriesEditorRejectionRepository seriesEditorRejectionRepository;
+    private final UserRepository userRepository;
     private final MangakaService mangakaService;
+    private final SeriesHistoryService seriesHistoryService;
 
     public EditorAssignmentJob(MangaSeriesRepository mangaSeriesRepository,
                                NotificationRepository notificationRepository,
-                               MangakaService mangakaService) {
+                               SeriesEditorRejectionRepository seriesEditorRejectionRepository,
+                               UserRepository userRepository,
+                               MangakaService mangakaService,
+                               SeriesHistoryService seriesHistoryService) {
         this.mangaSeriesRepository = mangaSeriesRepository;
         this.notificationRepository = notificationRepository;
+        this.seriesEditorRejectionRepository = seriesEditorRejectionRepository;
+        this.userRepository = userRepository;
         this.mangakaService = mangakaService;
+        this.seriesHistoryService = seriesHistoryService;
     }
 
     @Scheduled(fixedRate = 900000)
@@ -41,28 +57,91 @@ public class EditorAssignmentJob {
         for (MangaSeries series : overdueSeries) {
             User oldEditor = series.getTantouEditor();
             Long oldEditorId = oldEditor != null ? oldEditor.getUserId() : null;
-
-            User newEditor = mangakaService.getEditorWithLeastWorkload(oldEditorId);
+            Set<Long> excludedEditorIds = rejectedEditorIds(series.getSeriesId());
+            if (oldEditorId != null) {
+                excludedEditorIds.add(oldEditorId);
+            }
 
             if (oldEditor != null) {
                 dismissAssignmentNotifications(series.getSeriesId(), oldEditor.getUserId());
             }
 
+            Optional<User> newEditorCandidate = mangakaService
+                    .findEditorWithLeastWorkloadExcluding(excludedEditorIds);
+            if (newEditorCandidate.isEmpty()) {
+                moveToBoardAssignmentRequired(series, oldEditor);
+                continue;
+            }
+
+            User newEditor = newEditorCandidate.get();
             series.setTantouEditor(newEditor);
             series.setEditorAssignedAt(LocalDateTime.now());
             mangaSeriesRepository.save(series);
+            seriesHistoryService.record(
+                    series,
+                    oldEditor,
+                    "AUTO_EDITOR_REASSIGNED",
+                    "PENDING_EDITOR",
+                    series.getStatus(),
+                    "The previous editor did not accept within 24 hours; reassigned to "
+                            + newEditor.getUsername(),
+                    newEditor.getUserId());
 
             createNotification(series.getAuthor(), "SYSTEM", series.getSeriesId(),
-                    "Hồ sơ series '" + series.getTitle() + "' đã được chuyển tự động sang Biên tập viên khác (" + newEditor.getUsername() + ") do người trước không phản hồi kịp.");
+                    "Series '" + series.getTitle() + "' was automatically reassigned to editor "
+                            + newEditor.getUsername() + " because the previous editor did not respond in time.");
 
             createNotification(newEditor, ASSIGNMENT_TYPE, series.getSeriesId(),
-                    "Bạn được hệ thống tự động điều phối hồ sơ series mới: '" + series.getTitle() + "'. Vui lòng nhận hồ sơ trong 24h.");
+                    "You were automatically assigned series '" + series.getTitle()
+                            + "'. Please accept it within 24 hours.");
 
             if (oldEditor != null) {
                 createNotification(oldEditor, "SYSTEM", series.getSeriesId(),
-                        "Hồ sơ series '" + series.getTitle() + "' đã bị hệ thống thu hồi do quá 24h không tiếp nhận.");
+                        "Series '" + series.getTitle()
+                                + "' was withdrawn because it was not accepted within 24 hours.");
             }
         }
+    }
+
+    private Set<Long> rejectedEditorIds(Long seriesId) {
+        Set<Long> rejectedEditorIds = new HashSet<>();
+        for (SeriesEditorRejection rejection : seriesEditorRejectionRepository.findBySeriesSeriesId(seriesId)) {
+            User editor = rejection.getEditor();
+            if (editor != null && editor.getUserId() != null) {
+                rejectedEditorIds.add(editor.getUserId());
+            }
+        }
+        return rejectedEditorIds;
+    }
+
+    private void moveToBoardAssignmentRequired(MangaSeries series, User oldEditor) {
+        series.setStatus("EDITOR_ASSIGNMENT_REQUIRED");
+        series.setTantouEditor(null);
+        series.setEditorAssignmentLocked(false);
+        series.setEditorAssignedAt(null);
+        mangaSeriesRepository.save(series);
+        seriesHistoryService.record(
+                series,
+                oldEditor,
+                "AUTO_EDITOR_ASSIGNMENT_REQUIRED",
+                "PENDING_EDITOR",
+                series.getStatus(),
+                "No eligible editor remains after excluding timed-out and previously rejected editors",
+                series.getSeriesId());
+
+        createNotification(series.getAuthor(), "EDITOR_ASSIGNMENT_REQUIRED", series.getSeriesId(),
+                "Series '" + series.getTitle()
+                        + "' is waiting for Editorial Board to assign an editor.");
+        userRepository.findByRoleRoleNameAndStatusOrderByUsernameAsc("EDITORIAL_BOARD", "ACTIVE")
+                .forEach(board -> createNotification(
+                        board,
+                        "EDITOR_ASSIGNMENT_REQUIRED",
+                        series.getSeriesId(),
+                        "Series '" + series.getTitle()
+                                + "' needs a forced editor assignment. Review its rejection history first."));
+        createNotification(oldEditor, "SYSTEM", series.getSeriesId(),
+                "Series '" + series.getTitle()
+                        + "' was withdrawn after the 24-hour acceptance period expired.");
     }
 
     private void dismissAssignmentNotifications(Long seriesId, Long userId) {
@@ -73,6 +152,9 @@ public class EditorAssignmentJob {
     }
 
     private void createNotification(User user, String type, Long referenceId, String message) {
+        if (user == null) {
+            return;
+        }
         Notification notif = new Notification();
         notif.setUser(user);
         notif.setType(type);

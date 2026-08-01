@@ -6,8 +6,10 @@ import java.util.List;
 import com.example.backend.dto.MangakaDtos.UploadedFileResponse;
 
 import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public final class EditorialBoardDtos {
@@ -86,8 +88,10 @@ public final class EditorialBoardDtos {
 
         public record ScheduleRequest(
                         @NotNull Long seriesId,
-                        @NotNull LocalDateTime publishDate,
-                        @NotBlank String frequency,
+                        @NotNull @Future(message = "Publish date must be in the future") LocalDateTime publishDate,
+                        @NotBlank @Pattern(
+                                        regexp = "(?i)DAILY|WEEKLY|MONTHLY",
+                                        message = "Frequency must be DAILY, WEEKLY, or MONTHLY") String frequency,
                         String status) {
         }
 

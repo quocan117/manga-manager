@@ -11,6 +11,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
@@ -81,6 +82,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
 public class MangakaService {
+    private static final long MIN_TASK_DEADLINE_HOURS = 24;
     private static final Set<String> TASK_TYPES = Set.of("BACKGROUND", "TEXT", "EFFECTS", "OTHER");
     private static final Set<String> REVIEW_DECISIONS = Set.of("APPROVED", "REVISION_REQUESTED");
     private static final String ASSISTANT_ROLE = "ASSISTANT";
@@ -91,6 +93,7 @@ public class MangakaService {
     private static final Set<String> ASSISTANT_STATUSES = Set.of(ACTIVE_STATUS, INACTIVE_STATUS);
     private static final String SUBMITTED_TO_EDITOR_STATUS = "SUBMITTED_TO_EDITOR";
     private static final String PENDING_EDITOR_STATUS = "PENDING_EDITOR";
+    private static final String EDITOR_ASSIGNMENT_REQUIRED_STATUS = "EDITOR_ASSIGNMENT_REQUIRED";
     private static final String TANTOU_REVIEW_STATUS = "TANTOU_REVIEW";
     private static final String REVISION_REQUESTED_STATUS = "REVISION_REQUESTED";
     private static final String SERIES_SUBMISSION_PURPOSE = "SERIES_SUBMISSION";
@@ -330,7 +333,31 @@ public class MangakaService {
             return toSeriesResponse(series);
         }
 
-        User assignedEditor = getEditorWithLeastWorkload(null);
+        Optional<User> assignedEditorCandidate = findEditorWithLeastWorkloadExcluding(Set.of());
+        if (assignedEditorCandidate.isEmpty()) {
+            series.setTantouEditor(null);
+            series.setStatus(EDITOR_ASSIGNMENT_REQUIRED_STATUS);
+            series.setEditorAssignmentLocked(false);
+            series.setEditorAssignedAt(null);
+            mangaSeriesRepository.save(series);
+            seriesHistoryService.record(
+                    series,
+                    mangaka,
+                    "SERIES_SUBMITTED_AWAITING_EDITOR",
+                    previousStatus,
+                    series.getStatus(),
+                    "No active tantou editor is available for automatic assignment",
+                    series.getSeriesId());
+            notify(mangaka, "EDITOR_ASSIGNMENT_REQUIRED", series.getSeriesId(),
+                    "Series \"" + series.getTitle()
+                            + "\" is waiting for Editorial Board to assign an editor.");
+            notifyEditorialBoard("EDITOR_ASSIGNMENT_REQUIRED", series.getSeriesId(),
+                    "Series \"" + series.getTitle()
+                            + "\" needs a forced tantou editor assignment because no editor is available.");
+            return toSeriesResponse(series);
+        }
+
+        User assignedEditor = assignedEditorCandidate.get();
         series.setTantouEditor(assignedEditor);
         series.setStatus(PENDING_EDITOR_STATUS);
         series.setEditorAssignmentLocked(false);
@@ -370,6 +397,11 @@ public class MangakaService {
         n.setIsRead(false);
         n.setCreatedAt(LocalDateTime.now());
         notificationRepository.save(n);
+    }
+
+    private void notifyEditorialBoard(String type, Long referenceId, String message) {
+        userRepository.findByRoleRoleNameAndStatusOrderByUsernameAsc("EDITORIAL_BOARD", ACTIVE_STATUS)
+                .forEach(board -> notify(board, type, referenceId, message));
     }
 
     @Transactional
@@ -648,6 +680,7 @@ public class MangakaService {
 
     @Transactional
     public TaskResponse assignTask(AssignTaskRequest request) {
+        validateTaskDeadline(request.dueDate());
         User mangaka = currentUser();
         ChapterPage page = chapterPageRepository.findById(request.pageId())
                 .orElseThrow(() -> notFound("Chapter page not found"));
@@ -1257,6 +1290,15 @@ public class MangakaService {
         }
     }
 
+    private void validateTaskDeadline(LocalDateTime dueDate) {
+        if (dueDate == null) {
+            throw badRequest("Task deadline is required");
+        }
+        if (dueDate.isBefore(LocalDateTime.now().plusHours(MIN_TASK_DEADLINE_HOURS))) {
+            throw badRequest("Task deadline must be at least 24 hours from now");
+        }
+    }
+
     private User assignTantouEditor(User currentEditor) {
         if (isActiveTantouEditor(currentEditor)) {
             return currentEditor;
@@ -1697,14 +1739,20 @@ public class MangakaService {
     }
 
     public User getEditorWithLeastWorkloadExcluding(Set<Long> excludeEditorIds) {
-        List<User> editors = userRepository.findByRoleRoleNameAndStatusOrderByUsernameAsc("TANTOU_EDITOR", "ACTIVE");
+        return findEditorWithLeastWorkloadExcluding(excludeEditorIds)
+                .orElseThrow(() -> new RuntimeException("No active tantou editor is available."));
+    }
+
+    public Optional<User> findEditorWithLeastWorkloadExcluding(Set<Long> excludeEditorIds) {
+        List<User> editors = new ArrayList<>(userRepository
+                .findByRoleRoleNameAndStatusOrderByUsernameAsc("TANTOU_EDITOR", ACTIVE_STATUS));
 
         if (excludeEditorIds != null && !excludeEditorIds.isEmpty()) {
             editors.removeIf(e -> excludeEditorIds.contains(e.getUserId()));
         }
 
         if (editors.isEmpty()) {
-            throw new RuntimeException("Hiện không có biên tập viên nào khả dụng.");
+            return Optional.empty();
         }
 
         // Các trạng thái được tính là "đang có việc"
@@ -1722,7 +1770,7 @@ public class MangakaService {
             }
         }
         // Chọn ngẫu nhiên nếu có nhiều người cùng mức độ ưu tiên
-        return candidates.get(ThreadLocalRandom.current().nextInt(candidates.size()));
+        return Optional.of(candidates.get(ThreadLocalRandom.current().nextInt(candidates.size())));
     }
 
     public long countTantouEditorActiveWorkload(Long editorId) {

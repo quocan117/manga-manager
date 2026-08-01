@@ -363,7 +363,7 @@ class TantouEditorServiceTests {
         when(seriesEditorRejectionRepository.findBySeriesSeriesId(10L)).thenReturn(List.of(rejection));
         when(userRepository.findByRoleRoleNameAndStatusOrderByUsernameAsc("TANTOU_EDITOR", "ACTIVE"))
                 .thenReturn(List.of(editor, nextEditor));
-        when(mangakaService.getEditorWithLeastWorkloadExcluding(any())).thenReturn(nextEditor);
+        when(mangakaService.findEditorWithLeastWorkloadExcluding(any())).thenReturn(Optional.of(nextEditor));
 
         service.rejectSeries(10L, "Không phù hợp chuyên môn");
 
@@ -405,7 +405,7 @@ class TantouEditorServiceTests {
         ArgumentCaptor<SeriesEditorRejection> rejectionCaptor = ArgumentCaptor.forClass(SeriesEditorRejection.class);
         verify(seriesEditorRejectionRepository).save(rejectionCaptor.capture());
         assertEquals("Khối lượng hiện tại đã đầy", rejectionCaptor.getValue().getReason());
-        verify(mangakaService, never()).getEditorWithLeastWorkloadExcluding(any());
+        verify(mangakaService, never()).findEditorWithLeastWorkloadExcluding(any());
     }
 
     @Test

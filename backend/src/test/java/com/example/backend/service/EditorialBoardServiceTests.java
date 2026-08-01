@@ -11,6 +11,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -478,6 +479,42 @@ class EditorialBoardServiceTests {
         }
 
         @Test
+        void createScheduleRejectsPublishDateThatIsNotInTheFuture() {
+                User coordinator = user(1L, "Board One", BOARD_EMAIL, role("EDITORIAL_BOARD"));
+                when(userRepository.findByEmail(BOARD_EMAIL)).thenReturn(Optional.of(coordinator));
+
+                ResponseStatusException exception = assertThrows(
+                                ResponseStatusException.class,
+                                () -> service.createSchedule(new ScheduleRequest(
+                                                5L,
+                                                LocalDateTime.now().minusMinutes(1),
+                                                "WEEKLY",
+                                                null)));
+
+                assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
+                assertEquals("Publish date must be in the future", exception.getReason());
+                verify(publishScheduleRepository, never()).save(any(PublishSchedule.class));
+        }
+
+        @Test
+        void createScheduleRejectsUnsupportedFrequency() {
+                User coordinator = user(1L, "Board One", BOARD_EMAIL, role("EDITORIAL_BOARD"));
+                when(userRepository.findByEmail(BOARD_EMAIL)).thenReturn(Optional.of(coordinator));
+
+                ResponseStatusException exception = assertThrows(
+                                ResponseStatusException.class,
+                                () -> service.createSchedule(new ScheduleRequest(
+                                                5L,
+                                                LocalDateTime.now().plusDays(7),
+                                                "YEARLY",
+                                                null)));
+
+                assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
+                assertEquals("Frequency must be DAILY, WEEKLY, or MONTHLY", exception.getReason());
+                verify(publishScheduleRepository, never()).save(any(PublishSchedule.class));
+        }
+
+        @Test
         void nonCoordinatorCannotCreatePublishSchedule() {
                 User currentBoard = user(1L, "Board One", BOARD_EMAIL, role("EDITORIAL_BOARD"));
                 User coordinator = user(2L, "Board Two", "board2@manga.test", role("EDITORIAL_BOARD"));
@@ -504,7 +541,7 @@ class EditorialBoardServiceTests {
                 MangaSeries series = series(5L, "Approved Series", "PENDING_SCHEDULE");
                 series.setPublicationCoordinator(coordinator);
                 series.setTantouEditor(editor);
-                LocalDateTime publishDate = LocalDateTime.of(2026, 8, 1, 9, 0);
+                LocalDateTime publishDate = LocalDateTime.now().plusDays(7).withNano(0);
 
                 when(userRepository.findByEmail(BOARD_EMAIL)).thenReturn(Optional.of(coordinator));
                 when(mangaSeriesRepository.findById(5L)).thenReturn(Optional.of(series));
@@ -532,7 +569,8 @@ class EditorialBoardServiceTests {
                 notificationCaptor.getAllValues().forEach(notification -> {
                         assertEquals("SERIES_APPROVED_AND_SCHEDULED", notification.getType());
                         assertTrue(notification.getMessage().contains("WEEKLY"));
-                        assertTrue(notification.getMessage().contains("01/08/2026 09:00"));
+                        assertTrue(notification.getMessage().contains(
+                                        publishDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))));
                 });
         }
 
