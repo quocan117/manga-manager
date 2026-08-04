@@ -12,6 +12,7 @@ export const createUser = async (userData) => {
     password: userData.password,
     role: userData.role,
     status: "ACTIVE",
+    specialty: userData.specialty,
   };
   const response = await api.post("/editorial-board/users", payload);
   return response.data;

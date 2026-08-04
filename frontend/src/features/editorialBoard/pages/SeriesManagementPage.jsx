@@ -4,7 +4,8 @@ import {
   getSeriesChapters,
 } from "../../../services/boardService";
 import { formatDateTime } from "../../../utils/formatDate";
-import SeriesFileList from "../../../components/SeriesFileList"; 
+import SeriesFileList from "../../../components/SeriesFileList";
+import DossierHistoryTimeline from "../../../components/DossierHistoryTimeline";
 
 export default function SeriesManagementPage() {
   const [seriesList, setSeriesList] = useState([]);
@@ -13,6 +14,7 @@ export default function SeriesManagementPage() {
   const [loading, setLoading] = useState(true);
 
   const [viewDossierSeries, setViewDossierSeries] = useState(null);
+  const [activeTab, setActiveTab] = useState("current");
 
   useEffect(() => {
     getApprovedSeries()
@@ -31,6 +33,11 @@ export default function SeriesManagementPage() {
       const chapters = await getSeriesChapters(seriesId);
       setChaptersBySeries((prev) => ({ ...prev, [seriesId]: chapters }));
     }
+  };
+
+  const handleOpenDossier = (series) => {
+    setViewDossierSeries(series);
+    setActiveTab("current");
   };
 
   if (loading)
@@ -78,7 +85,7 @@ export default function SeriesManagementPage() {
                     <div className="d-flex gap-2">
                       <button
                         className="btn btn-outline-info btn-sm"
-                        onClick={() => setViewDossierSeries(s)}
+                        onClick={() => handleOpenDossier(s)}
                       >
                         Xem Hồ Sơ
                       </button>
@@ -134,6 +141,12 @@ export default function SeriesManagementPage() {
         >
           <div
             className="custom-modal-content series-review-preview-modal"
+            style={{
+              width: "850px",
+              maxWidth: "95vw",
+              maxHeight: "90vh",
+              overflowY: "auto",
+            }}
             onClick={(e) => e.stopPropagation()}
           >
             <button
@@ -143,15 +156,44 @@ export default function SeriesManagementPage() {
             >
               ✕
             </button>
-            <h4 className="mb-1">Hồ sơ lưu trữ: {viewDossierSeries.title}</h4>
-            <p className="text-muted mb-3 fst-italic">
-              Đây là các tài liệu đã được Hội đồng Biên tập phê duyệt ở vòng
-              duyệt cuối cùng.
-            </p>
-            <SeriesFileList
-              files={viewDossierSeries.uploadedFiles || []}
-              emptyText="Không có tệp hồ sơ đính kèm."
-            />
+            <h4 className="mb-3">Hồ sơ lưu trữ: {viewDossierSeries.title}</h4>
+
+            <ul className="nav nav-tabs mb-4">
+              <li className="nav-item">
+                <button
+                  className={`nav-link fw-bold ${activeTab === "current" ? "active" : "text-secondary"}`}
+                  onClick={() => setActiveTab("current")}
+                  style={{
+                    borderBottom: activeTab === "current" ? "none" : "",
+                  }}
+                >
+                  Hồ sơ Final (Vòng duyệt cuối)
+                </button>
+              </li>
+              <li className="nav-item">
+                <button
+                  className={`nav-link fw-bold ${activeTab === "history" ? "active" : "text-secondary"}`}
+                  onClick={() => setActiveTab("history")}
+                >
+                  Lịch sử các vòng (Archive)
+                </button>
+              </li>
+            </ul>
+
+            {activeTab === "current" ? (
+              <>
+                <p className="text-muted mb-3 fst-italic">
+                  Đây là các tài liệu đã được Hội đồng Biên tập phê duyệt ở vòng
+                  duyệt cuối cùng.
+                </p>
+                <SeriesFileList
+                  files={viewDossierSeries.uploadedFiles || []}
+                  emptyText="Không có tệp hồ sơ đính kèm."
+                />
+              </>
+            ) : (
+              <DossierHistoryTimeline seriesId={viewDossierSeries.id} />
+            )}
           </div>
         </div>
       )}

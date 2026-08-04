@@ -5,9 +5,11 @@ import {
   markNotificationRead,
   acceptSeries,
   rejectSeries,
+  getSeriesDossier,
 } from "../../../services/tantouService";
 import { formatDateTime } from "../../../utils/formatDate";
 import RejectReasonModal from "../../../components/RejectReasonModal";
+import SeriesFileList from "../../../components/SeriesFileList";
 
 const ASSIGNMENT_NOTIFICATION_TYPES = [
   "NEW_ASSIGNMENT",
@@ -23,6 +25,10 @@ export default function TantouNotifications() {
   const [rejectingId, setRejectingId] = useState(null);
   const [rejectTarget, setRejectTarget] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
+
+  const [previewDossier, setPreviewDossier] = useState(null);
+  const [previewTargetId, setPreviewTargetId] = useState(null);
+
   const navigate = useNavigate();
   const { refreshUnreadCount } = useOutletContext() || {};
 
@@ -54,8 +60,21 @@ export default function TantouNotifications() {
     }
   };
 
-  const handleAccept = async (notification, e) => {
+  const handleOpenPreview = async (notification, e) => {
     e.stopPropagation();
+    try {
+      setPreviewTargetId(notification.id);
+      const data = await getSeriesDossier(notification.referenceId);
+      setPreviewDossier({ dossier: data, notification });
+    } catch (error) {
+      console.error("Lỗi khi tải bản xem trước hồ sơ:", error);
+      alert("Không thể tải bản xem trước hồ sơ lúc này. Vui lòng thử lại.");
+    } finally {
+      setPreviewTargetId(null);
+    }
+  };
+
+  const handleAccept = async (notification) => {
     const seriesId = notification.referenceId;
     if (!seriesId) return;
     setErrorMsg("");
@@ -84,8 +103,7 @@ export default function TantouNotifications() {
     }
   };
 
-  const handleReject = (notification, e) => {
-    e.stopPropagation();
+  const handleReject = (notification) => {
     if (!notification.referenceId) return;
     setRejectTarget(notification);
   };
@@ -136,10 +154,7 @@ export default function TantouNotifications() {
       {notifications.map((n) => {
         const isAssignment = ASSIGNMENT_NOTIFICATION_TYPES.includes(n.type);
         const canAccept = isAssignment && !n.isRead && !n.accepted;
-        const canReject =
-          canAccept && !LOCKED_ASSIGNMENT_TYPES.includes(n.type);
-        const isAccepting = acceptingId === n.id;
-        const isRejecting = rejectingId === n.id;
+
         return (
           <div
             key={n.id}
@@ -154,26 +169,16 @@ export default function TantouNotifications() {
               </div>
               <div className="d-flex align-items-center gap-2">
                 {canAccept && (
-                  <>
-                    <button
-                      type="button"
-                      className="btn btn-sm btn-success"
-                      disabled={isAccepting}
-                      onClick={(e) => handleAccept(n, e)}
-                    >
-                      {isAccepting ? "Đang nhận..." : "Nhận hồ sơ series"}
-                    </button>
-                    {canReject && (
-                      <button
-                        type="button"
-                        className="btn btn-sm btn-outline-danger"
-                        disabled={isAccepting || isRejecting}
-                        onClick={(e) => handleReject(n, e)}
-                      >
-                        {isRejecting ? "Đang từ chối..." : "Từ chối"}
-                      </button>
-                    )}
-                  </>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-info text-white fw-bold"
+                    disabled={previewTargetId === n.id}
+                    onClick={(e) => handleOpenPreview(n, e)}
+                  >
+                    {previewTargetId === n.id
+                      ? "Đang tải hồ sơ..."
+                      : "👁️ Xem hồ sơ"}
+                  </button>
                 )}
                 <small className="text-muted">
                   {formatDateTime(n.createdAt)}
@@ -183,6 +188,107 @@ export default function TantouNotifications() {
           </div>
         );
       })}
+
+      {previewDossier && (
+        <div
+          className="custom-modal-overlay"
+          onClick={() => setPreviewDossier(null)}
+        >
+          <div
+            className="custom-modal-content"
+            style={{
+              width: "850px",
+              maxWidth: "95vw",
+              maxHeight: "90vh",
+              overflowY: "auto",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="close-btn"
+              onClick={() => setPreviewDossier(null)}
+            >
+              ✕
+            </button>
+            <h4 className="mb-4">
+              Xem trước hồ sơ: {previewDossier.dossier.series.title}
+            </h4>
+            <div className="row mb-4">
+              <div className="col-md-4">
+                <img
+                  src={`http://localhost:8080/covers/${previewDossier.dossier.series.coverUrl}`}
+                  alt={previewDossier.dossier.series.title}
+                  className="img-fluid rounded shadow-sm"
+                  onError={(e) =>
+                    (e.target.src =
+                      "https://placehold.co/250x350?text=No+Cover")
+                  }
+                />
+              </div>
+              <div className="col-md-8">
+                <p>
+                  <strong>👤 Tác giả:</strong>{" "}
+                  {previewDossier.dossier.series.author}
+                </p>
+                <p>
+                  <strong>🏷️ Thể loại:</strong>{" "}
+                  {previewDossier.dossier.series.genres?.join(", ") || "N/A"}
+                </p>
+                <p>
+                  <strong>📖 Mô tả:</strong>{" "}
+                  {previewDossier.dossier.series.description ||
+                    "Chưa có mô tả."}
+                </p>
+              </div>
+            </div>
+
+            <h6 className="fw-bold mb-3 border-bottom pb-2">
+              Bản thảo & Tài liệu đính kèm
+            </h6>
+            <div className="mb-4 bg-light p-3 rounded border">
+              <SeriesFileList
+                files={previewDossier.dossier.series.uploadedFiles || []}
+                emptyText="Mangaka chưa tải lên bản thảo nào."
+              />
+            </div>
+
+            <div className="d-flex justify-content-end gap-3 border-top pt-3">
+              <button
+                className="btn btn-secondary"
+                onClick={() => setPreviewDossier(null)}
+              >
+                Đóng
+              </button>
+              {!LOCKED_ASSIGNMENT_TYPES.includes(
+                previewDossier.notification.type,
+              ) && (
+                <button
+                  className="btn btn-outline-danger px-4"
+                  disabled={acceptingId === previewDossier.notification.id}
+                  onClick={() => {
+                    handleReject(previewDossier.notification);
+                    setPreviewDossier(null);
+                  }}
+                >
+                  Từ chối
+                </button>
+              )}
+              <button
+                className="btn btn-success px-4"
+                disabled={acceptingId === previewDossier.notification.id}
+                onClick={() => {
+                  handleAccept(previewDossier.notification);
+                  setPreviewDossier(null);
+                }}
+              >
+                {acceptingId === previewDossier.notification.id
+                  ? "Đang xử lý..."
+                  : "✅ Chấp nhận phụ trách"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {rejectTarget && (
         <RejectReasonModal
