@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -166,6 +167,8 @@ class TantouEditorServiceTests {
                 "image", "revision.png", "image/png", "revision image".getBytes(StandardCharsets.UTF_8));
         when(chapterRepository.findById(11L)).thenReturn(Optional.of(chapter));
         when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(editor));
+        when(seriesFileRepository.findMaxRoundNumberByChapterAndPurpose(11L, "CHAPTER_MANUSCRIPT"))
+                .thenReturn(2);
         when(chapterRevisionNoteRepository.save(any(ChapterRevisionNote.class))).thenAnswer(invocation -> {
             ChapterRevisionNote note = invocation.getArgument(0);
             note.setNoteId(90L);
@@ -182,6 +185,7 @@ class TantouEditorServiceTests {
         assertEquals(90L, response.id());
         assertEquals(11L, response.chapterId());
         assertEquals("Sai lời thoại ở khung thứ hai", response.description());
+        assertEquals(2, response.roundNumber());
         assertEquals(2, response.orderIndex());
         assertTrue(response.imageUrl().startsWith("chapter-revision-notes/chapter-11/"));
         String savedFileName = Path.of(response.imageUrl()).getFileName().toString();
@@ -336,14 +340,24 @@ class TantouEditorServiceTests {
         when(boardDecisionRepository.findBySeriesSeriesIdOrderByDecisionDateDesc(10L)).thenReturn(List.of());
         when(boardDecisionRepository.countBySeriesSeriesIdAndDecisionTypeIgnoreCase(10L, "APPROVE")).thenReturn(0L);
         when(boardDecisionRepository.countBySeriesSeriesIdAndDecisionTypeIgnoreCase(10L, "REJECT")).thenReturn(0L);
+        when(mangakaService.currentSeriesSubmissionRound(10L)).thenReturn(2);
+        MockMultipartFile dossier = new MockMultipartFile(
+                "files", "editor-report.pdf", "application/pdf", "report".getBytes(StandardCharsets.UTF_8));
 
-        var response = service.submitToEditorialBoard(10L, "Đã biên tập sơ bộ");
+        var response = service.submitToEditorialBoard(
+                10L, "Đã biên tập sơ bộ", List.of(dossier));
 
         assertEquals("REVIEWING", series.getStatus());
         assertEquals("REVIEWING", response.series().status());
         verify(mangaSeriesRepository).save(series);
         verify(editorialBoardService).assignBoardPanel(series);
         verify(commentRepository).save(any(ReviewComment.class));
+        verify(mangakaService).storeSeriesWorkflowFiles(
+                eq(series),
+                any(User.class),
+                eq(List.of(dossier)),
+                eq("EDITOR_DOSSIER"),
+                eq(2));
     }
 
     @Test
@@ -361,9 +375,11 @@ class TantouEditorServiceTests {
         when(seriesEditorRejectionRepository.findBySeriesSeriesIdAndEditorUserId(10L, 1L))
                 .thenReturn(Optional.empty());
         when(seriesEditorRejectionRepository.findBySeriesSeriesId(10L)).thenReturn(List.of(rejection));
+        when(seriesEditorRejectionRepository.countBySeriesSeriesId(10L)).thenReturn(1L);
         when(userRepository.findByRoleRoleNameAndStatusOrderByUsernameAsc("TANTOU_EDITOR", "ACTIVE"))
                 .thenReturn(List.of(editor, nextEditor));
-        when(mangakaService.findEditorWithLeastWorkloadExcluding(any())).thenReturn(Optional.of(nextEditor));
+        when(mangakaService.findEditorWithLeastWorkloadExcluding(any(), eq("Action, Drama")))
+                .thenReturn(Optional.of(nextEditor));
 
         service.rejectSeries(10L, "Không phù hợp chuyên môn");
 
@@ -395,6 +411,7 @@ class TantouEditorServiceTests {
         when(seriesEditorRejectionRepository.findBySeriesSeriesIdAndEditorUserId(10L, 1L))
                 .thenReturn(Optional.empty());
         when(seriesEditorRejectionRepository.findBySeriesSeriesId(10L)).thenReturn(List.of(rejection));
+        when(seriesEditorRejectionRepository.countBySeriesSeriesId(10L)).thenReturn(1L);
         when(userRepository.findByRoleRoleNameAndStatusOrderByUsernameAsc("TANTOU_EDITOR", "ACTIVE"))
                 .thenReturn(List.of(editor));
 
@@ -406,6 +423,57 @@ class TantouEditorServiceTests {
         verify(seriesEditorRejectionRepository).save(rejectionCaptor.capture());
         assertEquals("Khối lượng hiện tại đã đầy", rejectionCaptor.getValue().getReason());
         verify(mangakaService, never()).findEditorWithLeastWorkloadExcluding(any());
+    }
+
+    @Test
+    void rejectSeriesStopsAutomaticRoutingAfterThreeEditors() {
+        User currentEditor = user(1L, EMAIL);
+        MangaSeries series = series(10L);
+        series.setStatus("PENDING_EDITOR");
+        series.setEditorAssignmentLocked(false);
+        List<SeriesEditorRejection> rejections = List.of(
+                rejection(series, currentEditor),
+                rejection(series, user(2L, "editor2@manga.test")),
+                rejection(series, user(3L, "editor3@manga.test")));
+        when(mangaSeriesRepository.findById(10L)).thenReturn(Optional.of(series));
+        when(userRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(currentEditor));
+        when(seriesEditorRejectionRepository.findBySeriesSeriesIdAndEditorUserId(10L, 1L))
+                .thenReturn(Optional.empty());
+        when(seriesEditorRejectionRepository.findBySeriesSeriesId(10L)).thenReturn(rejections);
+        when(seriesEditorRejectionRepository.countBySeriesSeriesId(10L)).thenReturn(3L);
+
+        service.rejectSeries(10L, "Not available for this project");
+
+        assertEquals("EDITOR_ASSIGNMENT_REQUIRED", series.getStatus());
+        verify(mangakaService, never()).findEditorWithLeastWorkloadExcluding(any(), any());
+    }
+
+    @Test
+    void requestSeriesDropCreatesBoardReviewFlow() {
+        MangaSeries series = series(10L);
+        series.setStatus("TANTOU_REVIEW");
+        when(mangaSeriesRepository.findById(10L)).thenReturn(Optional.of(series));
+        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(series.getTantouEditor()));
+        when(chapterRepository.findBySeriesSeriesIdOrderByChapterNumberAsc(10L)).thenReturn(List.of());
+        when(pageRepository.findByChapterSeriesSeriesIdOrderByPageNumberAsc(10L)).thenReturn(List.of());
+        when(taskRepository.findByChapterSeriesSeriesIdOrderByDueDateAsc(10L)).thenReturn(List.of());
+        when(scheduleRepository.findBySeriesSeriesIdOrderByPublishDateAsc(10L)).thenReturn(List.of());
+        when(boardDecisionRepository.findBySeriesSeriesIdOrderByDecisionDateDesc(10L)).thenReturn(List.of());
+        when(commentRepository.findByPageChapterSeriesSeriesIdOrderByCreatedAtDesc(10L)).thenReturn(List.of());
+
+        var response = service.requestSeriesDrop(10L, "Quality remains below the agreed target");
+
+        assertEquals("DROP_REQUESTED", series.getStatus());
+        assertEquals("DROP_REQUESTED", response.series().status());
+        verify(editorialBoardService).assignBoardPanel(series);
+        verify(seriesHistoryService).record(
+                eq(series),
+                eq(series.getTantouEditor()),
+                eq("EDITOR_REQUESTED_SERIES_DROP"),
+                eq("TANTOU_REVIEW"),
+                eq("DROP_REQUESTED"),
+                eq("Quality remains below the agreed target"),
+                eq(10L));
     }
 
     @Test
@@ -446,6 +514,15 @@ class TantouEditorServiceTests {
         series.setStatus("Published");
         series.setCreatedAt(LocalDateTime.now().minusDays(10));
         return series;
+    }
+
+    private SeriesEditorRejection rejection(MangaSeries series, User editor) {
+        SeriesEditorRejection rejection = new SeriesEditorRejection();
+        rejection.setSeries(series);
+        rejection.setEditor(editor);
+        rejection.setReason("Rejected");
+        rejection.setRejectedAt(LocalDateTime.now());
+        return rejection;
     }
 
     private Chapter chapter(Long id, MangaSeries series) {

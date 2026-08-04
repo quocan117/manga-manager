@@ -86,8 +86,10 @@ public class EditorialBoardService {
     private static final String PUBLISHING_SERIES_STATUS = "PUBLISHING";
     private static final String PUBLISHED_SERIES_STATUS = "PUBLISHED";
     private static final String REVISION_REQUESTED_STATUS = "REVISION_REQUESTED";
+    private static final String TANTOU_REVIEW_STATUS = "TANTOU_REVIEW";
     private static final String PENDING_EDITOR_STATUS = "PENDING_EDITOR";
     private static final String EDITOR_ASSIGNMENT_REQUIRED_STATUS = "EDITOR_ASSIGNMENT_REQUIRED";
+    private static final String DROP_REQUESTED_STATUS = "DROP_REQUESTED";
     private static final String CANCELLED_SERIES_STATUS = "CANCELLED";
     private static final String APPROVE_DECISION = "APPROVE";
     private static final String REJECT_DECISION = "REJECT";
@@ -96,6 +98,8 @@ public class EditorialBoardService {
     private static final Set<String> PUBLISH_FREQUENCIES = Set.of("DAILY", "WEEKLY", "MONTHLY");
     private static final String SERIES_RANKING_AT_RISK_NOTIFICATION = "SERIES_RANKING_AT_RISK";
     private static final String SERIES_SUBMISSION_PURPOSE = "SERIES_SUBMISSION";
+    private static final String EDITOR_DOSSIER_PURPOSE = "EDITOR_DOSSIER";
+    private static final String FINAL_ARCHIVE_DOSSIER_PURPOSE = "FINAL_ARCHIVE_DOSSIER";
     private static final String CHAPTER_MANUSCRIPT_PURPOSE = "CHAPTER_MANUSCRIPT";
     private static final int BOARD_PANEL_SIZE = 3;
     private static final Set<String> APPROVED_SERIES_STATUSES = Set.of(
@@ -216,6 +220,19 @@ public class EditorialBoardService {
         return boardDecisionRepository.findPanelDecisionsBySeriesIdOrderByDecisionDateDesc(seriesId)
                 .stream()
                 .map(this::toBoardDecisionResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<ReviewSeriesResponse> getDropRequestedSeries() {
+        User currentUser = currentEditorialBoard();
+        return seriesBoardAssignmentRepository
+                .findByBoardMemberUserIdAndSeriesStatusIgnoreCaseOrderByAssignedAtDesc(
+                        currentUser.getUserId(), DROP_REQUESTED_STATUS)
+                .stream()
+                .map(SeriesBoardAssignment::getSeries)
+                .filter(Objects::nonNull)
+                .map(series -> toReviewSeriesResponse(series, currentUser))
                 .toList();
     }
 
@@ -498,6 +515,8 @@ public class EditorialBoardService {
         user.setAvatarUrl(blankToNull(request.avatarUrl()));
         user.setStatus(normalizeStatus(request.status(), "ACTIVE"));
         user.setRole(resolveManagedRole(request.role()));
+        user.setSpecialty(blankToNull(request.specialty()));
+        validateEditorSpecialty(user);
         user.setCreatedBy(currentEditorialBoard());
         user.setCreatedAt(LocalDateTime.now());
 
@@ -549,8 +568,11 @@ public class EditorialBoardService {
         MangaSeries series = mangaSeriesRepository.findByIdForUpdate(seriesId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Series not found"));
-        if (!REVIEWING_SERIES_STATUS.equalsIgnoreCase(series.getStatus())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Only reviewing series can be voted on");
+        if (!REVIEWING_SERIES_STATUS.equalsIgnoreCase(series.getStatus())
+                && !DROP_REQUESTED_STATUS.equalsIgnoreCase(series.getStatus())) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Only reviewing series or drop requests can be voted on");
         }
         if (seriesBoardAssignmentRepository
                 .findBySeriesSeriesIdAndBoardMemberUserId(seriesId, boardMember.getUserId())
@@ -661,6 +683,10 @@ public class EditorialBoardService {
         if (request.status() != null && !request.status().isBlank()) {
             user.setStatus(normalizeStatus(request.status(), user.getStatus()));
         }
+        if (request.specialty() != null) {
+            user.setSpecialty(blankToNull(request.specialty()));
+        }
+        validateEditorSpecialty(user);
 
         return toUserResponse(userRepository.save(user));
     }
@@ -854,7 +880,8 @@ public class EditorialBoardService {
         if (!existing.isEmpty()) {
             return existing;
         }
-        if (!REVIEWING_SERIES_STATUS.equalsIgnoreCase(series.getStatus())) {
+        if (!REVIEWING_SERIES_STATUS.equalsIgnoreCase(series.getStatus())
+                && !DROP_REQUESTED_STATUS.equalsIgnoreCase(series.getStatus())) {
             return List.of();
         }
 
@@ -1034,9 +1061,31 @@ public class EditorialBoardService {
         long approveVotes = countDecisions(series.getSeriesId(), APPROVE_DECISION);
         long rejectVotes = countDecisions(series.getSeriesId(), REJECT_DECISION);
 
+        if (DROP_REQUESTED_STATUS.equalsIgnoreCase(series.getStatus())) {
+            if (approveVotes >= requiredVotes) {
+                series.setStatus(CANCELLED_SERIES_STATUS);
+                mangaSeriesRepository.save(series);
+                notifyBoardResult(
+                        series,
+                        "SERIES_DROP_APPROVED",
+                        "The Editorial Board approved the drop request for series \""
+                                + series.getTitle() + "\".");
+            } else if (rejectVotes >= requiredVotes) {
+                series.setStatus(TANTOU_REVIEW_STATUS);
+                mangaSeriesRepository.save(series);
+                notifyBoardResult(
+                        series,
+                        "SERIES_DROP_REJECTED",
+                        "The Editorial Board rejected the drop request for series \""
+                                + series.getTitle() + "\".");
+            }
+            return;
+        }
+
         if (approveVotes >= requiredVotes) {
             series.setStatus(PENDING_SCHEDULE_SERIES_STATUS);
             assignPublicationCoordinator(series);
+            freezeFinalDossier(series);
             mangaSeriesRepository.save(series);
         } else if (rejectVotes >= requiredVotes) {
             series.setStatus(REVISION_REQUESTED_STATUS);
@@ -1148,6 +1197,57 @@ public class EditorialBoardService {
                 : value.trim();
     }
 
+    private void validateEditorSpecialty(User user) {
+        boolean tantouEditor = user.getRole() != null
+                && "TANTOU_EDITOR".equalsIgnoreCase(user.getRole().getRoleName());
+        if (tantouEditor && (user.getSpecialty() == null || user.getSpecialty().isBlank())) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Specialty is required for a tantou editor");
+        }
+        if (!tantouEditor) {
+            user.setSpecialty(null);
+        }
+    }
+
+    private void freezeFinalDossier(MangaSeries series) {
+        if (seriesFileRepository.existsBySeriesSeriesIdAndPurpose(
+                series.getSeriesId(), FINAL_ARCHIVE_DOSSIER_PURPOSE)) {
+            return;
+        }
+        List<SeriesFile> sourceFiles = seriesFileRepository
+                .findBySeriesSeriesIdAndPurposeInAndActiveTrueOrderByUploadedAtDesc(
+                        series.getSeriesId(),
+                        List.of(SERIES_SUBMISSION_PURPOSE, EDITOR_DOSSIER_PURPOSE));
+        if (sourceFiles == null || sourceFiles.isEmpty()) {
+            return;
+        }
+        LocalDateTime archivedAt = LocalDateTime.now();
+        List<SeriesFile> archiveFiles = sourceFiles.stream()
+                .map(source -> finalArchiveCopy(source, archivedAt))
+                .toList();
+        seriesFileRepository.saveAll(archiveFiles);
+    }
+
+    private SeriesFile finalArchiveCopy(SeriesFile source, LocalDateTime archivedAt) {
+        SeriesFile archive = new SeriesFile();
+        archive.setSeries(source.getSeries());
+        archive.setTask(source.getTask());
+        archive.setChapter(source.getChapter());
+        archive.setUploadedBy(source.getUploadedBy());
+        archive.setFileName(source.getFileName());
+        archive.setOriginalFileName(source.getOriginalFileName());
+        archive.setFileUrl(source.getFileUrl());
+        archive.setContentType(source.getContentType());
+        archive.setFileSize(source.getFileSize());
+        archive.setFileType(source.getFileType());
+        archive.setRoundNumber(source.getRoundNumber());
+        archive.setPurpose(FINAL_ARCHIVE_DOSSIER_PURPOSE);
+        archive.setActive(true);
+        archive.setUploadedAt(archivedAt);
+        return archive;
+    }
+
     private UserResponse toUserResponse(User user) {
         User createdBy = user.getCreatedBy();
         return new UserResponse(
@@ -1159,7 +1259,8 @@ public class EditorialBoardService {
                 user.getRole() == null ? null : user.getRole().getRoleName(),
                 createdBy == null ? null : createdBy.getUserId(),
                 createdBy == null ? null : createdBy.getUsername(),
-                user.getCreatedAt());
+                user.getCreatedAt(),
+                user.getSpecialty());
     }
 
     private ReviewSeriesResponse toReviewSeriesResponse(MangaSeries series, User currentUser) {
@@ -1221,13 +1322,7 @@ public class EditorialBoardService {
                         .map(this::toBoardMemberAssignmentResponse)
                         .toList(),
                 currentUserAssigned
-                        ? seriesFileRepository
-                                .findBySeriesSeriesIdAndPurposeAndActiveTrueOrderByUploadedAtDesc(
-                                        series.getSeriesId(),
-                                        SERIES_SUBMISSION_PURPOSE)
-                                .stream()
-                                .map(this::toUploadedFileResponse)
-                                .toList()
+                        ? reviewDossierFiles(series.getSeriesId())
                         : List.of(),
                 rejectedEditors,
                 seriesHistoryService.getSeriesHistory(series.getSeriesId())
@@ -1245,7 +1340,8 @@ public class EditorialBoardService {
                 editor == null ? null : editor.getEmail(),
                 mangakaService.countTantouEditorActiveWorkload(editorId),
                 rejection.getReason(),
-                rejection.getRejectedAt());
+                rejection.getRejectedAt(),
+                editor == null ? null : editor.getSpecialty());
     }
 
     private BoardDecisionResponse toBoardDecisionResponse(BoardDecision decision) {
@@ -1392,14 +1488,27 @@ public class EditorialBoardService {
                 progress,
                 isPublicationCoordinator(series, currentUser),
                 currentUserAssigned
-                        ? seriesFileRepository
-                                .findBySeriesSeriesIdAndPurposeAndActiveTrueOrderByUploadedAtDesc(
-                                        series.getSeriesId(),
-                                        SERIES_SUBMISSION_PURPOSE)
-                                .stream()
-                                .map(this::toUploadedFileResponse)
-                                .toList()
+                        ? reviewDossierFiles(series.getSeriesId())
                         : List.of());
+    }
+
+    private List<UploadedFileResponse> reviewDossierFiles(Long seriesId) {
+        List<SeriesFile> files = new ArrayList<>();
+        files.addAll(seriesFileRepository
+                .findBySeriesSeriesIdAndPurposeAndActiveTrueOrderByUploadedAtDesc(
+                        seriesId, SERIES_SUBMISSION_PURPOSE));
+        List<SeriesFile> editorFiles = seriesFileRepository
+                .findBySeriesSeriesIdAndPurposeAndActiveTrueOrderByUploadedAtDesc(
+                        seriesId, EDITOR_DOSSIER_PURPOSE);
+        if (editorFiles != null) {
+            files.addAll(editorFiles);
+        }
+        return files.stream()
+                .sorted(Comparator.comparing(
+                        SeriesFile::getUploadedAt,
+                        Comparator.nullsLast(Comparator.reverseOrder())))
+                .map(this::toUploadedFileResponse)
+                .toList();
     }
 
     private void requireBoardPanelMembership(Long seriesId, User currentUser) {

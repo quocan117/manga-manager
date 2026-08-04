@@ -24,6 +24,10 @@ public class User {
 
     private String password;
     private String avatarUrl;
+
+    @Column(columnDefinition = "NVARCHAR(MAX)")
+    private String specialty;
+
     private String status;
     private LocalDateTime createdAt;
 

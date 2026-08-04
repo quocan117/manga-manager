@@ -9,5 +9,7 @@ import java.util.Optional;
 public interface SeriesEditorRejectionRepository extends JpaRepository<SeriesEditorRejection, Long> {
     List<SeriesEditorRejection> findBySeriesSeriesId(Long seriesId);
 
+    long countBySeriesSeriesId(Long seriesId);
+
     Optional<SeriesEditorRejection> findBySeriesSeriesIdAndEditorUserId(Long seriesId, Long editorId);
 }

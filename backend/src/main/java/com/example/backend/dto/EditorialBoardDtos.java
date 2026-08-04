@@ -22,7 +22,17 @@ public final class EditorialBoardDtos {
                         @NotBlank @Size(min = 8) String password,
                         @NotBlank String role,
                         String avatarUrl,
-                        String status) {
+                        String status,
+                        String specialty) {
+                public CreateUserRequest(
+                                String username,
+                                String email,
+                                String password,
+                                String role,
+                                String avatarUrl,
+                                String status) {
+                        this(username, email, password, role, avatarUrl, status, null);
+                }
         }
 
         public record UpdateUserRequest(
@@ -31,7 +41,17 @@ public final class EditorialBoardDtos {
                         @Size(min = 8) String password,
                         String role,
                         String avatarUrl,
-                        String status) {
+                        String status,
+                        String specialty) {
+                public UpdateUserRequest(
+                                String username,
+                                String email,
+                                String password,
+                                String role,
+                                String avatarUrl,
+                                String status) {
+                        this(username, email, password, role, avatarUrl, status, null);
+                }
         }
 
         public record UserResponse(
@@ -43,7 +63,21 @@ public final class EditorialBoardDtos {
                         String role,
                         Long createdById,
                         String createdByName,
-                        LocalDateTime createdAt) {
+                        LocalDateTime createdAt,
+                        String specialty) {
+                public UserResponse(
+                                Long id,
+                                String username,
+                                String email,
+                                String avatarUrl,
+                                String status,
+                                String role,
+                                Long createdById,
+                                String createdByName,
+                                LocalDateTime createdAt) {
+                        this(id, username, email, avatarUrl, status, role,
+                                        createdById, createdByName, createdAt, null);
+                }
         }
 
         public record BoardDecisionRequest(
@@ -138,7 +172,17 @@ public final class EditorialBoardDtos {
                         String email,
                         long currentTaskCount,
                         String reason,
-                        LocalDateTime rejectedAt) {
+                        LocalDateTime rejectedAt,
+                        String specialty) {
+                public RejectedEditorResponse(
+                                Long editorId,
+                                String name,
+                                String email,
+                                long currentTaskCount,
+                                String reason,
+                                LocalDateTime rejectedAt) {
+                        this(editorId, name, email, currentTaskCount, reason, rejectedAt, null);
+                }
         }
 
         public record AssignedSeriesResponse(

@@ -7,6 +7,7 @@ public record ChapterRevisionNoteResponse(
         Long chapterId,
         String imageUrl,
         String description,
+        Integer roundNumber,
         Integer orderIndex,
         LocalDateTime createdAt) {
 }

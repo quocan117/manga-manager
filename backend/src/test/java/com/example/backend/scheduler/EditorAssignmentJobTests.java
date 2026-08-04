@@ -70,16 +70,17 @@ class EditorAssignmentJobTests {
         when(mangaSeriesRepository.findOverdueUnlockedSeries(eq("PENDING_EDITOR"), any(LocalDateTime.class)))
                 .thenReturn(List.of(series));
         when(seriesEditorRejectionRepository.findBySeriesSeriesId(10L)).thenReturn(List.of(rejection));
+        when(seriesEditorRejectionRepository.countBySeriesSeriesId(10L)).thenReturn(2L);
         when(notificationRepository.findByReferenceIdAndUserUserIdAndTypeInAndIsReadFalse(
                 eq(10L), eq(2L), any())).thenReturn(List.of());
-        when(mangakaService.findEditorWithLeastWorkloadExcluding(Set.of(2L, 3L)))
+        when(mangakaService.findEditorWithLeastWorkloadExcluding(Set.of(2L, 3L), "Action"))
                 .thenReturn(Optional.of(nextEditor));
 
         job.revokeAndReassignOverdueSeries();
 
         assertEquals(nextEditor, series.getTantouEditor());
         assertEquals("PENDING_EDITOR", series.getStatus());
-        verify(mangakaService).findEditorWithLeastWorkloadExcluding(Set.of(2L, 3L));
+        verify(mangakaService).findEditorWithLeastWorkloadExcluding(Set.of(2L, 3L), "Action");
         verify(seriesHistoryService).record(
                 series,
                 oldEditor,
@@ -102,9 +103,10 @@ class EditorAssignmentJobTests {
         when(mangaSeriesRepository.findOverdueUnlockedSeries(eq("PENDING_EDITOR"), any(LocalDateTime.class)))
                 .thenReturn(List.of(series));
         when(seriesEditorRejectionRepository.findBySeriesSeriesId(10L)).thenReturn(List.of(rejection));
+        when(seriesEditorRejectionRepository.countBySeriesSeriesId(10L)).thenReturn(2L);
         when(notificationRepository.findByReferenceIdAndUserUserIdAndTypeInAndIsReadFalse(
                 eq(10L), eq(2L), any())).thenReturn(List.of());
-        when(mangakaService.findEditorWithLeastWorkloadExcluding(Set.of(2L, 3L)))
+        when(mangakaService.findEditorWithLeastWorkloadExcluding(Set.of(2L, 3L), "Action"))
                 .thenReturn(Optional.empty());
         when(userRepository.findByRoleRoleNameAndStatusOrderByUsernameAsc("EDITORIAL_BOARD", "ACTIVE"))
                 .thenReturn(List.of(board));
@@ -131,6 +133,7 @@ class EditorAssignmentJobTests {
         series.setSeriesId(10L);
         series.setTitle("Series");
         series.setStatus("PENDING_EDITOR");
+        series.setGenre("Action");
         series.setAuthor(user(1L, "author@manga.test"));
         series.setTantouEditor(oldEditor);
         series.setEditorAssignedAt(LocalDateTime.now().minusHours(25));

@@ -66,6 +66,11 @@ public class EditorialBoardController {
         return service.getEditorAssignmentRequiredSeries();
     }
 
+    @GetMapping("/series/drop-requested")
+    public List<ReviewSeriesResponse> getDropRequestedSeries() {
+        return service.getDropRequestedSeries();
+    }
+
     @GetMapping("/series/my-assigned")
     public List<AssignedSeriesResponse> getMyAssignedSeries() {
         return service.getMyAssignedSeries();

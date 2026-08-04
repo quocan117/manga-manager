@@ -15,8 +15,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.example.backend.dto.ChapterRevisionNoteResponse;
 import com.example.backend.dto.MangakaDtos.NotificationResponse;
@@ -28,6 +30,7 @@ import com.example.backend.dto.TantouEditorDtos.DossierResponse;
 import com.example.backend.dto.TantouEditorDtos.ManuscriptResponse;
 import com.example.backend.dto.TantouEditorDtos.ProgressResponse;
 import com.example.backend.dto.TantouEditorDtos.RejectSeriesRequest;
+import com.example.backend.dto.TantouEditorDtos.RequestDropSeriesRequest;
 import com.example.backend.dto.TantouEditorDtos.ReviewDecisionRequest;
 import com.example.backend.dto.TantouEditorDtos.SeriesSummaryResponse;
 import com.example.backend.service.TantouEditorService;
@@ -100,11 +103,21 @@ public class TantouEditorController {
         return service.getDossier(seriesId);
     }
 
-    @PatchMapping("/series/{seriesId}/submit-to-board")
+    @PatchMapping(
+            value = "/series/{seriesId}/submit-to-board",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public DossierResponse submitToEditorialBoard(
             @PathVariable Long seriesId,
-            @RequestBody(required = false) ReviewDecisionRequest request) {
-        return service.submitToEditorialBoard(seriesId, request == null ? null : request.note());
+            @RequestParam(required = false) String note,
+            @RequestParam(value = "files", required = false) List<MultipartFile> files) {
+        return service.submitToEditorialBoard(seriesId, note, files);
+    }
+
+    @PatchMapping("/series/{seriesId}/request-drop")
+    public DossierResponse requestSeriesDrop(
+            @PathVariable Long seriesId,
+            @Valid @RequestBody RequestDropSeriesRequest request) {
+        return service.requestSeriesDrop(seriesId, request.reason());
     }
 
     @PatchMapping("/series/{seriesId}/request-revision")

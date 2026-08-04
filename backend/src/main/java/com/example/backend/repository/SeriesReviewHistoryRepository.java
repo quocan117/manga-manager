@@ -7,4 +7,6 @@ import java.util.List;
 
 public interface SeriesReviewHistoryRepository extends JpaRepository<SeriesReviewHistory, Long> {
     List<SeriesReviewHistory> findBySeriesSeriesIdOrderByCreatedAtDesc(Long seriesId);
+
+    List<SeriesReviewHistory> findBySeriesSeriesIdOrderByCreatedAtAsc(Long seriesId);
 }

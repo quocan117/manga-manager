@@ -17,6 +17,34 @@ public interface SeriesFileRepository extends JpaRepository<SeriesFile, Long> {
             Long seriesId,
             String purpose);
 
+    List<SeriesFile> findBySeriesSeriesIdOrderByRoundNumberAscUploadedAtAsc(Long seriesId);
+
+    List<SeriesFile> findBySeriesSeriesIdAndPurposeInAndActiveTrueOrderByUploadedAtDesc(
+            Long seriesId,
+            List<String> purposes);
+
+    boolean existsBySeriesSeriesIdAndPurpose(Long seriesId, String purpose);
+
+    @Query("""
+            select coalesce(max(file.roundNumber), 0)
+            from SeriesFile file
+            where file.series.seriesId = :seriesId
+              and file.purpose = :purpose
+            """)
+    int findMaxRoundNumberBySeriesAndPurpose(
+            @Param("seriesId") Long seriesId,
+            @Param("purpose") String purpose);
+
+    @Query("""
+            select coalesce(max(file.roundNumber), 0)
+            from SeriesFile file
+            where file.chapter.chapterId = :chapterId
+              and file.purpose = :purpose
+            """)
+    int findMaxRoundNumberByChapterAndPurpose(
+            @Param("chapterId") Long chapterId,
+            @Param("purpose") String purpose);
+
     List<SeriesFile> findByChapterChapterIdAndPurposeAndActiveTrueOrderByUploadedAtAsc(
             Long chapterId,
             String purpose);

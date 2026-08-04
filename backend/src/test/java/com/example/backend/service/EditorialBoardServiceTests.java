@@ -209,6 +209,13 @@ class EditorialBoardServiceTests {
                 decision.setSeries(series);
                 decision.setBoardMember(board);
                 decision.setDecisionType("APPROVE");
+                SeriesFile dossier = new SeriesFile();
+                dossier.setSeries(series);
+                dossier.setFileName("dossier.pdf");
+                dossier.setFileUrl("series-files/series-5/dossier.pdf");
+                dossier.setPurpose("SERIES_SUBMISSION");
+                dossier.setRoundNumber(1);
+                dossier.setActive(true);
                 SeriesBoardAssignment assignment = new SeriesBoardAssignment();
                 assignment.setSeries(series);
                 assignment.setBoardMember(board);
@@ -237,6 +244,10 @@ class EditorialBoardServiceTests {
                 when(mangaSeriesRepository.save(series)).thenReturn(series);
                 when(boardDecisionRepository.findPanelDecisionsBySeriesIdOrderByDecisionDateDesc(5L))
                                 .thenReturn(List.of(decision));
+                when(seriesFileRepository
+                                .findBySeriesSeriesIdAndPurposeInAndActiveTrueOrderByUploadedAtDesc(
+                                        5L, List.of("SERIES_SUBMISSION", "EDITOR_DOSSIER")))
+                                .thenReturn(List.of(dossier));
 
                 var response = service.voteSeries(5L, new BoardDecisionRequest("APPROVE", "Ready"));
 
@@ -249,6 +260,7 @@ class EditorialBoardServiceTests {
                 assertEquals("APPROVE", response.currentUserDecision());
                 assertTrue(response.currentUserAssigned());
                 verify(mangaSeriesRepository).save(series);
+                verify(seriesFileRepository).saveAll(any());
         }
 
         @Test

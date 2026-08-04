@@ -25,6 +25,7 @@ import java.util.Set;
 public class EditorAssignmentJob {
     private static final String ASSIGNMENT_TYPE = "SYSTEM_ASSIGNMENT";
     private static final List<String> ASSIGNMENT_TYPES = Arrays.asList("NEW_ASSIGNMENT", "SYSTEM_ASSIGNMENT");
+    private static final int MAX_AUTOMATIC_EDITOR_REJECTIONS = 3;
 
     private final MangaSeriesRepository mangaSeriesRepository;
     private final NotificationRepository notificationRepository;
@@ -57,17 +58,27 @@ public class EditorAssignmentJob {
         for (MangaSeries series : overdueSeries) {
             User oldEditor = series.getTantouEditor();
             Long oldEditorId = oldEditor != null ? oldEditor.getUserId() : null;
+            if (oldEditor != null) {
+                recordTimedOutEditor(series, oldEditor);
+            }
             Set<Long> excludedEditorIds = rejectedEditorIds(series.getSeriesId());
             if (oldEditorId != null) {
                 excludedEditorIds.add(oldEditorId);
             }
+            long rejectionCount = seriesEditorRejectionRepository
+                    .countBySeriesSeriesId(series.getSeriesId());
 
             if (oldEditor != null) {
                 dismissAssignmentNotifications(series.getSeriesId(), oldEditor.getUserId());
             }
 
+            if (rejectionCount >= MAX_AUTOMATIC_EDITOR_REJECTIONS) {
+                moveToBoardAssignmentRequired(series, oldEditor);
+                continue;
+            }
+
             Optional<User> newEditorCandidate = mangakaService
-                    .findEditorWithLeastWorkloadExcluding(excludedEditorIds);
+                    .findEditorWithLeastWorkloadExcluding(excludedEditorIds, series.getGenre());
             if (newEditorCandidate.isEmpty()) {
                 moveToBoardAssignmentRequired(series, oldEditor);
                 continue;
@@ -88,8 +99,8 @@ public class EditorAssignmentJob {
                     newEditor.getUserId());
 
             createNotification(series.getAuthor(), "SYSTEM", series.getSeriesId(),
-                    "Series '" + series.getTitle() + "' was automatically reassigned to editor "
-                            + newEditor.getUsername() + " because the previous editor did not respond in time.");
+                    "Series '" + series.getTitle()
+                            + "' was automatically reassigned to another suitable editor because the previous editor did not respond in time.");
 
             createNotification(newEditor, ASSIGNMENT_TYPE, series.getSeriesId(),
                     "You were automatically assigned series '" + series.getTitle()
@@ -112,6 +123,17 @@ public class EditorAssignmentJob {
             }
         }
         return rejectedEditorIds;
+    }
+
+    private void recordTimedOutEditor(MangaSeries series, User editor) {
+        SeriesEditorRejection rejection = seriesEditorRejectionRepository
+                .findBySeriesSeriesIdAndEditorUserId(series.getSeriesId(), editor.getUserId())
+                .orElseGet(SeriesEditorRejection::new);
+        rejection.setSeries(series);
+        rejection.setEditor(editor);
+        rejection.setReason("Assignment was not accepted within 24 hours");
+        rejection.setRejectedAt(LocalDateTime.now());
+        seriesEditorRejectionRepository.save(rejection);
     }
 
     private void moveToBoardAssignmentRequired(MangaSeries series, User oldEditor) {

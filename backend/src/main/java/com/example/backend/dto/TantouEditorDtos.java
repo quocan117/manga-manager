@@ -99,6 +99,10 @@ public final class TantouEditorDtos {
             @NotBlank(message = "Vui lòng nhập lý do từ chối") String reason) {
     }
 
+    public record RequestDropSeriesRequest(
+            @NotBlank(message = "Drop request reason is required") String reason) {
+    }
+
     public record BoardDecisionResponse(
             Long id,
             Long boardMemberId,

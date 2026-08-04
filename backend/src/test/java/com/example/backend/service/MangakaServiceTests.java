@@ -19,6 +19,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -227,9 +228,10 @@ class MangakaServiceTests {
         series.setSeriesId(20L);
         series.setAuthor(user(1L, EMAIL));
         series.setStatus("DRAFT");
+        series.setGenre("Action");
         User editor = tantouEditor(3L, "tantou1@manga.test");
         when(mangaSeriesRepository.findById(20L)).thenReturn(Optional.of(series));
-        when(userRepository.findByRoleRoleNameAndStatusOrderByUsernameAsc("TANTOU_EDITOR", "ACTIVE"))
+        when(userRepository.findActiveTantouEditorsWithSpecialtyOrderByUsernameAsc())
                 .thenReturn(List.of(editor));
         when(mangaSeriesRepository.countByTantouEditorUserIdAndStatusIn(eq(3L), any()))
                 .thenReturn(0L);
@@ -252,8 +254,9 @@ class MangakaServiceTests {
         series.setTitle("Needs Editor");
         series.setAuthor(mangaka);
         series.setStatus("DRAFT");
+        series.setGenre("Action");
         when(mangaSeriesRepository.findById(20L)).thenReturn(Optional.of(series));
-        when(userRepository.findByRoleRoleNameAndStatusOrderByUsernameAsc("TANTOU_EDITOR", "ACTIVE"))
+        when(userRepository.findActiveTantouEditorsWithSpecialtyOrderByUsernameAsc())
                 .thenReturn(List.of());
         when(userRepository.findByRoleRoleNameAndStatusOrderByUsernameAsc("EDITORIAL_BOARD", "ACTIVE"))
                 .thenReturn(List.of(board));
@@ -282,10 +285,11 @@ class MangakaServiceTests {
         series.setSeriesId(20L);
         series.setAuthor(user(1L, EMAIL));
         series.setStatus("DRAFT");
+        series.setGenre("Action");
         User busyEditor = tantouEditor(3L, "busy@manga.test");
         User availableEditor = tantouEditor(4L, "available@manga.test");
         when(mangaSeriesRepository.findById(20L)).thenReturn(Optional.of(series));
-        when(userRepository.findByRoleRoleNameAndStatusOrderByUsernameAsc("TANTOU_EDITOR", "ACTIVE"))
+        when(userRepository.findActiveTantouEditorsWithSpecialtyOrderByUsernameAsc())
                 .thenReturn(List.of(busyEditor, availableEditor));
         when(mangaSeriesRepository.countByTantouEditorUserIdAndStatusIn(eq(3L), any()))
                 .thenReturn(2L);
@@ -305,10 +309,11 @@ class MangakaServiceTests {
         series.setSeriesId(20L);
         series.setAuthor(user(1L, EMAIL));
         series.setStatus("DRAFT");
+        series.setGenre("Action");
         User firstEditor = tantouEditor(3L, "first@manga.test");
         User secondEditor = tantouEditor(4L, "second@manga.test");
         when(mangaSeriesRepository.findById(20L)).thenReturn(Optional.of(series));
-        when(userRepository.findByRoleRoleNameAndStatusOrderByUsernameAsc("TANTOU_EDITOR", "ACTIVE"))
+        when(userRepository.findActiveTantouEditorsWithSpecialtyOrderByUsernameAsc())
                 .thenReturn(List.of(firstEditor, secondEditor));
         when(mangaSeriesRepository.countByTantouEditorUserIdAndStatusIn(eq(3L), any()))
                 .thenReturn(1L);
@@ -331,6 +336,25 @@ class MangakaServiceTests {
         long workload = service.countTantouEditorActiveWorkload(3L);
 
         assertEquals(4L, workload);
+    }
+
+    @Test
+    void specialtyRoutingOnlyKeepsEditorsMatchingSeriesGenre() {
+        User sportsEditor = tantouEditor(3L, "sports@manga.test");
+        sportsEditor.setSpecialty("Sports, School");
+        User actionEditor = tantouEditor(4L, "action@manga.test");
+        actionEditor.setSpecialty("Action, Adventure");
+        when(userRepository.findActiveTantouEditorsWithSpecialtyOrderByUsernameAsc())
+                .thenReturn(List.of(sportsEditor, actionEditor));
+        when(mangaSeriesRepository.countByTantouEditorUserIdAndStatusIn(eq(4L), any()))
+                .thenReturn(0L);
+
+        Optional<User> selected = service.findEditorWithLeastWorkloadExcluding(
+                Set.of(), "Action, Drama");
+
+        assertEquals(actionEditor, selected.orElseThrow());
+        verify(mangaSeriesRepository, never())
+                .countByTantouEditorUserIdAndStatusIn(eq(3L), any());
     }
 
     @Test
@@ -1168,6 +1192,7 @@ class MangakaServiceTests {
         User editor = user(id, email);
         editor.setStatus("ACTIVE");
         editor.setRole(role("TANTOU_EDITOR"));
+        editor.setSpecialty("Action, Drama");
         return editor;
     }
 }

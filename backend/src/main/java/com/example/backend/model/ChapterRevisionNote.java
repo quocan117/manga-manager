@@ -33,6 +33,9 @@ public class ChapterRevisionNote {
     @Column(columnDefinition = "NVARCHAR(MAX)")
     private String description;
 
+    @Column(nullable = false)
+    private Integer roundNumber = 1;
+
     private Integer orderIndex;
     private LocalDateTime createdAt;
 }

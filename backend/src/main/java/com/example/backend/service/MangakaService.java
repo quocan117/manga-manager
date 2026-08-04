@@ -313,7 +313,14 @@ public class MangakaService {
         if (resubmission) {
             seriesFileRepository.deactivateActiveFiles(seriesId, SERIES_SUBMISSION_PURPOSE);
         }
-        storeSeriesFiles(series, mangaka, submissionFiles, SERIES_SUBMISSION_PURPOSE);
+        int submissionRound = seriesFileRepository.findMaxRoundNumberBySeriesAndPurpose(
+                seriesId, SERIES_SUBMISSION_PURPOSE) + 1;
+        storeSeriesFiles(
+                series,
+                mangaka,
+                submissionFiles,
+                SERIES_SUBMISSION_PURPOSE,
+                submissionRound);
 
         if (resubmission) {
             boardDecisionRepository.deleteBySeriesSeriesId(series.getSeriesId());
@@ -333,7 +340,8 @@ public class MangakaService {
             return toSeriesResponse(series);
         }
 
-        Optional<User> assignedEditorCandidate = findEditorWithLeastWorkloadExcluding(Set.of());
+        Optional<User> assignedEditorCandidate = findEditorWithLeastWorkloadExcluding(
+                Set.of(), series.getGenre());
         if (assignedEditorCandidate.isEmpty()) {
             series.setTantouEditor(null);
             series.setStatus(EDITOR_ASSIGNMENT_REQUIRED_STATUS);
@@ -546,9 +554,16 @@ public class MangakaService {
             manuscriptFiles = requireChapterManuscriptFiles(manuscriptFiles);
         }
 
+        int manuscriptRound = seriesFileRepository.findMaxRoundNumberByChapterAndPurpose(
+                chapterId, CHAPTER_MANUSCRIPT_PURPOSE) + 1;
         seriesFileRepository.deactivateActiveChapterFiles(chapterId, CHAPTER_MANUSCRIPT_PURPOSE);
         if (!manuscriptFiles.isEmpty()) {
-            storeChapterManuscriptFiles(series, chapter, series.getAuthor(), manuscriptFiles);
+            storeChapterManuscriptFiles(
+                    series,
+                    chapter,
+                    series.getAuthor(),
+                    manuscriptFiles,
+                    manuscriptRound);
         }
         String previousStatus = chapter.getStatus();
         chapter.setStatus(SUBMITTED_TO_EDITOR_STATUS);
@@ -1040,6 +1055,7 @@ public class MangakaService {
                 chapter == null ? null : chapter.getChapterId(),
                 note.getImageUrl(),
                 note.getDescription(),
+                note.getRoundNumber(),
                 note.getOrderIndex(),
                 note.getCreatedAt());
     }
@@ -1364,21 +1380,24 @@ public class MangakaService {
             MangaSeries series,
             User uploadedBy,
             List<MultipartFile> files,
-            String fileType) {
-        return storeSeriesFiles(series, null, uploadedBy, files, fileType);
+            String fileType,
+            Integer roundNumber) {
+        return storeSeriesFiles(series, null, uploadedBy, files, fileType, roundNumber);
     }
 
     private List<SeriesFile> storeChapterManuscriptFiles(
             MangaSeries series,
             Chapter chapter,
             User uploadedBy,
-            List<MultipartFile> files) {
+            List<MultipartFile> files,
+            Integer roundNumber) {
         return storeSeriesFiles(
                 series,
                 chapter,
                 uploadedBy,
                 files,
-                CHAPTER_MANUSCRIPT_PURPOSE);
+                CHAPTER_MANUSCRIPT_PURPOSE,
+                roundNumber);
     }
 
     private List<SeriesFile> storeSeriesFiles(
@@ -1386,7 +1405,8 @@ public class MangakaService {
             Chapter chapter,
             User uploadedBy,
             List<MultipartFile> files,
-            String fileType) {
+            String fileType,
+            Integer roundNumber) {
         if (files == null || files.isEmpty()) {
             return List.of();
         }
@@ -1432,13 +1452,37 @@ public class MangakaService {
             seriesFile.setContentType(blankToNull(file.getContentType()));
             seriesFile.setFileSize(file.getSize());
             seriesFile.setFileType(fileType);
-            seriesFile.setRoundNumber(1);
+            seriesFile.setRoundNumber(roundNumber == null || roundNumber < 1 ? 1 : roundNumber);
             seriesFile.setPurpose(fileType);
             seriesFile.setActive(true);
             seriesFile.setUploadedAt(LocalDateTime.now());
             savedFiles.add(seriesFileRepository.save(seriesFile));
         }
         return savedFiles;
+    }
+
+    @Transactional
+    public List<SeriesFile> storeSeriesWorkflowFiles(
+            MangaSeries series,
+            User uploadedBy,
+            List<MultipartFile> files,
+            String purpose,
+            Integer roundNumber) {
+        List<MultipartFile> presentFiles = files == null
+                ? List.of()
+                : files.stream()
+                        .filter(file -> file != null && !file.isEmpty())
+                        .toList();
+        if (presentFiles.isEmpty()) {
+            return List.of();
+        }
+        presentFiles = requireSeriesSubmissionFiles(presentFiles);
+        return storeSeriesFiles(series, uploadedBy, presentFiles, purpose, roundNumber);
+    }
+
+    public int currentSeriesSubmissionRound(Long seriesId) {
+        return Math.max(1, seriesFileRepository.findMaxRoundNumberBySeriesAndPurpose(
+                seriesId, SERIES_SUBMISSION_PURPOSE));
     }
 
     private void validatePageImage(MultipartFile image) {
@@ -1747,6 +1791,25 @@ public class MangakaService {
         List<User> editors = new ArrayList<>(userRepository
                 .findByRoleRoleNameAndStatusOrderByUsernameAsc("TANTOU_EDITOR", ACTIVE_STATUS));
 
+        return selectEditorByWorkload(editors, excludeEditorIds);
+    }
+
+    public Optional<User> findEditorWithLeastWorkloadExcluding(
+            Set<Long> excludeEditorIds,
+            String seriesGenres) {
+        Set<String> requiredGenres = normalizedTerms(seriesGenres);
+        if (requiredGenres.isEmpty()) {
+            return Optional.empty();
+        }
+        List<User> editors = new ArrayList<>(
+                userRepository.findActiveTantouEditorsWithSpecialtyOrderByUsernameAsc());
+        editors.removeIf(editor -> normalizedTerms(editor.getSpecialty()).stream()
+                .noneMatch(requiredGenres::contains));
+        return selectEditorByWorkload(editors, excludeEditorIds);
+    }
+
+    private Optional<User> selectEditorByWorkload(List<User> editors, Set<Long> excludeEditorIds) {
+
         if (excludeEditorIds != null && !excludeEditorIds.isEmpty()) {
             editors.removeIf(e -> excludeEditorIds.contains(e.getUserId()));
         }
@@ -1771,6 +1834,21 @@ public class MangakaService {
         }
         // Chọn ngẫu nhiên nếu có nhiều người cùng mức độ ưu tiên
         return Optional.of(candidates.get(ThreadLocalRandom.current().nextInt(candidates.size())));
+    }
+
+    private Set<String> normalizedTerms(String value) {
+        if (value == null || value.isBlank()) {
+            return Set.of();
+        }
+        String normalized = value.trim();
+        if (normalized.startsWith("[") && normalized.endsWith("]")) {
+            normalized = normalized.substring(1, normalized.length() - 1);
+        }
+        return Arrays.stream(normalized.split(","))
+                .map(term -> term.trim().replace("\"", ""))
+                .filter(term -> !term.isBlank())
+                .map(term -> term.toLowerCase(Locale.ROOT))
+                .collect(java.util.stream.Collectors.toSet());
     }
 
     public long countTantouEditorActiveWorkload(Long editorId) {

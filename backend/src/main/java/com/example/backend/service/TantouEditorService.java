@@ -77,8 +77,11 @@ public class TantouEditorService {
     private static final String SUBMITTED_TO_EDITOR_STATUS = "SUBMITTED_TO_EDITOR";
     private static final String APPROVED_CHAPTER_STATUS = "APPROVED";
     private static final String EDITOR_ASSIGNMENT_REQUIRED_STATUS = "EDITOR_ASSIGNMENT_REQUIRED";
+    private static final String DROP_REQUESTED_STATUS = "DROP_REQUESTED";
     private static final String SERIES_SUBMISSION_PURPOSE = "SERIES_SUBMISSION";
+    private static final String EDITOR_DOSSIER_PURPOSE = "EDITOR_DOSSIER";
     private static final String CHAPTER_MANUSCRIPT_PURPOSE = "CHAPTER_MANUSCRIPT";
+    private static final int MAX_AUTOMATIC_EDITOR_REJECTIONS = 3;
     private static final long MAX_REVISION_NOTE_IMAGE_SIZE_BYTES = 5L * 1024 * 1024;
     private static final Set<String> REVISION_NOTE_IMAGE_CONTENT_TYPES = Set.of(
             "image/jpeg", "image/png", "image/webp", "image/gif");
@@ -196,16 +199,32 @@ public class TantouEditorService {
 
     @Transactional
     public DossierResponse submitToEditorialBoard(Long seriesId, String note) {
+        return submitToEditorialBoard(seriesId, note, List.of());
+    }
+
+    @Transactional
+    public DossierResponse submitToEditorialBoard(
+            Long seriesId,
+            String note,
+            List<MultipartFile> files) {
         MangaSeries series = series(seriesId);
         if (!TANTOU_REVIEW_STATUS.equalsIgnoreCase(series.getStatus())) {
             throw conflict("Only series waiting for tantou editor review can be submitted to editorial board");
         }
+        User editor = currentUser();
+        mangakaService.storeSeriesWorkflowFiles(
+                series,
+                editor,
+                files,
+                EDITOR_DOSSIER_PURPOSE,
+                mangakaService.currentSeriesSubmissionRound(seriesId));
+        boardDecisionRepository.deleteBySeriesSeriesId(seriesId);
         String previousStatus = series.getStatus();
         series.setStatus(BOARD_REVIEW_STATUS);
         mangaSeriesRepository.save(series);
         seriesHistoryService.record(
                 series,
-                currentUser(),
+                editor,
                 "EDITOR_SUBMITTED_TO_BOARD",
                 previousStatus,
                 series.getStatus(),
@@ -217,6 +236,38 @@ public class TantouEditorService {
                 "Hồ sơ series \"" + series.getTitle() + "\" đã được trình lên Hội đồng Biên tập");
         notifyEditorialBoard("SERIES_SUBMITTED_TO_BOARD", seriesId,
                 "Series \"" + series.getTitle() + "\" was submitted for Editorial Board review.");
+        return getDossier(seriesId);
+    }
+
+    @Transactional
+    public DossierResponse requestSeriesDrop(Long seriesId, String reason) {
+        String requiredReason = blankToNull(reason);
+        if (requiredReason == null) {
+            throw badRequest("Drop request reason is required");
+        }
+        MangaSeries series = series(seriesId);
+        if (!TANTOU_REVIEW_STATUS.equalsIgnoreCase(series.getStatus())) {
+            throw conflict("Only a series under tantou review can request cancellation");
+        }
+        User editor = currentUser();
+        String previousStatus = series.getStatus();
+        series.setStatus(DROP_REQUESTED_STATUS);
+        mangaSeriesRepository.save(series);
+        seriesHistoryService.record(
+                series,
+                editor,
+                "EDITOR_REQUESTED_SERIES_DROP",
+                previousStatus,
+                series.getStatus(),
+                requiredReason,
+                seriesId);
+        editorialBoardService.assignBoardPanel(series);
+        notify(series.getAuthor(), "SERIES_DROP_REQUESTED", seriesId,
+                "The tantou editor requested cancellation review for series \""
+                        + series.getTitle() + "\".");
+        notifyEditorialBoard("SERIES_DROP_REQUESTED", seriesId,
+                "A cancellation request requires review for series \""
+                        + series.getTitle() + "\". Reason: " + requiredReason);
         return getDossier(seriesId);
     }
 
@@ -349,6 +400,10 @@ public class TantouEditorService {
         note.setImageUrl(storeChapterRevisionNoteImage(chapterId, orderIndex, image));
         note.setCanvasData(blankToNull(canvasData));
         note.setDescription(requiredDescription);
+        note.setRoundNumber(Math.max(
+                1,
+                seriesFileRepository.findMaxRoundNumberByChapterAndPurpose(
+                        chapterId, CHAPTER_MANUSCRIPT_PURPOSE)));
         note.setOrderIndex(orderIndex);
         note.setCreatedAt(LocalDateTime.now());
         return toChapterRevisionNoteResponse(chapterRevisionNoteRepository.save(note));
@@ -479,6 +534,12 @@ public class TantouEditorService {
         dismissAssignmentNotifications(seriesId, email);
         recordEditorRejection(series, oldEditor, requiredReason);
         Set<Long> rejectedEditorIds = rejectedEditorIds(seriesId);
+        long rejectionCount = seriesEditorRejectionRepository.countBySeriesSeriesId(seriesId);
+
+        if (rejectionCount >= MAX_AUTOMATIC_EDITOR_REJECTIONS) {
+            moveToBoardAssignmentRequired(series, oldEditor, requiredReason);
+            return;
+        }
 
         List<User> activeEditors = userRepository.findByRoleRoleNameAndStatusOrderByUsernameAsc(
                 "TANTOU_EDITOR", "ACTIVE");
@@ -492,7 +553,7 @@ public class TantouEditorService {
         }
 
         Optional<User> newEditorCandidate = mangakaService
-                .findEditorWithLeastWorkloadExcluding(rejectedEditorIds);
+                .findEditorWithLeastWorkloadExcluding(rejectedEditorIds, series.getGenre());
         if (newEditorCandidate.isEmpty()) {
             moveToBoardAssignmentRequired(series, oldEditor, requiredReason);
             return;
@@ -527,8 +588,7 @@ public class TantouEditorService {
         toAuthor.setType("SYSTEM");
         toAuthor.setReferenceId(series.getSeriesId());
         toAuthor.setMessage("Hồ sơ series '" + series.getTitle()
-                + "' đã được chuyển sang Biên tập viên khác (" + newEditor.getUsername()
-                + ") để tiếp tục kiểm tra.");
+                + "' đã được chuyển sang một Biên tập viên phù hợp để tiếp tục kiểm tra.");
         toAuthor.setCreatedAt(LocalDateTime.now());
         toAuthor.setIsRead(false);
         notificationRepository.save(toAuthor);
@@ -834,6 +894,7 @@ public class TantouEditorService {
                 chapter == null ? null : chapter.getChapterId(),
                 note.getImageUrl(),
                 note.getDescription(),
+                note.getRoundNumber(),
                 note.getOrderIndex(),
                 note.getCreatedAt());
     }

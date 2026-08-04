@@ -30,5 +30,14 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     List<User> findByRoleRoleNameAndStatusOrderByUsernameAsc(String roleName, String status);
 
+    @Query("""
+            select u from User u
+            where upper(u.role.roleName) = 'TANTOU_EDITOR'
+              and upper(u.status) = 'ACTIVE'
+              and u.specialty is not null
+            order by u.username asc
+            """)
+    List<User> findActiveTantouEditorsWithSpecialtyOrderByUsernameAsc();
+
     List<User> findByRoleRoleNameAndCreatedByOrderByUsernameAsc(String roleName, User createdBy);
 }
