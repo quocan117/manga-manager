@@ -6,13 +6,15 @@ public class LoginResponse {
     private String username;
     private String email;
     private String role;
+    private String specialty;
 
     public LoginResponse(
             String token,
             Long userId,
             String username,
             String email,
-            String role) {
+            String role,
+            String specialty) {
         this.token = token;
         this.userId = userId;
         this.username = username;
