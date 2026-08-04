@@ -1,0 +1,90 @@
+import React, { useState, useEffect } from "react";
+import { getSeriesArchiveHistory } from "../services/seriesService";
+import SeriesFileList from "./SeriesFileList";
+import { formatDateTime } from "../utils/formatDate";
+
+export default function DossierHistoryTimeline({ seriesId }) {
+  const [historyRounds, setHistoryRounds] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (seriesId) {
+      setLoading(true);
+      getSeriesArchiveHistory(seriesId)
+        .then((data) => setHistoryRounds(data || []))
+        .catch((err) =>
+          setError("Không thể tải lịch sử hồ sơ. Vui lòng thử lại sau."),
+        )
+        .finally(() => setLoading(false));
+    }
+  }, [seriesId]);
+
+  if (loading)
+    return <div className="text-center py-4">Đang tải lịch sử hồ sơ...</div>;
+  if (error) return <div className="alert alert-danger">{error}</div>;
+  if (historyRounds.length === 0)
+    return (
+      <div className="text-muted fst-italic py-3">
+        Chưa có lịch sử nộp/duyệt nào cho hồ sơ này.
+      </div>
+    );
+
+  return (
+    <div className="dossier-timeline">
+      {historyRounds.map((round, index) => (
+        <div
+          key={index}
+          className="card mb-4 shadow-sm border-0"
+          style={{ borderLeft: "4px solid #6c757d" }}
+        >
+          <div className="card-header bg-light d-flex justify-content-between align-items-center">
+            <span className="fw-bold text-dark">Vòng {round.roundNumber}</span>
+            <small className="text-muted">
+              Nộp lúc: {formatDateTime(round.submittedAt)}
+            </small>
+          </div>
+          <div className="card-body">
+            <h6 className="fw-bold mb-2">Tài liệu đã nộp:</h6>
+            <div className="mb-3">
+              <SeriesFileList
+                files={round.submittedFiles || []}
+                emptyText="Không có tài liệu nào được đính kèm."
+              />
+            </div>
+
+            <hr />
+            <h6 className="fw-bold mb-2">Kết quả đánh giá:</h6>
+            {round.decision ? (
+              <div className="bg-light p-3 rounded">
+                <p className="mb-1">
+                  <strong>Người duyệt:</strong> {round.reviewedBy}
+                </p>
+                <p className="mb-1">
+                  <strong>Quyết định:</strong>{" "}
+                  <span
+                    className={`badge ${round.decision === "APPROVE" ? "bg-success" : "bg-danger"}`}
+                  >
+                    {round.decision}
+                  </span>
+                </p>
+                <p className="mb-1">
+                  <strong>Ngày duyệt:</strong>{" "}
+                  {formatDateTime(round.reviewedAt)}
+                </p>
+                <p className="mb-0 mt-2 text-danger fst-italic">
+                  <strong>Nhận xét:</strong>{" "}
+                  {round.reviewNote || "Không có ghi chú thêm."}
+                </p>
+              </div>
+            ) : (
+              <p className="text-muted fst-italic mb-0">
+                Hồ sơ đang chờ được đánh giá...
+              </p>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}

@@ -1,14 +1,18 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getMySeries, getSeriesChapters } from "../../../services/mangakaService";
+import {
+  getMySeries,
+  getSeriesChapters,
+} from "../../../services/mangakaService";
 import SubmitSeriesModal from "../components/SubmitSeriesModal";
 import "../styles/SubmitSeriesModal.css";
 import { formatDateOnly } from "../../../utils/formatDate";
+import DossierHistoryTimeline from "../../../components/DossierHistoryTimeline";
 
 const SUBMITTABLE_STATUSES = ["DRAFT", "REVISION_REQUESTED"];
 const STATUS_LABELS = {
   DRAFT: "Bản nháp",
-  PENDING_EDITOR: "Chờ xác nhận",
+  PENDING_EDITOR: "Hệ thống đang tìm kiếm Biên tập viên phù hợp...",
   TANTOU_REVIEW: "Biên tập đang kiểm tra",
   REVIEWING: "Hội đồng đang xét duyệt",
   REVISION_REQUESTED: "Yêu cầu chỉnh sửa",
@@ -34,6 +38,7 @@ export default function MyManga() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [submittingSeries, setSubmittingSeries] = useState(null);
+  const [historyModalSeriesId, setHistoryModalSeriesId] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -88,7 +93,7 @@ export default function MyManga() {
       </div>
     );
   }
-  
+
   return (
     <div>
       <div className="d-flex justify-content-between align-items-center mb-4">
@@ -160,12 +165,13 @@ export default function MyManga() {
                     <strong>Status:</strong>{" "}
                     <StatusBadge status={item.status} />
                   </p>
-                  {item.tantouEditorName && (
-                    <p className="series-assigned-editor">
-                      👤 Biên tập phụ trách:{" "}
-                      <strong>{item.tantouEditorName}</strong>
-                    </p>
-                  )}
+                  {item.tantouEditorName &&
+                    item.status !== "PENDING_EDITOR" && (
+                      <p className="series-assigned-editor">
+                        👤 Biên tập phụ trách:{" "}
+                        <strong>{item.tantouEditorName}</strong>
+                      </p>
+                    )}
                   <div className="d-flex gap-2 flex-wrap">
                     {canSubmit && (
                       <button
@@ -177,6 +183,12 @@ export default function MyManga() {
                           : "📤 Gửi cho Biên tập"}
                       </button>
                     )}
+                    <button
+                      className="btn btn-info text-white"
+                      onClick={() => setHistoryModalSeriesId(item.id)}
+                    >
+                      🕒 Lịch sử nộp & duyệt
+                    </button>
                     <button
                       className="btn btn-primary"
                       onClick={() => handleShowChapters(item.id)}
@@ -266,6 +278,27 @@ export default function MyManga() {
           onClose={() => setSubmittingSeries(null)}
           onSubmitted={handleSeriesSubmitted}
         />
+      )}
+      {historyModalSeriesId && (
+        <div
+          className="custom-modal-overlay"
+          onClick={() => setHistoryModalSeriesId(null)}
+        >
+          <div
+            className="custom-modal-content"
+            style={{ width: "700px", maxHeight: "85vh", overflowY: "auto" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="close-btn"
+              onClick={() => setHistoryModalSeriesId(null)}
+            >
+              ✕
+            </button>
+            <h4 className="mb-4">Lịch sử nộp & duyệt hồ sơ</h4>
+            <DossierHistoryTimeline seriesId={historyModalSeriesId} />
+          </div>
+        </div>
       )}
     </div>
   );

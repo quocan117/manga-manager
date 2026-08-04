@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   getStudioProgress,
   getPendingReviewSeries,
@@ -6,11 +6,14 @@ import {
   acceptSeries,
   markNotificationRead,
   rejectSeries,
+  getSeriesDossier, 
 } from "../../../services/tantouService";
 import { useNavigate } from "react-router-dom";
 import { getPendingReviewChapters } from "../../../services/chapterEditorService";
 import { formatDateTime, formatDateOnly } from "../../../utils/formatDate";
 import RejectReasonModal from "../../../components/RejectReasonModal";
+import SeriesFileList from "../../../components/SeriesFileList"; 
+import "../styles/TantouEditor.css";
 
 const ASSIGNMENT_NOTIFICATION_TYPES = [
   "NEW_ASSIGNMENT",
@@ -18,32 +21,147 @@ const ASSIGNMENT_NOTIFICATION_TYPES = [
   "FORCED_EDITOR_ASSIGNMENT",
 ];
 const LOCKED_ASSIGNMENT_TYPES = ["FORCED_EDITOR_ASSIGNMENT"];
-const PROGRESS_STATUS_LABELS = {
-  PENDING_EDITOR: "Chờ xác nhận",
-  TANTOU_REVIEW: "Đang kiểm tra",
-  REVIEWING: "Hội đồng đang xét duyệt",
-  REVISION_REQUESTED: "Yêu cầu chỉnh sửa",
-  Published: "Đã xuất bản",
-  PUBLISHED: "Đã xuất bản",
-};
 
-function ProgressStatusBadge({ status }) {
-  if (!status) return null;
-  const label = PROGRESS_STATUS_LABELS[status] || status;
-  const isPending = status === "PENDING_EDITOR";
+function getLastNDays(n) {
+  const days = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - i);
+    days.push(d);
+  }
+  return days;
+}
+
+function buildSmoothAreaPath(points, baselineY) {
+  if (points.length === 0) return { line: "", area: "" };
+  let line = `M ${points[0].x} ${points[0].y}`;
+  for (let i = 1; i < points.length; i++) {
+    const p0 = points[i - 1];
+    const p1 = points[i];
+    const cx = (p0.x + p1.x) / 2;
+    line += ` C ${cx} ${p0.y}, ${cx} ${p1.y}, ${p1.x} ${p1.y}`;
+  }
+  const first = points[0];
+  const last = points[points.length - 1];
+  const area = `${line} L ${last.x} ${baselineY} L ${first.x} ${baselineY} Z`;
+  return { line, area };
+}
+
+function ActivityAreaChart({ data }) {
+  const width = 560;
+  const height = 170;
+  const paddingX = 30;
+  const paddingTop = 20;
+  const baselineY = height - 30;
+  const max = Math.max(1, ...data.map((d) => d.count));
+  const step = data.length > 1 ? (width - paddingX * 2) / (data.length - 1) : 0;
+
+  const points = data.map((d, i) => ({
+    x: paddingX + i * step,
+    y: baselineY - (d.count / max) * (baselineY - paddingTop),
+    count: d.count,
+    label: d.label,
+  }));
+
+  const { line, area } = buildSmoothAreaPath(points, baselineY);
+
   return (
-    <span
-      className={`badge ms-2 ${isPending ? "bg-warning text-dark" : "bg-light text-dark border"}`}
-    >
-      {label}
-    </span>
+    <svg viewBox={`0 0 ${width} ${height}`} className="area-chart-svg">
+      <defs>
+        <linearGradient id="editorActivityGradient" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.55" />
+          <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0.03" />
+        </linearGradient>
+      </defs>
+      <line
+        x1={paddingX}
+        y1={baselineY}
+        x2={width - paddingX}
+        y2={baselineY}
+        className="bar-chart-axis"
+      />
+      <path d={area} fill="url(#editorActivityGradient)" stroke="none" />
+      <path d={line} fill="none" className="area-line editor-area-line" />
+      {points.map((p, i) => (
+        <g key={i}>
+          <circle
+            cx={p.x}
+            cy={p.y}
+            r="3.5"
+            className="area-point editor-area-point"
+          />
+          <text
+            x={p.x}
+            y={p.y - 10}
+            textAnchor="middle"
+            className="bar-value-text"
+          >
+            {p.count}
+          </text>
+          <text
+            x={p.x}
+            y={height - 8}
+            textAnchor="middle"
+            className="bar-label-text"
+          >
+            {p.label}
+          </text>
+        </g>
+      ))}
+    </svg>
   );
 }
 
-function getProgressPercent(finalizedPages, totalPages) {
-  if (!totalPages || totalPages <= 0) return 0;
-  const percent = (finalizedPages / totalPages) * 100;
-  return Math.max(0, Math.min(100, Math.round(percent)));
+const WEEKDAY_LABELS = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
+function MiniCalendar({ highlightDates }) {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = today.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const startWeekday = firstDay.getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const cells = Array(startWeekday).fill(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+  const monthLabel = today.toLocaleDateString("vi-VN", {
+    month: "long",
+    year: "numeric",
+  });
+
+  return (
+    <div className="mini-calendar">
+      <div className="mini-calendar-title">{monthLabel}</div>
+      <div className="mini-calendar-grid mini-calendar-weekdays">
+        {WEEKDAY_LABELS.map((w) => (
+          <span key={w}>{w}</span>
+        ))}
+      </div>
+      <div className="mini-calendar-grid">
+        {cells.map((day, idx) => {
+          if (day === null) return <span key={idx} />;
+          const dateObj = new Date(year, month, day);
+          const isToday = dateObj.toDateString() === today.toDateString();
+          const hasActivity = highlightDates.has(dateObj.toDateString());
+          return (
+            <span
+              key={idx}
+              className={`mini-calendar-day${isToday ? " mini-calendar-today editor-today" : ""}${
+                hasActivity ? " mini-calendar-active editor-active" : ""
+              }`}
+            >
+              {day}
+            </span>
+          );
+        })}
+      </div>
+      <div className="mini-calendar-legend">
+        <span className="legend-dot mini-calendar-legend-dot editor-legend-dot" />{" "}
+        Ngày có hoạt động
+      </div>
+    </div>
+  );
 }
 
 export default function TantouDashboard() {
@@ -51,10 +169,15 @@ export default function TantouDashboard() {
   const [pendingSeries, setPendingSeries] = useState([]);
   const [pendingChapters, setPendingChapters] = useState([]);
   const [pendingAssignments, setPendingAssignments] = useState([]);
+  const [notifications, setNotifications] = useState([]);
   const [acceptingId, setAcceptingId] = useState(null);
   const [rejectingId, setRejectingId] = useState(null);
   const [rejectTarget, setRejectTarget] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const [previewDossier, setPreviewDossier] = useState(null);
+  const [previewTargetId, setPreviewTargetId] = useState(null);
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -70,9 +193,11 @@ export default function TantouDashboard() {
           getNotifications(),
           getPendingReviewChapters(),
         ]);
-      setProgress(progressData);
-      setPendingSeries(pendingData);
-      setPendingChapters(pendingChapterData);
+      setProgress(progressData || []);
+      setPendingSeries(pendingData || []);
+      setPendingChapters(pendingChapterData || []);
+      setNotifications(notificationData || []);
+
       const assignments = (notificationData || []).filter(
         (n) => ASSIGNMENT_NOTIFICATION_TYPES.includes(n.type) && !n.isRead,
       );
@@ -81,6 +206,19 @@ export default function TantouDashboard() {
       console.error("Lỗi lấy dữ liệu Tantou:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleOpenPreview = async (notification) => {
+    try {
+      setPreviewTargetId(notification.id);
+      const data = await getSeriesDossier(notification.referenceId);
+      setPreviewDossier({ dossier: data, notification });
+    } catch (error) {
+      console.error("Lỗi khi tải bản xem trước hồ sơ:", error);
+      alert("Không thể tải bản xem trước hồ sơ lúc này. Vui lòng thử lại.");
+    } finally {
+      setPreviewTargetId(null);
     }
   };
 
@@ -97,11 +235,7 @@ export default function TantouDashboard() {
       fetchDashboardData();
       navigate(`/tantou/review/${seriesId}`);
     } catch (error) {
-      console.error("Lỗi nhận hồ sơ:", error);
-      alert(
-        error?.response?.data?.message ||
-          "Không thể nhận hồ sơ. Có thể hồ sơ đã bị thu hồi hoặc biên tập khác đã nhận trước.",
-      );
+      alert(error?.response?.data?.message || "Không thể nhận hồ sơ.");
       fetchDashboardData();
     } finally {
       setAcceptingId(null);
@@ -116,10 +250,9 @@ export default function TantouDashboard() {
   const handleConfirmReject = async (reason) => {
     const notification = rejectTarget;
     if (!notification) return;
-    const seriesId = notification.referenceId;
     setRejectingId(notification.id);
     try {
-      await rejectSeries(seriesId, reason);
+      await rejectSeries(notification.referenceId, reason);
       await markNotificationRead(notification.id);
       setPendingAssignments((prev) =>
         prev.filter((n) => n.id !== notification.id),
@@ -127,24 +260,44 @@ export default function TantouDashboard() {
       setRejectTarget(null);
       fetchDashboardData();
     } catch (error) {
-      console.error("Lỗi từ chối hồ sơ:", error);
-      alert(
-        error?.response?.data?.message ||
-          "Không thể từ chối hồ sơ. Vui lòng thử lại.",
-      );
+      alert(error?.response?.data?.message || "Không thể từ chối hồ sơ.");
       fetchDashboardData();
     } finally {
       setRejectingId(null);
     }
   };
 
+  const avgCompletion = useMemo(() => {
+    if (progress.length === 0) return 0;
+    const total = progress.reduce((sum, p) => sum + (p.completionRate || 0), 0);
+    return Math.round(total / progress.length);
+  }, [progress]);
+
+  const activityData = useMemo(() => {
+    const days = getLastNDays(7);
+    return days.map((d) => ({
+      label: d.toLocaleDateString("vi-VN", { weekday: "short" }),
+      count: notifications.filter(
+        (n) =>
+          n.createdAt &&
+          new Date(n.createdAt).toDateString() === d.toDateString(),
+      ).length,
+    }));
+  }, [notifications]);
+
+  const notificationDateSet = useMemo(() => {
+    const set = new Set();
+    notifications.forEach((n) => {
+      if (n.createdAt) set.add(new Date(n.createdAt).toDateString());
+    });
+    return set;
+  }, [notifications]);
+
   if (loading) {
     return (
       <div className="tantou-dashboard-loading">
-        <div className="spinner-border text-success" role="status">
-          <span className="visually-hidden">Đang tải...</span>
-        </div>
-        <p className="text-muted mt-3 mb-0">Đang tải báo cáo Studio...</p>
+        <div className="spinner-border text-primary" role="status"></div>
+        <p className="text-muted mt-3 mb-0">Đang đồng bộ dữ liệu Studio...</p>
       </div>
     );
   }
@@ -167,7 +320,11 @@ export default function TantouDashboard() {
             <div className="stat-label">Series đang phụ trách</div>
           </div>
         </div>
-        <div className="stat-card">
+        <div
+          className="stat-card"
+          style={{ cursor: "pointer" }}
+          onClick={() => navigate("/tantou/pending-series")}
+        >
           <div className="stat-icon stat-icon-purple">
             <i className="fas fa-file-signature"></i>
           </div>
@@ -176,7 +333,11 @@ export default function TantouDashboard() {
             <div className="stat-label">Bản thảo cần kiểm duyệt</div>
           </div>
         </div>
-        <div className="stat-card">
+        <div
+          className="stat-card"
+          style={{ cursor: "pointer" }}
+          onClick={() => navigate("/tantou/pending-chapters")}
+        >
           <div className="stat-icon stat-icon-green">
             <i className="fas fa-book-open"></i>
           </div>
@@ -200,8 +361,8 @@ export default function TantouDashboard() {
         <section className="dashboard-card dashboard-card-alert mb-4">
           <div className="dashboard-card-header">
             <span>
-              <i className="fas fa-bell text-warning me-2"></i>
-              Hồ Sơ Mới Chờ Nhận
+              <i className="fas fa-bell text-warning me-2"></i>Hồ Sơ Mới Chờ
+              Nhận
             </span>
             <span className="badge bg-warning text-dark">
               {pendingAssignments.length}
@@ -210,7 +371,6 @@ export default function TantouDashboard() {
           <div className="dashboard-card-body p-0">
             <ul className="assignment-list">
               {pendingAssignments.map((n) => {
-                const isAccepting = acceptingId === n.id;
                 const isLocked = LOCKED_ASSIGNMENT_TYPES.includes(n.type);
                 return (
                   <li key={n.id} className="assignment-item">
@@ -221,8 +381,8 @@ export default function TantouDashboard() {
                       <p className="assignment-message mb-1">{n.message}</p>
                       <small className="text-muted d-block">
                         {isLocked
-                          ? "Hồ sơ do Hội đồng Biên tập chỉ định trực tiếp — không thể từ chối."
-                          : 'Cần bấm "Nhận hồ sơ series" trong 24h, nếu không hệ thống sẽ tự động chuyển cho biên tập viên khác.'}
+                          ? "Hồ sơ do Hội đồng Biên tập chỉ định trực tiếp — Vui lòng xem trước hồ sơ để tiếp nhận."
+                          : "Vui lòng xem trước hồ sơ trong 24h, nếu không hệ thống sẽ tự động chuyển cho biên tập viên khác."}
                       </small>
                       <small className="text-muted">
                         {formatDateTime(n.createdAt)}
@@ -231,22 +391,14 @@ export default function TantouDashboard() {
                     <div className="assignment-item-actions">
                       <button
                         type="button"
-                        className="btn btn-sm btn-success"
-                        disabled={isAccepting}
-                        onClick={() => handleAccept(n)}
+                        className="btn btn-sm btn-info text-white fw-bold"
+                        disabled={previewTargetId === n.id}
+                        onClick={() => handleOpenPreview(n)}
                       >
-                        {isAccepting ? "Đang nhận..." : "Nhận hồ sơ series"}
+                        {previewTargetId === n.id
+                          ? "Đang tải hồ sơ..."
+                          : "👁️ Xem hồ sơ"}
                       </button>
-                      {!isLocked && (
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-outline-danger"
-                          disabled={isAccepting || rejectingId === n.id}
-                          onClick={() => handleReject(n)}
-                        >
-                          {rejectingId === n.id ? "Đang từ chối..." : "Từ chối"}
-                        </button>
-                      )}
                     </div>
                   </li>
                 );
@@ -256,75 +408,210 @@ export default function TantouDashboard() {
         </section>
       )}
 
-      <div className="dashboard-section-title">
-        <i className="fas fa-file-signature text-primary me-2"></i>
-        Bản Thảo Cần Kiểm Duyệt
-      </div>
-      <div className="row">
-        {pendingSeries.length === 0 && (
-          <div className="col-12">
-            <p className="text-muted">Chưa có bản thảo nào cần kiểm duyệt.</p>
-          </div>
-        )}
-        {pendingSeries.map((series) => (
-          <div className="col-md-4 mb-4" key={series.id}>
-            <div className="dashboard-item-card h-100">
-              <div className="dashboard-item-cover">
-                <img
-                  src={`http://localhost:8080/covers/${series.coverUrl}`}
-                  alt={series.title}
-                />
+      <div className="row g-4 mb-4">
+        <div className="col-md-8">
+          <div className="dashboard-card h-100 p-4">
+            <h5 className="dashboard-section-title mb-4">
+              Tiến Độ Các Series (Studio Progress)
+            </h5>
+            {progress.length === 0 ? (
+              <p className="text-muted fst-italic">
+                Bạn chưa phụ trách series nào.
+              </p>
+            ) : (
+              <div className="progress-list-container">
+                {progress.map((p) => (
+                  <div key={p.seriesId} className="progress-list-item mb-4">
+                    <div className="d-flex justify-content-between align-items-center mb-1">
+                      <span className="fw-bold">{p.seriesTitle}</span>
+                      <span className="badge bg-light text-dark border">
+                        {p.status}
+                      </span>
+                    </div>
+                    <div className="d-flex justify-content-between text-muted small mb-2">
+                      <span>
+                        {p.finalizedPages} / {p.totalPages} trang hoàn thiện
+                      </span>
+                      <span className="fw-bold text-primary">
+                        {Math.round(p.completionRate || 0)}%
+                      </span>
+                    </div>
+                    <div className="progress-track">
+                      <div
+                        className="progress-fill"
+                        style={{ width: `${p.completionRate || 0}%` }}
+                      ></div>
+                    </div>
+                    <div className="d-flex gap-3 mt-2 small text-muted">
+                      <span>
+                        📝 Task mở:{" "}
+                        <strong className="text-warning">
+                          {p.inProgressTasks + p.assignedTasks}
+                        </strong>
+                      </span>
+                      <span>
+                        🚩 Quá hạn:{" "}
+                        <strong className="text-danger">
+                          {p.overdueTasks}
+                        </strong>
+                      </span>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div className="dashboard-item-body">
-                <h5 className="dashboard-item-title">{series.title}</h5>
-                <p className="dashboard-item-meta mb-1">
-                  <i className="fas fa-user me-1"></i>
-                  Tác giả: {series.author}
-                </p>
-                <p className="dashboard-item-meta">
-                  <i className="fas fa-calendar-alt me-1"></i>
-                  Ngày nộp: {formatDateOnly(series.submittedAt)}
-                </p>
-                <button
-                  className="btn btn-primary w-100"
-                  onClick={() => navigate(`/tantou/review/${series.id}`)}
-                >
-                  Mở Hồ Sơ &amp; Kiểm Duyệt
-                </button>
+            )}
+          </div>
+        </div>
+
+        <div className="col-md-4">
+          <div className="dashboard-card h-100 p-4 d-flex flex-column align-items-center">
+            <h5 className="dashboard-section-title mb-4 w-100">
+              Hiệu Suất Tổng Thể
+            </h5>
+            <div className="donut-wrap my-auto">
+              <div
+                className="donut-ring"
+                style={{
+                  background: `conic-gradient(#8b5cf6 ${avgCompletion}%, #e5e7eb ${avgCompletion}% 100%)`,
+                }}
+              >
+                <div className="donut-center">
+                  <span className="donut-percent" style={{ color: "#8b5cf6" }}>
+                    {avgCompletion}%
+                  </span>
+                  <span className="donut-caption text-center px-2">
+                    Hoàn thành
+                    <br />
+                    trung bình
+                  </span>
+                </div>
               </div>
             </div>
+            <p className="text-muted small mt-4 text-center">
+              Trung bình tiến độ của toàn bộ {progress.length} dự án bạn đang
+              giám sát.
+            </p>
           </div>
-        ))}
+        </div>
       </div>
 
-      <div className="dashboard-section-title mt-4">
-        <i className="fas fa-book-open text-success me-2"></i>
-        Chapter Cần Duyệt
-      </div>
-      <div className="row">
-        {pendingChapters.length === 0 && (
-          <div className="col-12">
-            <p className="text-muted">Chưa có chapter nào cần duyệt.</p>
+      <div className="row g-4">
+        <div className="col-md-8">
+          <div className="dashboard-card h-100 p-4">
+            <h5 className="dashboard-section-title mb-4">
+              Lưu lượng thông báo (7 ngày qua)
+            </h5>
+            <ActivityAreaChart data={activityData} />
           </div>
-        )}
-        {pendingChapters.map((c) => (
-          <div className="col-md-4 mb-4" key={c.id}>
-            <div className="dashboard-item-card dashboard-item-card-simple h-100">
-              <div className="dashboard-item-body">
-                <h5 className="dashboard-item-title">
-                  {c.seriesTitle} - Chapter {c.chapterNumber}
-                </h5>
-                <button
-                  className="btn btn-primary w-100 mt-2"
-                  onClick={() => navigate(`/tantou/chapters/${c.id}/review`)}
-                >
-                  Mở &amp; Duyệt Chapter
-                </button>
+        </div>
+        <div className="col-md-4">
+          <div className="dashboard-card h-100 p-4">
+            <h5 className="dashboard-section-title mb-4">Lịch hoạt động</h5>
+            <MiniCalendar highlightDates={notificationDateSet} />
+          </div>
+        </div>
+      </div>
+
+      {previewDossier && (
+        <div
+          className="custom-modal-overlay"
+          onClick={() => setPreviewDossier(null)}
+        >
+          <div
+            className="custom-modal-content"
+            style={{
+              width: "850px",
+              maxWidth: "95vw",
+              maxHeight: "90vh",
+              overflowY: "auto",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="close-btn"
+              onClick={() => setPreviewDossier(null)}
+            >
+              ✕
+            </button>
+            <h4 className="mb-4">
+              Xem trước hồ sơ: {previewDossier.dossier.series.title}
+            </h4>
+            <div className="row mb-4">
+              <div className="col-md-4">
+                <img
+                  src={`http://localhost:8080/covers/${previewDossier.dossier.series.coverUrl}`}
+                  alt={previewDossier.dossier.series.title}
+                  className="img-fluid rounded shadow-sm"
+                  onError={(e) =>
+                    (e.target.src =
+                      "https://placehold.co/250x350?text=No+Cover")
+                  }
+                />
+              </div>
+              <div className="col-md-8">
+                <p>
+                  <strong>👤 Tác giả:</strong>{" "}
+                  {previewDossier.dossier.series.author}
+                </p>
+                <p>
+                  <strong>🏷️ Thể loại:</strong>{" "}
+                  {previewDossier.dossier.series.genres?.join(", ") || "N/A"}
+                </p>
+                <p>
+                  <strong>📖 Mô tả:</strong>{" "}
+                  {previewDossier.dossier.series.description ||
+                    "Chưa có mô tả."}
+                </p>
               </div>
             </div>
+
+            <h6 className="fw-bold mb-3 border-bottom pb-2">
+              Bản thảo & Tài liệu đính kèm
+            </h6>
+            <div className="mb-4 bg-light p-3 rounded border">
+              <SeriesFileList
+                files={previewDossier.dossier.series.uploadedFiles || []}
+                emptyText="Mangaka chưa tải lên bản thảo nào."
+              />
+            </div>
+
+            <div className="d-flex justify-content-end gap-3 border-top pt-3">
+              <button
+                className="btn btn-secondary"
+                onClick={() => setPreviewDossier(null)}
+              >
+                Đóng
+              </button>
+              {!LOCKED_ASSIGNMENT_TYPES.includes(
+                previewDossier.notification.type,
+              ) && (
+                <button
+                  className="btn btn-outline-danger px-4"
+                  disabled={acceptingId === previewDossier.notification.id}
+                  onClick={() => {
+                    handleReject(previewDossier.notification);
+                    setPreviewDossier(null);
+                  }}
+                >
+                  Từ chối
+                </button>
+              )}
+              <button
+                className="btn btn-success px-4"
+                disabled={acceptingId === previewDossier.notification.id}
+                onClick={() => {
+                  handleAccept(previewDossier.notification);
+                  setPreviewDossier(null);
+                }}
+              >
+                {acceptingId === previewDossier.notification.id
+                  ? "Đang xử lý..."
+                  : "✅ Chấp nhận phụ trách"}
+              </button>
+            </div>
           </div>
-        ))}
-      </div>
+        </div>
+      )}
 
       {rejectTarget && (
         <RejectReasonModal
