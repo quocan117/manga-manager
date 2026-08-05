@@ -13,6 +13,8 @@ const BoardLayout = () => {
   const handleLogout = () => {
     logout();
   };
+  
+  const isRepresentative = user?.email === "editorial1@manga.test";
 
   return (
     <div className="editorial-dashboard-container">
@@ -30,14 +32,18 @@ const BoardLayout = () => {
               📊 Bảng Xếp Hạng
             </NavLink>
           </li>
-          <li>
-            <NavLink
-              to="/board/review"
-              className={({ isActive }) => (isActive ? "active" : "")}
-            >
-              📝 Xét Duyệt Tác Phẩm
-            </NavLink>
-          </li>
+
+          {!isRepresentative && (
+            <li>
+              <NavLink
+                to="/board/review"
+                className={({ isActive }) => (isActive ? "active" : "")}
+              >
+                📝 Xét Duyệt Tác Phẩm
+              </NavLink>
+            </li>
+          )}
+
           <li>
             <NavLink
               to="/board/series-management"
@@ -46,38 +52,50 @@ const BoardLayout = () => {
               📚 Quản Lý Series
             </NavLink>
           </li>
-          <li>
-            <NavLink
-              to="/board/editor-assignment"
-              className={({ isActive }) => (isActive ? "active" : "")}
-            >
-              🧭 Phân Công Biên Tập Viên
-            </NavLink>
-          </li>
-          <li>
-            <NavLink
-              to="/board/schedule"
-              className={({ isActive }) => (isActive ? "active" : "")}
-            >
-              📅 Lịch Xuất Bản
-            </NavLink>
-          </li>
-          <li>
-            <NavLink
-              to="/board/reader-votes"
-              className={({ isActive }) => (isActive ? "active" : "")}
-            >
-              🗳️ Bình Chọn Độc Giả
-            </NavLink>
-          </li>
-          <li>
-            <NavLink
-              to="/board/manage-users"
-              className={({ isActive }) => (isActive ? "active" : "")}
-            >
-              👤 Quản lý Tài Khoản
-            </NavLink>
-          </li>
+
+          {isRepresentative && (
+            <li>
+              <NavLink
+                to="/board/editor-assignment"
+                className={({ isActive }) => (isActive ? "active" : "")}
+              >
+                🧭 Phân Công Biên Tập Viên
+              </NavLink>
+            </li>
+          )}
+
+          {!isRepresentative && (
+            <>
+              <li>
+                <NavLink
+                  to="/board/schedule"
+                  className={({ isActive }) => (isActive ? "active" : "")}
+                >
+                  📅 Lịch Xuất Bản
+                </NavLink>
+              </li>
+              <li>
+                <NavLink
+                  to="/board/reader-votes"
+                  className={({ isActive }) => (isActive ? "active" : "")}
+                >
+                  🗳️ Bình Chọn Độc Giả
+                </NavLink>
+              </li>
+            </>
+          )}
+
+          {isRepresentative && (
+            <li>
+              <NavLink
+                to="/board/manage-users"
+                className={({ isActive }) => (isActive ? "active" : "")}
+              >
+                👤 Quản lý Tài Khoản
+              </NavLink>
+            </li>
+          )}
+
           <li>
             <NavLink
               to="/board/notifications"
@@ -89,6 +107,7 @@ const BoardLayout = () => {
               )}
             </NavLink>
           </li>
+
           <li style={{ marginTop: "auto", padding: "20px" }}>
             <button className="btn btn-danger w-100" onClick={handleLogout}>
               Đăng xuất
@@ -102,4 +121,5 @@ const BoardLayout = () => {
     </div>
   );
 };
+
 export default BoardLayout;
