@@ -56,3 +56,11 @@ export const rejectSeries = async (seriesId, reason) => {
   });
   return response.data;
 };
+
+export const requestDropProject = async (seriesId, reason) => {
+  const response = await api.patch(
+    `/tantou-editor/series/${seriesId}/request-drop`,
+    { reason }
+  );
+  return response.data;
+};

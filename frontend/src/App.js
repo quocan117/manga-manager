@@ -49,6 +49,8 @@ import ChapterReviewPage from "./features/tantouEditor/pages/ChapterReviewPage";
 import TantouNotificationsPage from "./features/tantouEditor/pages/TantouNotificationsPage";
 import SeriesManagementPage from "./features/editorialBoard/pages/SeriesManagementPage";
 import ChapterReviewBoardPage from "./features/editorialBoard/pages/ChapterReviewBoardPage";
+import PendingSeriesPage from "./features/tantouEditor/pages/PendingSeriesPage";
+import PendingChaptersPage from "./features/tantouEditor/pages/PendingChaptersPage";
 
 function App() {
   useGuestTracking();
@@ -145,6 +147,8 @@ function App() {
         }
       >
         <Route index element={<TantouDashboardPage />} />
+        <Route path="pending-series" element={<PendingSeriesPage />} />
+        <Route path="pending-chapters" element={<PendingChaptersPage />} />
         <Route path="review/:id" element={<EditorReviewPage />} />
         <Route
           path="chapters/:chapterId/review"

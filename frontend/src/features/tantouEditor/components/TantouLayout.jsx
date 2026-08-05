@@ -24,7 +24,21 @@ export default function TantouLayout() {
             <span>TANTOU EDITOR</span>
           </h2>
           {user && (
-            <p className="text-white-50 mb-0">Xin chào, {user.username}</p>
+            <div className="mt-3">
+              <p className="text-white-50 mb-2 fw-bold">
+                Xin chào, {user.username}
+              </p>
+              {user.specialty && (
+                <div
+                  className="badge bg-secondary text-wrap text-start lh-base"
+                  style={{ fontSize: "11px", padding: "8px" }}
+                >
+                  <span className="text-warning">★ Chuyên môn:</span>
+                  <br />
+                  {user.specialty}
+                </div>
+              )}
+            </div>
           )}
         </div>
         <ul className="sidebar-menu">
@@ -37,6 +51,26 @@ export default function TantouLayout() {
               }
             >
               <i className="fas fa-home"></i> Tổng Quan
+            </NavLink>
+          </li>
+          <li>
+            <NavLink
+              to="/tantou/pending-series"
+              className={({ isActive }) =>
+                isActive ? "nav-link active" : "nav-link"
+              }
+            >
+              <i className="fas fa-file-signature"></i> Bản thảo cần duyệt
+            </NavLink>
+          </li>
+          <li>
+            <NavLink
+              to="/tantou/pending-chapters"
+              className={({ isActive }) =>
+                isActive ? "nav-link active" : "nav-link"
+              }
+            >
+              <i className="fas fa-book-open"></i> Chapter cần duyệt
             </NavLink>
           </li>
           <li>

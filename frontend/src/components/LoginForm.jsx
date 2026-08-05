@@ -46,6 +46,7 @@ export default function LoginForm() {
         username: data.username,
         email: data.email,
         role: data.role,
+        specialty: data.specialty,
       },
       data.token,
     );

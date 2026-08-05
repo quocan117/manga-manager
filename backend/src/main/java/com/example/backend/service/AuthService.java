@@ -83,7 +83,8 @@ public class AuthService {
                 user.getUserId(),
                 user.getUsername(),
                 user.getEmail(),
-                user.getRole().getRoleName());
+                user.getRole().getRoleName(),
+                user.getSpecialty());
     }
 
     private void validateLoginStatus(User user) {

@@ -1,18 +1,13 @@
-/* =========================================
-   BỐ CỤC CHUNG
-   ========================================= */
 .tantou-layout-container {
   display: flex;
   min-height: 100vh;
   background-color: #f4f6f8;
   font-family: "Inter", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
 }
-/* =========================================
-   SIDEBAR (Đồng bộ với Layout Mangaka/Board)
-   ========================================= */
+
 .tantou-sidebar {
   width: 260px;
-  background-color: #2b3445; /* Màu nền xanh đen tối đồng bộ */
+  background-color: #2b3445; 
   display: flex;
   flex-direction: column;
   position: fixed;
@@ -22,11 +17,13 @@
   z-index: 1000;
   box-shadow: 4px 0 15px rgba(0, 0, 0, 0.05);
 }
+
 .sidebar-header {
   padding: 30px 20px;
   text-align: center;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
+
 .role-title {
   margin: 0;
   font-size: 22px;
@@ -34,52 +31,58 @@
   color: #ffffff;
   line-height: 1.4;
 }
+
 .role-highlight {
-  color: #2ecc71; /* Xanh lá: Đặc trưng riêng cho Tantou Editor */
+  color: #2ecc71; 
   font-size: 26px;
   letter-spacing: 2px;
 }
+
 .sidebar-menu {
   list-style: none;
   padding: 20px 15px;
   margin: 0;
   flex-grow: 1;
 }
+
 .sidebar-menu li {
   margin-bottom: 8px;
 }
+
 .sidebar-menu .nav-link {
   display: flex;
   align-items: center;
   padding: 12px 15px;
   color: #aeb4be;
   text-decoration: none;
-  border-radius: 8px; /* Bo góc nhẹ */
+  border-radius: 8px; 
   font-weight: 500;
   transition: all 0.3s ease;
 }
+
 .sidebar-menu .nav-link i {
   width: 24px;
   font-size: 18px;
   margin-right: 10px;
 }
+
 .sidebar-menu .nav-link:hover {
   background-color: rgba(255, 255, 255, 0.05);
   color: #ffffff;
   transform: translateX(5px);
 }
+
 .sidebar-menu .nav-link.active {
   background-color: rgba(255, 255, 255, 0.1);
   color: #ffffff;
   font-weight: 600;
 }
-/* =========================================
-   FOOTER (ĐĂNG XUẤT)
-   ========================================= */
+
 .sidebar-footer {
   padding: 20px 15px;
   border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
+
 .btn-logout {
   width: 100%;
   padding: 12px;
@@ -95,24 +98,25 @@
   gap: 8px;
   transition: all 0.3s ease;
 }
+
 .btn-logout:hover {
   background-color: #ff4757;
   color: #ffffff;
 }
-/* =========================================
-   MAIN CONTENT
-   ========================================= */
+
 .tantou-main-content {
-  margin-left: 260px; /* Khớp với độ rộng sidebar */
+  margin-left: 260px; 
   flex-grow: 1;
   width: calc(100% - 260px);
   min-height: 100vh;
   padding: 24px;
   background-color: #f8f9fa;
 }
+
 .tantou-main-content > div {
   animation: fadeIn 0.4s ease-in-out;
 }
+
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -398,4 +402,168 @@
   font-size: 13px;
   color: #8a94a6;
   margin-bottom: 4px;
+}
+
+.progress-list-container {
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 10px;
+}
+
+.progress-list-item {
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 10px;
+  border: 1px solid #eef0f3;
+}
+
+.progress-track {
+  width: 100%;
+  max-width: 100%;
+  height: 8px;
+  background: #eef0f3;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6); 
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+
+.donut-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.donut-ring {
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.donut-center {
+  width: 72%;
+  height: 72%;
+  background: #ffffff;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 2px 5px rgba(0,0,0,0.05);
+}
+
+.donut-percent {
+  font-size: 1.8rem;
+  font-weight: 800;
+}
+
+.donut-caption {
+  font-size: 0.75rem;
+  color: #6b7280;
+  line-height: 1.2;
+}
+
+.area-chart-svg {
+  width: 100%;
+  height: 200px;
+}
+
+.bar-chart-axis {
+  stroke: #e5e7eb;
+  stroke-width: 1;
+}
+
+.bar-value-text {
+  font-size: 12px;
+  font-weight: 600;
+  fill: #374151;
+}
+
+.bar-label-text {
+  font-size: 11px;
+  fill: #6b7280;
+}
+
+.editor-area-line {
+  stroke: #8b5cf6; 
+  stroke-width: 2.5;
+}
+
+.editor-area-point {
+  fill: #8b5cf6;
+  stroke: #ffffff;
+  stroke-width: 1.5;
+}
+
+.mini-calendar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.mini-calendar-title {
+  font-weight: 600;
+  color: #1f2937;
+  text-transform: capitalize;
+  margin-bottom: 0.25rem;
+}
+
+.mini-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  text-align: center;
+}
+
+.mini-calendar-weekdays span {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #9ca3af;
+}
+
+.mini-calendar-day {
+  font-size: 0.8rem;
+  color: #374151;
+  padding: 0.35rem 0;
+  border-radius: 8px;
+}
+
+.editor-today {
+  background: #2b3445;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.editor-active:not(.editor-today) {
+  background: #f3e8ff;
+  color: #8b5cf6;
+  font-weight: 700;
+}
+
+.mini-calendar-legend {
+  display: flex;
+  align-items: center;
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-top: 0.4rem;
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 0.5rem;
+}
+
+.editor-legend-dot {
+  background: #8b5cf6;
 }
