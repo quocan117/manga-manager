@@ -64,7 +64,23 @@ public final class EditorialBoardDtos {
                         Long createdById,
                         String createdByName,
                         LocalDateTime createdAt,
-                        String specialty) {
+                        String specialty,
+                        long currentTaskCount) {
+                public UserResponse(
+                                Long id,
+                                String username,
+                                String email,
+                                String avatarUrl,
+                                String status,
+                                String role,
+                                Long createdById,
+                                String createdByName,
+                                LocalDateTime createdAt,
+                                String specialty) {
+                        this(id, username, email, avatarUrl, status, role,
+                                        createdById, createdByName, createdAt, specialty, 0L);
+                }
+
                 public UserResponse(
                                 Long id,
                                 String username,
@@ -76,7 +92,7 @@ public final class EditorialBoardDtos {
                                 String createdByName,
                                 LocalDateTime createdAt) {
                         this(id, username, email, avatarUrl, status, role,
-                                        createdById, createdByName, createdAt, null);
+                                        createdById, createdByName, createdAt, null, 0L);
                 }
         }
 

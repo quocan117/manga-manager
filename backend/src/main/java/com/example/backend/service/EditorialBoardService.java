@@ -643,6 +643,15 @@ public class EditorialBoardService {
                 series.getStatus(),
                 decision.getReason(),
                 decision.getDecisionId());
+        String cancelReason = decision.getReason() == null
+                ? "Không có lý do chi tiết."
+                : decision.getReason();
+        notify(
+                series.getAuthor(),
+                "SERIES_CANCELLED",
+                series.getSeriesId(),
+                "Rất tiếc, tác phẩm \"" + series.getTitle()
+                        + "\" của bạn đã bị Hội đồng Biên tập hủy. Lý do: " + cancelReason);
         return toReviewSeriesResponse(series, boardMember);
     }
 
@@ -1250,17 +1259,22 @@ public class EditorialBoardService {
 
     private UserResponse toUserResponse(User user) {
         User createdBy = user.getCreatedBy();
+        String role = user.getRole() == null ? null : user.getRole().getRoleName();
+        long currentTaskCount = "TANTOU_EDITOR".equalsIgnoreCase(role)
+                ? mangakaService.countTantouEditorActiveWorkload(user.getUserId())
+                : 0L;
         return new UserResponse(
                 user.getUserId(),
                 user.getUsername(),
                 user.getEmail(),
                 user.getAvatarUrl(),
                 user.getStatus(),
-                user.getRole() == null ? null : user.getRole().getRoleName(),
+                role,
                 createdBy == null ? null : createdBy.getUserId(),
                 createdBy == null ? null : createdBy.getUsername(),
                 user.getCreatedAt(),
-                user.getSpecialty());
+                user.getSpecialty(),
+                currentTaskCount);
     }
 
     private ReviewSeriesResponse toReviewSeriesResponse(MangaSeries series, User currentUser) {

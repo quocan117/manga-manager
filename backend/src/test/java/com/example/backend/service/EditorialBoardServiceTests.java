@@ -150,6 +150,45 @@ class EditorialBoardServiceTests {
         }
 
         @Test
+        void userListIncludesCurrentWorkloadForTantouEditorsOnly() {
+                User editor = user(7L, "Tantou Seven", "tantou7@manga.test", role("TANTOU_EDITOR"));
+                User mangaka = user(8L, "Mangaka Eight", "mangaka8@manga.test", role("MANGAKA"));
+
+                when(userRepository.findAllByOrderByCreatedAtDesc()).thenReturn(List.of(editor, mangaka));
+                when(mangakaService.countTantouEditorActiveWorkload(7L)).thenReturn(4L);
+
+                var response = service.getUsers();
+
+                assertEquals(2, response.size());
+                assertEquals(4L, response.get(0).currentTaskCount());
+                assertEquals(0L, response.get(1).currentTaskCount());
+                verify(mangakaService).countTantouEditorActiveWorkload(7L);
+        }
+
+        @Test
+        void cancelSeriesNotifiesAuthorWithDecisionReason() {
+                User board = user(1L, "Editorial Board One", BOARD_EMAIL, role("EDITORIAL_BOARD"));
+                MangaSeries series = series(5L, "Cancelled Series", "DROP_REQUESTED");
+
+                when(userRepository.findByEmail(BOARD_EMAIL)).thenReturn(Optional.of(board));
+                when(mangaSeriesRepository.findById(5L)).thenReturn(Optional.of(series));
+                when(boardDecisionRepository.findBySeriesSeriesIdAndBoardMemberUserId(5L, 1L))
+                                .thenReturn(Optional.empty());
+
+                service.cancelSeries(5L, new BoardDecisionRequest("CANCEL", "Không đạt yêu cầu phát hành"));
+
+                ArgumentCaptor<Notification> notificationCaptor = ArgumentCaptor.forClass(Notification.class);
+                verify(notificationRepository).save(notificationCaptor.capture());
+                Notification notification = notificationCaptor.getValue();
+                assertEquals(series.getAuthor(), notification.getUser());
+                assertEquals("SERIES_CANCELLED", notification.getType());
+                assertEquals(5L, notification.getReferenceId());
+                assertTrue(notification.getMessage().contains("Cancelled Series"));
+                assertTrue(notification.getMessage().contains("Không đạt yêu cầu phát hành"));
+                assertEquals("CANCELLED", series.getStatus());
+        }
+
+        @Test
         void editorAssignmentRequiredResponseIncludesRejectedEditorDetails() {
                 User board = user(1L, "Editorial Board One", BOARD_EMAIL, role("EDITORIAL_BOARD"));
                 User rejectedEditor = user(7L, "Tantou Seven", "tantou7@manga.test", role("TANTOU_EDITOR"));
