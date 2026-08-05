@@ -20,6 +20,7 @@ public class LoginResponse {
         this.username = username;
         this.email = email;
         this.role = role;
+        this.specialty = specialty;
     }
 
     public String getToken() {
@@ -44,6 +45,14 @@ public class LoginResponse {
 
     public String getRole() {
         return role;
+    }
+
+    public String getSpecialty() {
+        return specialty;
+    }
+
+    public void setSpecialty(String specialty) {
+        this.specialty = specialty;
     }
 
 }
