@@ -195,3 +195,13 @@ export const getSeriesFeedbackHistory = async (seriesId) => {
   );
   return response.data;
 };
+
+export const getAssignmentHistory = async () => {
+  const response = await api.get("/editorial-board/assignment-history");
+  return response.data;
+};
+
+export const getSeriesReview = async (id) => {
+  const response = await api.get(`/editorial-board/series/${id}/review`);
+  return response.data;
+};

@@ -127,6 +127,7 @@ public class EditorialBoardService {
     private final SeriesFileRepository seriesFileRepository;
     private final SeriesEditorRejectionRepository seriesEditorRejectionRepository;
     private final SeriesBoardAssignmentRepository seriesBoardAssignmentRepository;
+    private final com.example.backend.repository.SeriesReviewHistoryRepository seriesReviewHistoryRepository;
     private final MangakaService mangakaService;
     private final SeriesHistoryService seriesHistoryService;
 
@@ -146,6 +147,7 @@ public class EditorialBoardService {
             SeriesFileRepository seriesFileRepository,
             SeriesEditorRejectionRepository seriesEditorRejectionRepository,
             SeriesBoardAssignmentRepository seriesBoardAssignmentRepository,
+            com.example.backend.repository.SeriesReviewHistoryRepository seriesReviewHistoryRepository,
             MangakaService mangakaService,
             SeriesHistoryService seriesHistoryService) {
         this.requestRepository = requestRepository;
@@ -163,6 +165,7 @@ public class EditorialBoardService {
         this.seriesFileRepository = seriesFileRepository;
         this.seriesEditorRejectionRepository = seriesEditorRejectionRepository;
         this.seriesBoardAssignmentRepository = seriesBoardAssignmentRepository;
+        this.seriesReviewHistoryRepository = seriesReviewHistoryRepository;
         this.mangakaService = mangakaService;
         this.seriesHistoryService = seriesHistoryService;
     }
@@ -172,6 +175,7 @@ public class EditorialBoardService {
     }
 
     public List<UserResponse> getUsers() {
+        requireRepresentative(currentEditorialBoard(), "Chỉ Trưởng ban mới có quyền xem danh sách quản lý tài khoản.");
         return userRepository.findAllByOrderByCreatedAtDesc()
                 .stream()
                 .map(this::toUserResponse)
@@ -207,7 +211,9 @@ public class EditorialBoardService {
         MangaSeries series = mangaSeriesRepository.findById(seriesId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Series not found"));
-        requireBoardPanelMembership(seriesId, currentUser);
+        if (!isRepresentative(currentUser)) {
+            requireBoardPanelMembership(seriesId, currentUser);
+        }
         return toReviewSeriesResponse(series, currentUser);
     }
 
@@ -500,6 +506,7 @@ public class EditorialBoardService {
 
     @Transactional
     public UserResponse createUser(CreateUserRequest request) {
+        requireRepresentative(currentEditorialBoard(), "Chỉ Trưởng ban mới có quyền tạo tài khoản.");
         if (userRepository.existsByEmail(request.email().trim())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already exists");
         }
@@ -525,6 +532,7 @@ public class EditorialBoardService {
     @Transactional
     public ReviewSeriesResponse assignEditor(Long seriesId, AssignEditorRequest request) {
         User boardMember = currentEditorialBoard();
+        requireRepresentative(boardMember, "Chỉ tài khoản Trưởng ban mới có quyền phân công Biên tập viên.");
         MangaSeries series = mangaSeriesRepository.findById(seriesId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Series not found"));
@@ -618,6 +626,9 @@ public class EditorialBoardService {
         MangaSeries series = mangaSeriesRepository.findById(seriesId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Series not found"));
+        if ("EDITOR_ASSIGNMENT_REQUIRED".equalsIgnoreCase(series.getStatus())) {
+            requireRepresentative(boardMember, "Chỉ tài khoản Trưởng ban mới có quyền đánh rớt tác phẩm bị kẹt phân công.");
+        }
         if (CANCELLED_SERIES_STATUS.equalsIgnoreCase(series.getStatus())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Series is already cancelled");
         }
@@ -657,6 +668,7 @@ public class EditorialBoardService {
 
     @Transactional
     public UserResponse updateUser(Long userId, UpdateUserRequest request) {
+        requireRepresentative(currentEditorialBoard(), "Chỉ Trưởng ban mới có quyền cập nhật tài khoản.");
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
@@ -702,6 +714,7 @@ public class EditorialBoardService {
 
     @Transactional
     public UserResponse deleteUser(Long userId) {
+        requireRepresentative(currentEditorialBoard(), "Chỉ Trưởng ban mới có quyền xóa tài khoản.");
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
         User currentUser = currentEditorialBoard();
@@ -749,6 +762,16 @@ public class EditorialBoardService {
         request.setReviewedBy(editorialBoard);
 
         return requestRepository.save(request);
+    }
+
+    @Transactional(readOnly = true)
+    public List<SeriesReviewHistoryResponse> getAssignmentHistory() {
+        requireRepresentative(currentEditorialBoard(), "Chỉ Trưởng ban mới có quyền xem lịch sử phân công.");
+        List<String> assignmentActions = List.of("BOARD_FORCED_EDITOR_ASSIGNMENT", "BOARD_CANCELLED_SERIES");
+        return seriesReviewHistoryRepository.findByActionInOrderByCreatedAtDesc(assignmentActions)
+                .stream()
+                .map(this::toSeriesReviewHistoryResponse)
+                .toList();
     }
 
     public RegistrationRequest reject(Long requestId, ReviewRegistrationRequest dto) {
@@ -896,6 +919,7 @@ public class EditorialBoardService {
 
         List<User> activeBoardMembers = new ArrayList<>(userRepository
                 .findByRoleRoleNameAndStatusOrderByUsernameAsc(BOARD_ROLE, ACTIVE_STATUS));
+        activeBoardMembers.removeIf(this::isRepresentative);
         if (activeBoardMembers.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "No active editorial board member is available");
@@ -1306,6 +1330,16 @@ public class EditorialBoardService {
                 .map(this::toRejectedEditorResponse)
                 .toList();
 
+        List<SeriesFile> sourceFiles = seriesFileRepository
+                .findBySeriesSeriesIdAndPurposeInAndActiveTrueOrderByUploadedAtDesc(
+                        series.getSeriesId(),
+                        List.of("SERIES_SUBMISSION", "EDITOR_DOSSIER")
+                );
+
+        List<UploadedFileResponse> uploadedFilesList = sourceFiles.stream()
+                .map(this::toUploadedFileResponse)
+                .toList();
+
         return new ReviewSeriesResponse(
                 series.getSeriesId(),
                 series.getTitle(),
@@ -1335,9 +1369,7 @@ public class EditorialBoardService {
                 assignments.stream()
                         .map(this::toBoardMemberAssignmentResponse)
                         .toList(),
-                currentUserAssigned
-                        ? reviewDossierFiles(series.getSeriesId())
-                        : List.of(),
+                uploadedFilesList,
                 rejectedEditors,
                 seriesHistoryService.getSeriesHistory(series.getSeriesId())
                         .stream()
@@ -1529,8 +1561,8 @@ public class EditorialBoardService {
         if (currentUser == null
                 || currentUser.getUserId() == null
                 || !seriesBoardAssignmentRepository.existsBySeriesSeriesIdAndBoardMemberUserId(
-                        seriesId,
-                        currentUser.getUserId())) {
+                seriesId,
+                currentUser.getUserId())) {
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
                     "You are not assigned to the Editorial Board panel for this series");
@@ -1595,5 +1627,21 @@ public class EditorialBoardService {
                 .map(String::trim)
                 .filter(value -> !value.isBlank())
                 .toList();
+    }
+
+    private boolean isRepresentative(User user) {
+        return "editorial1@manga.test".equalsIgnoreCase(user.getEmail());
+    }
+
+    private void requireRepresentative(User user, String message) {
+        if (!isRepresentative(user)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, message);
+        }
+    }
+
+    private void requireNotRepresentative(User user, String message) {
+        if (isRepresentative(user)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, message);
+        }
     }
 }

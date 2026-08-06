@@ -262,4 +262,10 @@ public class EditorialBoardController {
             @RequestBody ReviewRegistrationRequest request) {
         return service.reject(id, request);
     }
+
+    @PreAuthorize("hasRole('EDITORIAL_BOARD')")
+    @GetMapping("/assignment-history")
+    public List<SeriesReviewHistoryResponse> getAssignmentHistory() {
+        return service.getAssignmentHistory();
+    }
 }
