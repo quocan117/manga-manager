@@ -64,6 +64,7 @@ import com.example.backend.repository.SubmissionRepository;
 import com.example.backend.repository.TaskRepository;
 import com.example.backend.repository.UserRepository;
 import com.example.backend.repository.NotificationRepository;
+import com.example.backend.repository.SeriesBoardAssignmentRepository;
 
 @Service
 public class TantouEditorService {
@@ -105,6 +106,7 @@ public class TantouEditorService {
     private final MangakaService mangakaService;
     private final EditorialBoardService editorialBoardService;
     private final SeriesHistoryService seriesHistoryService;
+    private final SeriesBoardAssignmentRepository seriesBoardAssignmentRepository;
 
     @Value("${manga.upload.chapter-revision-note-root:}")
     private String chapterRevisionNoteUploadRootOverride;
@@ -124,6 +126,7 @@ public class TantouEditorService {
             NotificationRepository notificationRepository,
             SeriesFileRepository seriesFileRepository,
             SeriesEditorRejectionRepository seriesEditorRejectionRepository,
+            SeriesBoardAssignmentRepository seriesBoardAssignmentRepository,
             MangakaService mangakaService,
             EditorialBoardService editorialBoardService,
             SeriesHistoryService seriesHistoryService) {
@@ -144,6 +147,7 @@ public class TantouEditorService {
         this.mangakaService = mangakaService;
         this.editorialBoardService = editorialBoardService;
         this.seriesHistoryService = seriesHistoryService;
+        this.seriesBoardAssignmentRepository = seriesBoardAssignmentRepository;
     }
 
     @Transactional(readOnly = true)
@@ -231,11 +235,17 @@ public class TantouEditorService {
                 note,
                 seriesId);
         editorialBoardService.assignBoardPanel(series);
-        createSeriesLevelComment(series, note, "CONTENT", "RESOLVED");
-        notify(series.getAuthor(), "SUBMITTED_TO_BOARD", seriesId,
-                "Hồ sơ series \"" + series.getTitle() + "\" đã được trình lên Hội đồng Biên tập");
-        notifyEditorialBoard("SERIES_SUBMITTED_TO_BOARD", seriesId,
-                "Series \"" + series.getTitle() + "\" was submitted for Editorial Board review.");
+        seriesBoardAssignmentRepository
+                .findBySeriesSeriesIdOrderByAssignedAtAsc(series.getSeriesId())
+                .forEach(assignment -> {
+                    notify(
+                            assignment.getBoardMember(),
+                            "SERIES_SUBMITTED_TO_BOARD",
+                            series.getSeriesId(),
+                            "Biên tập viên " + editor.getUsername()
+                                    + " đã trình hồ sơ bảo vệ cho dự án \"" + series.getTitle() + "\"."
+                    );
+                });
         return getDossier(seriesId);
     }
 

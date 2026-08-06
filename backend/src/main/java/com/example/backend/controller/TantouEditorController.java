@@ -103,7 +103,7 @@ public class TantouEditorController {
         return service.getDossier(seriesId);
     }
 
-    @PatchMapping(
+    @PostMapping(
             value = "/series/{seriesId}/submit-to-board",
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public DossierResponse submitToEditorialBoard(

@@ -1249,9 +1249,9 @@ public class EditorialBoardService {
             return;
         }
         List<SeriesFile> sourceFiles = seriesFileRepository
-                .findBySeriesSeriesIdAndPurposeInAndActiveTrueOrderByUploadedAtDesc(
+                .findBySeriesSeriesIdAndPurposeAndActiveTrueOrderByUploadedAtDesc(
                         series.getSeriesId(),
-                        List.of(SERIES_SUBMISSION_PURPOSE, EDITOR_DOSSIER_PURPOSE));
+                        EDITOR_DOSSIER_PURPOSE);
         if (sourceFiles == null || sourceFiles.isEmpty()) {
             return;
         }
