@@ -87,7 +87,6 @@ public class EditorialBoardService {
     private static final String PUBLISHED_SERIES_STATUS = "PUBLISHED";
     private static final String REVISION_REQUESTED_STATUS = "REVISION_REQUESTED";
     private static final String TANTOU_REVIEW_STATUS = "TANTOU_REVIEW";
-    private static final String PENDING_EDITOR_STATUS = "PENDING_EDITOR";
     private static final String EDITOR_ASSIGNMENT_REQUIRED_STATUS = "EDITOR_ASSIGNMENT_REQUIRED";
     private static final String DROP_REQUESTED_STATUS = "DROP_REQUESTED";
     private static final String CANCELLED_SERIES_STATUS = "CANCELLED";
@@ -548,7 +547,7 @@ public class EditorialBoardService {
 
         String previousStatus = series.getStatus();
         series.setTantouEditor(editor);
-        series.setStatus(PENDING_EDITOR_STATUS);
+        series.setStatus(TANTOU_REVIEW_STATUS);
         series.setEditorAssignmentLocked(true);
         series.setEditorAssignedAt(LocalDateTime.now());
         mangaSeriesRepository.save(series);
@@ -561,9 +560,10 @@ public class EditorialBoardService {
                 editor.getUsername(),
                 editor.getUserId());
 
-        notify(editor, "FORCED_EDITOR_ASSIGNMENT", seriesId,
-                "Editorial Board assigned you to series \"" + series.getTitle()
-                        + "\". This assignment cannot be rejected.");
+        notify(editor, "SYSTEM", seriesId,
+                "Hội đồng Biên tập đã phân công trực tiếp tác phẩm \"" + series.getTitle()
+                        + "\" cho bạn. Tác phẩm đã được tự động thêm vào danh sách công việc đang làm"
+                        + " và không thể từ chối.");
         notify(series.getAuthor(), "EDITOR_ASSIGNED_BY_BOARD", seriesId,
                 "Editorial Board assigned editor " + editor.getUsername()
                         + " to series \"" + series.getTitle() + "\".");
@@ -1249,9 +1249,9 @@ public class EditorialBoardService {
             return;
         }
         List<SeriesFile> sourceFiles = seriesFileRepository
-                .findBySeriesSeriesIdAndPurposeInAndActiveTrueOrderByUploadedAtDesc(
+                .findBySeriesSeriesIdAndPurposeAndActiveTrueOrderByUploadedAtDesc(
                         series.getSeriesId(),
-                        List.of(SERIES_SUBMISSION_PURPOSE, EDITOR_DOSSIER_PURPOSE));
+                        EDITOR_DOSSIER_PURPOSE);
         if (sourceFiles == null || sourceFiles.isEmpty()) {
             return;
         }

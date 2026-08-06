@@ -32,6 +32,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.example.backend.dto.EditorialBoardDtos.BoardDecisionRequest;
+import com.example.backend.dto.EditorialBoardDtos.AssignEditorRequest;
 import com.example.backend.dto.EditorialBoardDtos.CreateUserRequest;
 import com.example.backend.dto.EditorialBoardDtos.ImportReaderFeedbackRequest;
 import com.example.backend.dto.EditorialBoardDtos.ScheduleRequest;
@@ -221,6 +222,38 @@ class EditorialBoardServiceTests {
                 assertEquals(3L, rejectedEditorResponse.currentTaskCount());
                 assertEquals("Không phù hợp với thể loại của series", rejectedEditorResponse.reason());
                 assertEquals(rejectedAt, rejectedEditorResponse.rejectedAt());
+        }
+
+        @Test
+        void forcedEditorAssignmentMovesSeriesDirectlyToTantouReview() {
+                User board = user(1L, "Editorial Board One", BOARD_EMAIL, role("EDITORIAL_BOARD"));
+                User editor = user(7L, "Tantou Seven", "tantou7@manga.test", role("TANTOU_EDITOR"));
+                editor.setStatus("ACTIVE");
+                MangaSeries series = series(5L, "Forced Series", "EDITOR_ASSIGNMENT_REQUIRED");
+
+                when(userRepository.findByEmail(BOARD_EMAIL)).thenReturn(Optional.of(board));
+                when(mangaSeriesRepository.findById(5L)).thenReturn(Optional.of(series));
+                when(userRepository.findById(7L)).thenReturn(Optional.of(editor));
+                when(mangaSeriesRepository.save(series)).thenReturn(series);
+
+                var response = service.assignEditor(5L, new AssignEditorRequest(7L));
+
+                assertEquals(editor, series.getTantouEditor());
+                assertEquals("TANTOU_REVIEW", series.getStatus());
+                assertEquals("TANTOU_REVIEW", response.status());
+                assertTrue(Boolean.TRUE.equals(series.getEditorAssignmentLocked()));
+                assertNotNull(series.getEditorAssignedAt());
+
+                ArgumentCaptor<Notification> notificationCaptor = ArgumentCaptor.forClass(Notification.class);
+                verify(notificationRepository, times(2)).save(notificationCaptor.capture());
+                Notification editorNotification = notificationCaptor.getAllValues().stream()
+                                .filter(notification -> editor.equals(notification.getUser()))
+                                .findFirst()
+                                .orElseThrow();
+                assertEquals("SYSTEM", editorNotification.getType());
+                assertEquals(5L, editorNotification.getReferenceId());
+                assertTrue(editorNotification.getMessage().contains("Forced Series"));
+                assertTrue(editorNotification.getMessage().contains("không thể từ chối"));
         }
 
         @Test
