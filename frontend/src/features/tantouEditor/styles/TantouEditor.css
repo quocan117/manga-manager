@@ -7,7 +7,7 @@
 
 .tantou-sidebar {
   width: 260px;
-  background-color: #2b3445; 
+  background-color: #2b3445;
   display: flex;
   flex-direction: column;
   position: fixed;
@@ -15,11 +15,11 @@
   left: 0;
   height: 100vh;
   z-index: 1000;
-  box-shadow: 4px 0 15px rgba(0, 0, 0, 0.05);
+  box-shadow: 4px 0 15px rgba(0, 0, 0, 0.1);
 }
 
 .sidebar-header {
-  padding: 30px 20px;
+  padding: 30px 20px 20px 20px;
   text-align: center;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
@@ -27,67 +27,107 @@
 .role-title {
   margin: 0;
   font-size: 22px;
-  font-weight: 700;
+  font-weight: 800;
   color: #ffffff;
-  line-height: 1.4;
+  letter-spacing: 1px;
+}
+
+.sidebar-user-info {
+  padding: 0 10px;
+}
+
+.welcome-text {
+  color: #ffffff;
+  font-size: 15px;
+  margin-bottom: 4px;
+}
+
+.specialty-text {
+  color: #8a94a6; 
+  font-size: 12.5px;
+  line-height: 1.5;
+  margin-top: 6px;
+  padding: 0 5px;
+}
+
+.specialty-label {
+  color: #fbbf24; 
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 11px;
+  display: block; 
+  margin-bottom: 2px;
+  letter-spacing: 0.5px;
 }
 
 .role-highlight {
-  color: #2ecc71; 
+  color: #2ecc71;
   font-size: 26px;
   letter-spacing: 2px;
 }
 
 .sidebar-menu {
   list-style: none;
-  padding: 20px 15px;
+  padding: 20px 10px;
   margin: 0;
   flex-grow: 1;
 }
 
 .sidebar-menu li {
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .sidebar-menu .nav-link {
   display: flex;
   align-items: center;
-  padding: 12px 15px;
+  padding: 14px 18px;
   color: #aeb4be;
   text-decoration: none;
-  border-radius: 8px; 
+  border-radius: 8px;
   font-weight: 500;
-  transition: all 0.3s ease;
+  font-size: 15px;
+  transition: all 0.2s ease;
+  border-left: 4px solid transparent;
 }
 
 .sidebar-menu .nav-link i {
   width: 24px;
   font-size: 18px;
-  margin-right: 10px;
+  margin-right: 12px;
+  opacity: 0.7;
 }
 
 .sidebar-menu .nav-link:hover {
   background-color: rgba(255, 255, 255, 0.05);
   color: #ffffff;
-  transform: translateX(5px);
 }
 
 .sidebar-menu .nav-link.active {
-  background-color: rgba(255, 255, 255, 0.1);
+  background: linear-gradient(
+    90deg,
+    rgba(59, 130, 246, 0.2) 0%,
+    rgba(59, 130, 246, 0) 100%
+  );
   color: #ffffff;
   font-weight: 600;
+  border-left: 4px solid #3b82f6;
+}
+
+.sidebar-menu .nav-link.active i {
+  color: #3b82f6;
+  opacity: 1;
 }
 
 .sidebar-footer {
-  padding: 20px 15px;
+  padding: 20px;
   border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .btn-logout {
   width: 100%;
   padding: 12px;
-  background-color: transparent;
-  border: 1px solid #ff4757;
+  background-color: rgba(255, 71, 87, 0.1);
+  border: 1px solid rgba(255, 71, 87, 0.3);
   color: #ff4757;
   border-radius: 8px;
   font-weight: 600;
@@ -102,10 +142,12 @@
 .btn-logout:hover {
   background-color: #ff4757;
   color: #ffffff;
+  border-color: #ff4757;
+  transform: translateY(-2px);
 }
 
 .tantou-main-content {
-  margin-left: 260px; 
+  margin-left: 260px;
   flex-grow: 1;
   width: calc(100% - 260px);
   min-height: 100vh;
@@ -428,7 +470,7 @@
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #3b82f6, #8b5cf6); 
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
   border-radius: 999px;
   transition: width 0.4s ease;
 }
@@ -457,7 +499,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  box-shadow: inset 0 2px 5px rgba(0,0,0,0.05);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.05);
 }
 
 .donut-percent {
@@ -493,7 +535,7 @@
 }
 
 .editor-area-line {
-  stroke: #8b5cf6; 
+  stroke: #8b5cf6;
   stroke-width: 2.5;
 }
 
