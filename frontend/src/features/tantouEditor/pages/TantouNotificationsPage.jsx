@@ -11,12 +11,7 @@ import { formatDateTime } from "../../../utils/formatDate";
 import RejectReasonModal from "../../../components/RejectReasonModal";
 import SeriesFileList from "../../../components/SeriesFileList";
 
-const ASSIGNMENT_NOTIFICATION_TYPES = [
-  "NEW_ASSIGNMENT",
-  "SYSTEM_ASSIGNMENT",
-  "FORCED_EDITOR_ASSIGNMENT",
-];
-const LOCKED_ASSIGNMENT_TYPES = ["FORCED_EDITOR_ASSIGNMENT"];
+const ASSIGNMENT_NOTIFICATION_TYPES = ["NEW_ASSIGNMENT", "SYSTEM_ASSIGNMENT"];
 
 export default function TantouNotifications() {
   const [notifications, setNotifications] = useState([]);
@@ -177,7 +172,7 @@ export default function TantouNotifications() {
                   >
                     {previewTargetId === n.id
                       ? "Đang tải hồ sơ..."
-                      : "👁️ Xem hồ sơ"}
+                      : "Xem hồ sơ"}
                   </button>
                 )}
                 <small className="text-muted">
@@ -259,20 +254,18 @@ export default function TantouNotifications() {
               >
                 Đóng
               </button>
-              {!LOCKED_ASSIGNMENT_TYPES.includes(
-                previewDossier.notification.type,
-              ) && (
-                <button
-                  className="btn btn-outline-danger px-4"
-                  disabled={acceptingId === previewDossier.notification.id}
-                  onClick={() => {
-                    handleReject(previewDossier.notification);
-                    setPreviewDossier(null);
-                  }}
-                >
-                  Từ chối
-                </button>
-              )}
+
+              <button
+                className="btn btn-outline-danger px-4"
+                disabled={acceptingId === previewDossier.notification.id}
+                onClick={() => {
+                  handleReject(previewDossier.notification);
+                  setPreviewDossier(null);
+                }}
+              >
+                Từ chối
+              </button>
+
               <button
                 className="btn btn-success px-4"
                 disabled={acceptingId === previewDossier.notification.id}

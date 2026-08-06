@@ -17,10 +17,18 @@ export const getSeriesDossier = async (seriesId) => {
   return response.data;
 };
 
-export const submitToBoard = async (seriesId, note) => {
-  const response = await api.patch(
+export const submitToBoard = async (seriesId, note, files) => {
+  const formData = new FormData();
+  if (note) {
+    formData.append("note", note);
+  }
+
+  if (files && files.length > 0) {
+    files.forEach((file) => formData.append("files", file));
+  }
+  const response = await api.post(
     `/tantou-editor/series/${seriesId}/submit-to-board`,
-    { note },
+    formData,
   );
   return response.data;
 };
@@ -60,7 +68,7 @@ export const rejectSeries = async (seriesId, reason) => {
 export const requestDropProject = async (seriesId, reason) => {
   const response = await api.patch(
     `/tantou-editor/series/${seriesId}/request-drop`,
-    { reason }
+    { reason },
   );
   return response.data;
 };

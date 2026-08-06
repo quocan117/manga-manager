@@ -6,21 +6,16 @@ import {
   acceptSeries,
   markNotificationRead,
   rejectSeries,
-  getSeriesDossier, 
+  getSeriesDossier,
 } from "../../../services/tantouService";
 import { useNavigate } from "react-router-dom";
 import { getPendingReviewChapters } from "../../../services/chapterEditorService";
 import { formatDateTime, formatDateOnly } from "../../../utils/formatDate";
 import RejectReasonModal from "../../../components/RejectReasonModal";
-import SeriesFileList from "../../../components/SeriesFileList"; 
+import SeriesFileList from "../../../components/SeriesFileList";
 import "../styles/TantouEditor.css";
 
-const ASSIGNMENT_NOTIFICATION_TYPES = [
-  "NEW_ASSIGNMENT",
-  "SYSTEM_ASSIGNMENT",
-  "FORCED_EDITOR_ASSIGNMENT",
-];
-const LOCKED_ASSIGNMENT_TYPES = ["FORCED_EDITOR_ASSIGNMENT"];
+const ASSIGNMENT_NOTIFICATION_TYPES = ["NEW_ASSIGNMENT", "SYSTEM_ASSIGNMENT"];
 
 function getLastNDays(n) {
   const days = [];
@@ -371,7 +366,6 @@ export default function TantouDashboard() {
           <div className="dashboard-card-body p-0">
             <ul className="assignment-list">
               {pendingAssignments.map((n) => {
-                const isLocked = LOCKED_ASSIGNMENT_TYPES.includes(n.type);
                 return (
                   <li key={n.id} className="assignment-item">
                     <div className="assignment-item-main">
@@ -380,9 +374,8 @@ export default function TantouDashboard() {
                       </span>
                       <p className="assignment-message mb-1">{n.message}</p>
                       <small className="text-muted d-block">
-                        {isLocked
-                          ? "Hồ sơ do Hội đồng Biên tập chỉ định trực tiếp — Vui lòng xem trước hồ sơ để tiếp nhận."
-                          : "Vui lòng xem trước hồ sơ trong 24h, nếu không hệ thống sẽ tự động chuyển cho biên tập viên khác."}
+                        Vui lòng xem trước hồ sơ trong 24h, nếu không hệ thống
+                        sẽ tự động chuyển cho biên tập viên khác.
                       </small>
                       <small className="text-muted">
                         {formatDateTime(n.createdAt)}
@@ -397,7 +390,7 @@ export default function TantouDashboard() {
                       >
                         {previewTargetId === n.id
                           ? "Đang tải hồ sơ..."
-                          : "👁️ Xem hồ sơ"}
+                          : "Xem hồ sơ"}
                       </button>
                     </div>
                   </li>
@@ -582,20 +575,16 @@ export default function TantouDashboard() {
               >
                 Đóng
               </button>
-              {!LOCKED_ASSIGNMENT_TYPES.includes(
-                previewDossier.notification.type,
-              ) && (
-                <button
-                  className="btn btn-outline-danger px-4"
-                  disabled={acceptingId === previewDossier.notification.id}
-                  onClick={() => {
-                    handleReject(previewDossier.notification);
-                    setPreviewDossier(null);
-                  }}
-                >
-                  Từ chối
-                </button>
-              )}
+              <button
+                className="btn btn-outline-danger px-4"
+                disabled={acceptingId === previewDossier.notification.id}
+                onClick={() => {
+                  handleReject(previewDossier.notification);
+                  setPreviewDossier(null);
+                }}
+              >
+                Từ chối
+              </button>
               <button
                 className="btn btn-success px-4"
                 disabled={acceptingId === previewDossier.notification.id}

@@ -205,3 +205,8 @@ export const getSeriesReview = async (id) => {
   const response = await api.get(`/editorial-board/series/${id}/review`);
   return response.data;
 };
+
+export const getDropRequestedSeries = async () => {
+  const response = await api.get("/editorial-board/series/drop-requested");
+  return response.data;
+};

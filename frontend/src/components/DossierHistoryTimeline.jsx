@@ -32,59 +32,67 @@ export default function DossierHistoryTimeline({ seriesId }) {
 
   return (
     <div className="dossier-timeline">
-      {historyRounds.map((round, index) => (
-        <div
-          key={index}
-          className="card mb-4 shadow-sm border-0"
-          style={{ borderLeft: "4px solid #6c757d" }}
-        >
-          <div className="card-header bg-light d-flex justify-content-between align-items-center">
-            <span className="fw-bold text-dark">Vòng {round.roundNumber}</span>
-            <small className="text-muted">
-              Nộp lúc: {formatDateTime(round.submittedAt)}
-            </small>
-          </div>
-          <div className="card-body">
-            <h6 className="fw-bold mb-2">Tài liệu đã nộp:</h6>
-            <div className="mb-3">
-              <SeriesFileList
-                files={round.submittedFiles || []}
-                emptyText="Không có tài liệu nào được đính kèm."
-              />
-            </div>
+      {historyRounds.map((round, index) => {
+        // Lọc bỏ quyết định từ chối nội bộ của BTV (ẩn đi đối với Mangaka)
+        const isInternalRejection = round.decision === "EDITOR_REJECTED_SERIES";
+        const showDecision = round.decision && !isInternalRejection;
 
-            <hr />
-            <h6 className="fw-bold mb-2">Kết quả đánh giá:</h6>
-            {round.decision ? (
-              <div className="bg-light p-3 rounded">
-                <p className="mb-1">
-                  <strong>Người duyệt:</strong> {round.reviewedBy}
-                </p>
-                <p className="mb-1">
-                  <strong>Quyết định:</strong>{" "}
-                  <span
-                    className={`badge ${round.decision === "APPROVE" ? "bg-success" : "bg-danger"}`}
-                  >
-                    {round.decision}
-                  </span>
-                </p>
-                <p className="mb-1">
-                  <strong>Ngày duyệt:</strong>{" "}
-                  {formatDateTime(round.reviewedAt)}
-                </p>
-                <p className="mb-0 mt-2 text-danger fst-italic">
-                  <strong>Nhận xét:</strong>{" "}
-                  {round.reviewNote || "Không có ghi chú thêm."}
-                </p>
+        return (
+          <div
+            key={index}
+            className="card mb-4 shadow-sm border-0"
+            style={{ borderLeft: "4px solid #6c757d" }}
+          >
+            <div className="card-header bg-light d-flex justify-content-between align-items-center">
+              <span className="fw-bold text-dark">
+                Vòng {round.roundNumber}
+              </span>
+              <small className="text-muted">
+                Nộp lúc: {formatDateTime(round.submittedAt)}
+              </small>
+            </div>
+            <div className="card-body">
+              <h6 className="fw-bold mb-2">Tài liệu đã nộp:</h6>
+              <div className="mb-3">
+                <SeriesFileList
+                  files={round.submittedFiles || []}
+                  emptyText="Không có tài liệu nào được đính kèm."
+                />
               </div>
-            ) : (
-              <p className="text-muted fst-italic mb-0">
-                Hồ sơ đang chờ được đánh giá...
-              </p>
-            )}
+              <hr />
+              <h6 className="fw-bold mb-2">Kết quả đánh giá:</h6>
+
+              {showDecision ? (
+                <div className="bg-light p-3 rounded">
+                  <p className="mb-1">
+                    <strong>Người duyệt:</strong> {round.reviewedBy}
+                  </p>
+                  <p className="mb-1">
+                    <strong>Quyết định:</strong>{" "}
+                    <span
+                      className={`badge ${round.decision === "APPROVE" ? "bg-success" : "bg-danger"}`}
+                    >
+                      {round.decision}
+                    </span>
+                  </p>
+                  <p className="mb-1">
+                    <strong>Ngày duyệt:</strong>{" "}
+                    {formatDateTime(round.reviewedAt)}
+                  </p>
+                  <p className="mb-0 mt-2 text-danger fst-italic">
+                    <strong>Nhận xét:</strong>{" "}
+                    {round.reviewNote || "Không có ghi chú thêm."}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-muted fst-italic mb-0">
+                  Hồ sơ đang chờ được đánh giá...
+                </p>
+              )}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
