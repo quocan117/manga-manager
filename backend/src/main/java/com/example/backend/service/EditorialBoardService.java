@@ -128,6 +128,7 @@ public class EditorialBoardService {
     private final SeriesFileRepository seriesFileRepository;
     private final SeriesEditorRejectionRepository seriesEditorRejectionRepository;
     private final SeriesBoardAssignmentRepository seriesBoardAssignmentRepository;
+    private final com.example.backend.repository.SeriesReviewHistoryRepository seriesReviewHistoryRepository;
     private final MangakaService mangakaService;
     private final SeriesHistoryService seriesHistoryService;
 
@@ -147,6 +148,7 @@ public class EditorialBoardService {
             SeriesFileRepository seriesFileRepository,
             SeriesEditorRejectionRepository seriesEditorRejectionRepository,
             SeriesBoardAssignmentRepository seriesBoardAssignmentRepository,
+            com.example.backend.repository.SeriesReviewHistoryRepository seriesReviewHistoryRepository,
             MangakaService mangakaService,
             SeriesHistoryService seriesHistoryService) {
         this.requestRepository = requestRepository;
@@ -164,6 +166,7 @@ public class EditorialBoardService {
         this.seriesFileRepository = seriesFileRepository;
         this.seriesEditorRejectionRepository = seriesEditorRejectionRepository;
         this.seriesBoardAssignmentRepository = seriesBoardAssignmentRepository;
+        this.seriesReviewHistoryRepository = seriesReviewHistoryRepository;
         this.mangakaService = mangakaService;
         this.seriesHistoryService = seriesHistoryService;
     }
@@ -209,7 +212,9 @@ public class EditorialBoardService {
         MangaSeries series = mangaSeriesRepository.findById(seriesId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Series not found"));
-        requireBoardPanelMembership(seriesId, currentUser);
+        if (!isRepresentative(currentUser)) {
+            requireBoardPanelMembership(seriesId, currentUser);
+        }
         return toReviewSeriesResponse(series, currentUser);
     }
 
@@ -757,6 +762,16 @@ public class EditorialBoardService {
         request.setReviewedBy(editorialBoard);
 
         return requestRepository.save(request);
+    }
+
+    @Transactional(readOnly = true)
+    public List<SeriesReviewHistoryResponse> getAssignmentHistory() {
+        requireRepresentative(currentEditorialBoard(), "Chỉ Trưởng ban mới có quyền xem lịch sử phân công.");
+        List<String> assignmentActions = List.of("BOARD_FORCED_EDITOR_ASSIGNMENT", "BOARD_CANCELLED_SERIES");
+        return seriesReviewHistoryRepository.findByActionInOrderByCreatedAtDesc(assignmentActions)
+                .stream()
+                .map(this::toSeriesReviewHistoryResponse)
+                .toList();
     }
 
     public RegistrationRequest reject(Long requestId, ReviewRegistrationRequest dto) {
