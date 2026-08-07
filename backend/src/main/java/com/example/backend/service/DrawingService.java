@@ -98,17 +98,21 @@ public class DrawingService {
         ChapterPage page = ownedPage(pageId);
         User mangaka = currentUser();
         PageDrawing drawing = drawingRepository.findByPagePageIdAndTaskIsNull(pageId)
-                .orElseThrow(() -> notFound("Drawing not found"));
-        assertVersion(drawing, request.expectedVersion());
-
+                .orElseGet(() -> {
+                    PageDrawing newDrawing = new PageDrawing();
+                    newDrawing.setPage(page);
+                    newDrawing.setOwner(mangaka);
+                    newDrawing.setCanvasData("{}"); // Canvas trống
+                    newDrawing.setCreatedAt(LocalDateTime.now());
+                    return newDrawing;
+                });
+        if (drawing.getDrawingId() != null) {
+            assertVersion(drawing, request.expectedVersion());
+        }
         drawing.setStatus("FINALIZED");
         drawing.setUpdatedAt(LocalDateTime.now());
         page.setPageStatus("DRAWING_FINALIZED");
-        if (drawing.getPreviewImageUrl() != null && !drawing.getPreviewImageUrl().isBlank()) {
-            page.setImageUrl(drawing.getPreviewImageUrl());
-        }
         pageRepository.save(page);
-
         return saveWithRevision(drawing, mangaka);
     }
 

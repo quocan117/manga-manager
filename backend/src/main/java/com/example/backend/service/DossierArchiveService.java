@@ -65,6 +65,7 @@ public class DossierArchiveService {
         Map<Integer, List<SeriesFile>> filesByRound = seriesFileRepository
                 .findBySeriesSeriesIdOrderByRoundNumberAscUploadedAtAsc(seriesId)
                 .stream()
+                .filter(file -> "SERIES_SUBMISSION".equalsIgnoreCase(file.getPurpose()))
                 .collect(Collectors.groupingBy(
                         file -> file.getRoundNumber() == null ? 1 : file.getRoundNumber(),
                         TreeMap::new,
@@ -137,7 +138,7 @@ public class DossierArchiveService {
                 map.put("note", item.getReason());
                 map.put("files", relatedFiles);
                 submitToBoardHistory.add(map);
-            } else if (action.contains("REVISION") || action.contains("REJECT")) {
+            } else if (action.equals("EDITOR_REQUESTED_REVISION")) {
                 List<SeriesFile> mangakaFiles = allFiles.stream()
                         .filter(f -> f.getUploadedAt() != null && !f.getUploadedAt().isAfter(item.getCreatedAt()))
                         .filter(f -> "SERIES_SUBMISSION".equalsIgnoreCase(f.getPurpose())) // <--- QUAN TRỌNG

@@ -64,6 +64,11 @@ public class AssistantController {
         return service.getDrawing(taskId);
     }
 
+    @GetMapping("/tasks/{taskId}/master-drawing")
+    public DrawingResponse getMasterDrawing(@PathVariable Long taskId) {
+        return service.getMasterDrawing(taskId);
+    }
+
     @PutMapping("/tasks/{taskId}/drawing")
     public DrawingResponse saveDrawing(
             @PathVariable Long taskId,

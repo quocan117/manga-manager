@@ -1354,9 +1354,15 @@ public class EditorialBoardService {
         List<SeriesFile> sourceFiles = seriesFileRepository
                 .findBySeriesSeriesIdAndPurposeAndActiveTrueOrderByUploadedAtDesc(
                         series.getSeriesId(),
-                        "EDITOR_DOSSIER"
+                        EDITOR_DOSSIER_PURPOSE
                 );
-
+        if (sourceFiles.isEmpty()) {
+            sourceFiles = seriesFileRepository
+                    .findBySeriesSeriesIdAndPurposeAndActiveTrueOrderByUploadedAtDesc(
+                            series.getSeriesId(),
+                            SERIES_SUBMISSION_PURPOSE
+                    );
+        }
         List<UploadedFileResponse> uploadedFilesList = sourceFiles.stream()
                 .map(this::toUploadedFileResponse)
                 .toList();

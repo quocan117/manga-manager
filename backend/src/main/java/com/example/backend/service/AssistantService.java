@@ -120,6 +120,19 @@ public class AssistantService {
         return toDrawingResponse(getOrCreateDrawing(task, currentUser()));
     }
 
+    @Transactional(readOnly = true)
+    public DrawingResponse getMasterDrawing(Long taskId) {
+        Task task = assignedTask(taskId);
+        PageDrawing masterDrawing = drawingRepository
+                .findByPagePageIdAndTaskIsNull(taskPage(task).getPageId())
+                .orElse(null);
+
+        if (masterDrawing == null) {
+            return null;
+        }
+        return toDrawingResponse(masterDrawing);
+    }
+
     @Transactional
     public DrawingResponse saveDrawing(Long taskId, SaveDrawingRequest request) {
         Task task = assignedTask(taskId);

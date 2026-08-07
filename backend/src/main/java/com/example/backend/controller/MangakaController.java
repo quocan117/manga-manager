@@ -10,6 +10,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -172,6 +173,13 @@ public class MangakaController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deletePage(@PathVariable Long pageId) {
         service.deletePage(pageId);
+    }
+
+    @PutMapping(value = "/pages/{pageId}/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public PageResponse updatePageImage(
+            @PathVariable Long pageId,
+            @RequestParam("image") MultipartFile image) {
+        return service.updatePageImage(pageId, image);
     }
 
     @PatchMapping("/chapters/{chapterId}/submit-to-editor")

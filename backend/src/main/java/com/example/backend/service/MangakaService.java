@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -556,7 +557,6 @@ public class MangakaService {
         return toChapterResponse(chapter);
     }
 
-    @Transactional
     public void deletePage(Long pageId) {
         ChapterPage page = chapterPageRepository.findById(pageId)
                 .orElseThrow(() -> notFound("Chapter page not found"));
@@ -575,6 +575,20 @@ public class MangakaService {
         }
         page.setPageStatus("DELETED");
         chapterPageRepository.save(page);
+        List<ChapterPage> remainingPages = chapterPageRepository
+                .findByChapterChapterIdOrderByPageNumberAsc(page.getChapter().getChapterId());
+        int expectedNumber = 1;
+        List<ChapterPage> toUpdate = new ArrayList<>();
+        for (ChapterPage remainingPage : remainingPages) {
+            if (!Objects.equals(remainingPage.getPageNumber(), expectedNumber)) {
+                remainingPage.setPageNumber(expectedNumber);
+                toUpdate.add(remainingPage);
+            }
+            expectedNumber++;
+        }
+        if (!toUpdate.isEmpty()) {
+            chapterPageRepository.saveAll(toUpdate);
+        }
     }
 
     @Transactional
@@ -850,7 +864,7 @@ public class MangakaService {
     public List<TaskResponse> getChapterTasks(Long chapterId) {
         ownedChapter(chapterId);
         return taskRepository.findByChapterChapterIdAndAssignedByEmailOrderByCreatedAtDesc(
-                chapterId, currentEmail())
+                        chapterId, currentEmail())
                 .stream()
                 .map(this::toTaskResponse)
                 .toList();
@@ -868,44 +882,32 @@ public class MangakaService {
     @Transactional
     public SubmissionResponse reviewSubmission(Long submissionId, ReviewSubmissionRequest request) {
         Submission submission = submissionRepository.findById(submissionId)
-                .orElseThrow(() -> notFound("Submission not found"));
-        assertOwnedChapter(submission.getChapter());
-
-        String decision = request.decision().trim().toUpperCase(Locale.ROOT);
-        if (!REVIEW_DECISIONS.contains(decision)) {
-            throw badRequest("Decision must be APPROVED or REVISION_REQUESTED");
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Submission not found"));
+        Task task = submission.getTask();
+        if (task == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Submission does not belong to a task");
         }
-        if ("REVISION_REQUESTED".equals(decision)
-                && (request.reviewNote() == null || request.reviewNote().isBlank())) {
-            throw badRequest("A review note is required when requesting revision");
+        User mangaka = currentUser();
+        if (!task.getAssignedBy().getUserId().equals(mangaka.getUserId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You do not own this task");
         }
-        if (!"SUBMITTED".equalsIgnoreCase(submission.getStatus())) {
-            throw conflict("Only a pending submission can be reviewed");
-        }
-        if (submission.getTask() != null
-                && submissionRound(submission) != currentRound(submission.getTask())) {
-            throw conflict("This submission belongs to an earlier task round");
-        }
-
-        User reviewer = currentUser();
-        if ("APPROVED".equals(decision)) {
-            replacePageWithApprovedSubmission(submission, reviewer);
-        }
-
+        String decision = request.decision().toUpperCase();
         submission.setStatus(decision);
         submission.setReviewNote(request.reviewNote());
         submission.setReviewedAt(LocalDateTime.now());
-        submission.setReviewedBy(reviewer);
-        if (submission.getTask() != null) {
-            submission.getTask().setStatus(decision);
-            taskRepository.save(submission.getTask());
+        submission.setReviewedBy(mangaka);
+        task.setStatus(decision);
+        if ("APPROVED".equals(decision)) {
+            replacePageWithApprovedSubmission(submission, mangaka);
         }
+        taskRepository.save(task);
         Submission savedSubmission = submissionRepository.save(submission);
         notify(
                 submission.getSubmittedBy(),
-                "APPROVED".equals(decision) ? "TASK_APPROVED" : "TASK_REVISION_REQUESTED",
-                submission.getTask() == null ? submission.getSubmissionId() : submission.getTask().getTaskId(),
-                "Bài nộp của bạn đã được duyệt với kết quả " + decision + ".");
+                "SUBMISSION_" + decision,
+                task.getTaskId(),
+                "Mangaka đã " + ("APPROVED".equals(decision) ? "duyệt" : "yêu cầu chỉnh sửa") + " bài nộp của bạn."
+        );
         return toSubmissionResponse(savedSubmission);
     }
 
@@ -947,7 +949,9 @@ public class MangakaService {
         chapterPageHistoryRepository.save(history);
 
         page.setImageUrl(newImageUrl);
-        page.setPageStatus("DRAWING_FINALIZED");
+        if ("DRAWING_FINALIZED".equalsIgnoreCase(page.getPageStatus())) {
+            page.setPageStatus("DRAFT");
+        }
         chapterPageRepository.save(page);
 
         pageDrawingRepository.findByPagePageIdAndTaskIsNull(page.getPageId())
@@ -960,6 +964,7 @@ public class MangakaService {
             String approvedImageUrl) {
         drawing.setSourceSubmission(sourceSubmission);
         drawing.setPreviewImageUrl(approvedImageUrl);
+        drawing.setCanvasData("{}");
         drawing.setStatus("DRAFT");
         drawing.setUpdatedAt(LocalDateTime.now());
         pageDrawingRepository.save(drawing);
@@ -1046,16 +1051,16 @@ public class MangakaService {
         List<String> genres = series.getGenre() == null || series.getGenre().isBlank()
                 ? List.of()
                 : Arrays.stream(series.getGenre().split(","))
-                        .map(String::trim)
-                        .filter(value -> !value.isBlank())
-                        .toList();
+                .map(String::trim)
+                .filter(value -> !value.isBlank())
+                .toList();
         return new SeriesResponse(
                 series.getSeriesId(), series.getTitle(), genres, series.getCoverImage(),
                 series.getDescription(), series.getStatus(),
                 series.getSubmittedAt(), series.getRankingScore(),
                 seriesFileRepository.findBySeriesSeriesIdAndPurposeAndActiveTrueOrderByUploadedAtDesc(
-                        series.getSeriesId(),
-                        SERIES_SUBMISSION_PURPOSE)
+                                series.getSeriesId(),
+                                SERIES_SUBMISSION_PURPOSE)
                         .stream()
                         .map(this::toUploadedFileResponse)
                         .toList());
@@ -1249,8 +1254,8 @@ public class MangakaService {
         List<MultipartFile> images = markupImages == null
                 ? List.of()
                 : markupImages.stream()
-                        .filter(image -> image != null && !image.isEmpty())
-                        .toList();
+                .filter(image -> image != null && !image.isEmpty())
+                .toList();
         List<String> canvasValues = parseMarkupCanvasData(markupCanvasData, images.size());
         if (images.isEmpty()) {
             return;
@@ -1523,13 +1528,51 @@ public class MangakaService {
         List<MultipartFile> presentFiles = files == null
                 ? List.of()
                 : files.stream()
-                        .filter(file -> file != null && !file.isEmpty())
-                        .toList();
+                .filter(file -> file != null && !file.isEmpty())
+                .toList();
         if (presentFiles.isEmpty()) {
             return List.of();
         }
         presentFiles = requireSeriesSubmissionFiles(presentFiles);
         return storeSeriesFiles(series, uploadedBy, presentFiles, purpose, roundNumber);
+    }
+
+    @Transactional
+    public PageResponse updatePageImage(Long pageId, MultipartFile image) {
+        ChapterPage page = chapterPageRepository.findById(pageId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy trang truyện"));
+        if (image == null || image.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vui lòng chọn file ảnh hợp lệ");
+        }
+        try {
+            String fileName = System.currentTimeMillis() + "_" + image.getOriginalFilename();
+            Path uploadPath = Path.of("uploads/pages");
+            if (!Files.exists(uploadPath)) {
+                Files.createDirectories(uploadPath);
+            }
+            Files.copy(image.getInputStream(), uploadPath.resolve(fileName), StandardCopyOption.REPLACE_EXISTING);
+            page.setImageUrl("/covers/pages/" + fileName);
+            if ("DRAWING_FINALIZED".equalsIgnoreCase(page.getPageStatus())) {
+                page.setPageStatus("DRAFT");
+            }
+            chapterPageRepository.save(page);
+            pageDrawingRepository.findByPagePageIdAndTaskIsNull(pageId).ifPresent(drawing -> {
+                drawing.setCanvasData("{}");
+                drawing.setPreviewImageUrl(null);
+                drawing.setStatus("DRAFT");
+                drawing.setUpdatedAt(LocalDateTime.now());
+                pageDrawingRepository.save(drawing);
+            });
+            return new PageResponse(
+                    page.getPageId(),
+                    page.getChapter() != null ? page.getChapter().getChapterId() : null,
+                    page.getPageNumber(),
+                    page.getImageUrl(),
+                    page.getPageStatus()
+            );
+        } catch (Exception e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Không thể lưu tệp hình ảnh mới lên hệ thống");
+        }
     }
 
     public int currentSeriesSubmissionRound(Long seriesId) {
@@ -1593,8 +1636,8 @@ public class MangakaService {
         List<MultipartFile> presentFiles = files == null
                 ? List.of()
                 : files.stream()
-                        .filter(file -> file != null && !file.isEmpty())
-                        .toList();
+                .filter(file -> file != null && !file.isEmpty())
+                .toList();
         if (presentFiles.isEmpty()) {
             throw badRequest("Vui lòng đính kèm ít nhất 1 file hồ sơ");
         }
