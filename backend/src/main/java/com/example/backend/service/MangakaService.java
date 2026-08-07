@@ -55,6 +55,7 @@ import com.example.backend.model.ChapterPageHistory;
 import com.example.backend.model.ChapterRevisionNote;
 import com.example.backend.model.MangaSeries;
 import com.example.backend.model.Notification;
+import com.example.backend.model.PageDrawing;
 import com.example.backend.model.Role;
 import com.example.backend.model.SeriesFile;
 import com.example.backend.model.Submission;
@@ -68,6 +69,7 @@ import com.example.backend.repository.ChapterRevisionNoteRepository;
 import com.example.backend.repository.BoardDecisionRepository;
 import com.example.backend.repository.MangaSeriesRepository;
 import com.example.backend.repository.NotificationRepository;
+import com.example.backend.repository.PageDrawingRepository;
 import com.example.backend.repository.ReaderFeedbackImportRepository;
 import com.example.backend.repository.RoleRepository;
 import com.example.backend.repository.SeriesFileRepository;
@@ -100,6 +102,8 @@ public class MangakaService {
     private static final String CHAPTER_MANUSCRIPT_PURPOSE = "CHAPTER_MANUSCRIPT";
     private static final Set<String> CHAPTER_SUBMISSION_STATUSES = Set.of(
             "DRAFT", REVISION_REQUESTED_STATUS);
+    private static final Set<String> ACTIVE_TASK_STATUSES = Set.of(
+            "ASSIGNED", "IN_PROGRESS", "SUBMITTED", REVISION_REQUESTED_STATUS);
     private static final List<String> TANTOU_ACTIVE_WORKLOAD_STATUSES = List.of(
             PENDING_EDITOR_STATUS, TANTOU_REVIEW_STATUS, "REVIEWING");
     private static final long MAX_PAGE_IMAGE_SIZE_BYTES = 5L * 1024 * 1024;
@@ -131,6 +135,7 @@ public class MangakaService {
     private final ChapterRevisionNoteRepository chapterRevisionNoteRepository;
     private final ChapterPageRepository chapterPageRepository;
     private final ChapterPageHistoryRepository chapterPageHistoryRepository;
+    private final PageDrawingRepository pageDrawingRepository;
     private final TaskRepository taskRepository;
     private final SubmissionRepository submissionRepository;
     private final SeriesRankingRepository seriesRankingRepository;
@@ -164,6 +169,7 @@ public class MangakaService {
             ChapterRevisionNoteRepository chapterRevisionNoteRepository,
             ChapterPageRepository chapterPageRepository,
             ChapterPageHistoryRepository chapterPageHistoryRepository,
+            PageDrawingRepository pageDrawingRepository,
             TaskRepository taskRepository,
             SubmissionRepository submissionRepository,
             SeriesRankingRepository seriesRankingRepository,
@@ -183,6 +189,7 @@ public class MangakaService {
         this.chapterRevisionNoteRepository = chapterRevisionNoteRepository;
         this.chapterPageRepository = chapterPageRepository;
         this.chapterPageHistoryRepository = chapterPageHistoryRepository;
+        this.pageDrawingRepository = pageDrawingRepository;
         this.taskRepository = taskRepository;
         this.submissionRepository = submissionRepository;
         this.seriesRankingRepository = seriesRankingRepository;
@@ -423,17 +430,31 @@ public class MangakaService {
         Chapter chapter = new Chapter();
         chapter.setSeries(series);
         chapter.setChapterNumber(request.chapterNumber());
+        chapter.setExpectedPages(request.expectedPages());
         chapter.setTitle(request.title().trim());
         chapter.setStatus("DRAFT");
         chapter.setCreatedAt(LocalDateTime.now());
-        return toChapterResponse(chapterRepository.save(chapter));
+        Chapter savedChapter = chapterRepository.save(chapter);
+
+        List<ChapterPage> placeholders = new ArrayList<>();
+        for (int pageNumber = 1; pageNumber <= request.expectedPages(); pageNumber++) {
+            ChapterPage page = new ChapterPage();
+            page.setChapter(savedChapter);
+            page.setPageNumber(pageNumber);
+            page.setImageUrl(null);
+            page.setPageStatus("DRAFT");
+            page.setCreatedAt(LocalDateTime.now());
+            placeholders.add(page);
+        }
+        chapterPageRepository.saveAll(placeholders);
+        return toChapterResponse(savedChapter);
     }
 
     @Transactional
     public PageResponse createPage(CreatePageRequest request) {
         Chapter chapter = ownedChapter(request.chapterId());
-        if (chapterPageRepository.existsByChapterChapterIdAndPageNumber(
-                chapter.getChapterId(), request.pageNumber())) {
+        if (chapterPageRepository.countActiveByChapterIdAndPageNumber(
+                chapter.getChapterId(), request.pageNumber()) > 0) {
             throw conflict("Page number already exists in this chapter");
         }
 
@@ -455,7 +476,12 @@ public class MangakaService {
 
         images.forEach(this::validatePageImage);
 
-        int nextPageNumber = chapterPageRepository.findByChapterChapterIdOrderByPageNumberAsc(chapterId)
+        List<ChapterPage> existingPages = chapterPageRepository
+                .findByChapterChapterIdOrderByPageNumberAsc(chapterId);
+        List<ChapterPage> placeholders = existingPages.stream()
+                .filter(page -> page.getImageUrl() == null || page.getImageUrl().isBlank())
+                .toList();
+        int nextPageNumber = existingPages
                 .stream()
                 .map(ChapterPage::getPageNumber)
                 .filter(Objects::nonNull)
@@ -471,8 +497,19 @@ public class MangakaService {
         }
 
         List<PageResponse> responses = new ArrayList<>();
+        int placeholderIndex = 0;
         for (MultipartFile image : images) {
-            String fileName = pageImageFileName(chapterId, nextPageNumber, image.getOriginalFilename());
+            ChapterPage page;
+            if (placeholderIndex < placeholders.size()) {
+                page = placeholders.get(placeholderIndex++);
+            } else {
+                page = new ChapterPage();
+                page.setChapter(chapter);
+                page.setPageNumber(nextPageNumber++);
+                page.setCreatedAt(LocalDateTime.now());
+            }
+            String fileName = pageImageFileName(
+                    chapterId, page.getPageNumber(), image.getOriginalFilename());
             Path target = chapterDirectory.resolve(fileName).normalize();
             if (!target.startsWith(chapterDirectory)) {
                 throw badRequest("Invalid image file name");
@@ -485,14 +522,9 @@ public class MangakaService {
                         HttpStatus.INTERNAL_SERVER_ERROR, "Could not save page image", exception);
             }
 
-            ChapterPage page = new ChapterPage();
-            page.setChapter(chapter);
-            page.setPageNumber(nextPageNumber);
             page.setImageUrl("pages/chapter-" + chapterId + "/" + fileName);
             page.setPageStatus("DRAFT");
-            page.setCreatedAt(LocalDateTime.now());
             responses.add(toPageResponse(chapterPageRepository.save(page)));
-            nextPageNumber++;
         }
 
         return responses;
@@ -525,7 +557,28 @@ public class MangakaService {
     }
 
     @Transactional
-    public ChapterResponse submitChapterToEditor(Long chapterId, List<MultipartFile> files) {
+    public void deletePage(Long pageId) {
+        ChapterPage page = chapterPageRepository.findById(pageId)
+                .orElseThrow(() -> notFound("Chapter page not found"));
+        assertOwnedChapter(page.getChapter());
+        if ("DELETED".equalsIgnoreCase(page.getPageStatus())) {
+            throw notFound("Chapter page not found");
+        }
+        String chapterStatus = page.getChapter().getStatus() == null
+                ? ""
+                : page.getChapter().getStatus().trim().toUpperCase(Locale.ROOT);
+        if (!CHAPTER_SUBMISSION_STATUSES.contains(chapterStatus)) {
+            throw conflict("Pages can only be deleted from draft chapters or chapters awaiting revision");
+        }
+        if (taskRepository.existsByPagePageIdAndStatusIn(pageId, ACTIVE_TASK_STATUSES)) {
+            throw conflict("This page has an active assistant task and cannot be deleted");
+        }
+        page.setPageStatus("DELETED");
+        chapterPageRepository.save(page);
+    }
+
+    @Transactional
+    public ChapterResponse submitChapterToEditor(Long chapterId) {
         Chapter chapter = ownedChapter(chapterId);
         String currentStatus = chapter.getStatus() == null
                 ? ""
@@ -540,31 +593,24 @@ public class MangakaService {
             throw conflict("This series has no assigned tantou editor");
         }
 
-        List<MultipartFile> manuscriptFiles = files == null
-                ? List.of()
-                : files.stream()
-                        .filter(file -> file != null && !file.isEmpty())
-                        .toList();
         List<ChapterPage> chapterPages = chapterPageRepository
                 .findByChapterChapterIdOrderByPageNumberAsc(chapterId);
-        if (manuscriptFiles.isEmpty() && chapterPages.isEmpty()) {
-            throw badRequest("Chapter must contain pages or uploaded manuscript files");
+        if (chapterPages.isEmpty()) {
+            throw badRequest("Chapter must contain at least one page");
         }
-        if (!manuscriptFiles.isEmpty()) {
-            manuscriptFiles = requireChapterManuscriptFiles(manuscriptFiles);
+        List<Integer> unfinishedPages = chapterPages.stream()
+                .filter(page -> !"DRAWING_FINALIZED".equalsIgnoreCase(page.getPageStatus())
+                        || page.getImageUrl() == null
+                        || page.getImageUrl().isBlank())
+                .map(ChapterPage::getPageNumber)
+                .toList();
+        if (!unfinishedPages.isEmpty()) {
+            throw badRequest(
+                    "All chapter pages must be finalized before submission. Unfinished pages: "
+                            + unfinishedPages);
         }
 
-        int manuscriptRound = seriesFileRepository.findMaxRoundNumberByChapterAndPurpose(
-                chapterId, CHAPTER_MANUSCRIPT_PURPOSE) + 1;
         seriesFileRepository.deactivateActiveChapterFiles(chapterId, CHAPTER_MANUSCRIPT_PURPOSE);
-        if (!manuscriptFiles.isEmpty()) {
-            storeChapterManuscriptFiles(
-                    series,
-                    chapter,
-                    series.getAuthor(),
-                    manuscriptFiles,
-                    manuscriptRound);
-        }
         String previousStatus = chapter.getStatus();
         chapter.setStatus(SUBMITTED_TO_EDITOR_STATUS);
         Chapter savedChapter = chapterRepository.save(chapter);
@@ -870,19 +916,26 @@ public class MangakaService {
             throw conflict("Approved task submission is not linked to a chapter page");
         }
 
-        SeriesFile approvedFile = seriesFileRepository
+        Optional<SeriesFile> approvedFile = seriesFileRepository
                 .findByTaskTaskIdAndRoundNumberAndPurposeAndActiveTrueOrderByUploadedAtAsc(
                         task.getTaskId(),
                         submissionRound(submission),
                         TaskFileStorageService.TASK_SUBMISSION)
                 .stream()
                 .filter(this::isPageImageFile)
-                .findFirst()
-                .orElseThrow(() -> conflict(
-                        "Approved page submission must contain at least one image file"));
+                .findFirst();
 
         String previousImageUrl = page.getImageUrl();
-        String newImageUrl = copySubmissionImageToPage(approvedFile, page, submission.getSubmissionId());
+        String newImageUrl = approvedFile
+                .map(file -> copySubmissionImageToPage(file, page, submission.getSubmissionId()))
+                .orElseGet(() -> {
+                    String artifactUrl = blankToNull(submission.getArtifactUrl());
+                    if (artifactUrl == null) {
+                        throw conflict(
+                                "Approved page submission must contain an image file or artifact URL");
+                    }
+                    return artifactUrl;
+                });
 
         ChapterPageHistory history = new ChapterPageHistory();
         history.setPage(page);
@@ -896,6 +949,20 @@ public class MangakaService {
         page.setImageUrl(newImageUrl);
         page.setPageStatus("DRAWING_FINALIZED");
         chapterPageRepository.save(page);
+
+        pageDrawingRepository.findByPagePageIdAndTaskIsNull(page.getPageId())
+                .ifPresent(drawing -> reopenMangakaDrawing(drawing, submission, newImageUrl));
+    }
+
+    private void reopenMangakaDrawing(
+            PageDrawing drawing,
+            Submission sourceSubmission,
+            String approvedImageUrl) {
+        drawing.setSourceSubmission(sourceSubmission);
+        drawing.setPreviewImageUrl(approvedImageUrl);
+        drawing.setStatus("DRAFT");
+        drawing.setUpdatedAt(LocalDateTime.now());
+        pageDrawingRepository.save(drawing);
     }
 
     @Transactional(readOnly = true)
@@ -1385,21 +1452,6 @@ public class MangakaService {
         return storeSeriesFiles(series, null, uploadedBy, files, fileType, roundNumber);
     }
 
-    private List<SeriesFile> storeChapterManuscriptFiles(
-            MangaSeries series,
-            Chapter chapter,
-            User uploadedBy,
-            List<MultipartFile> files,
-            Integer roundNumber) {
-        return storeSeriesFiles(
-                series,
-                chapter,
-                uploadedBy,
-                files,
-                CHAPTER_MANUSCRIPT_PURPOSE,
-                roundNumber);
-    }
-
     private List<SeriesFile> storeSeriesFiles(
             MangaSeries series,
             Chapter chapter,
@@ -1555,40 +1607,6 @@ public class MangakaService {
             throw new ResponseStatusException(
                     HttpStatus.PAYLOAD_TOO_LARGE,
                     "A series submission must be 200MB or smaller in total");
-        }
-        return presentFiles;
-    }
-
-    private List<MultipartFile> requireChapterManuscriptFiles(List<MultipartFile> files) {
-        List<MultipartFile> presentFiles = files == null
-                ? List.of()
-                : files.stream()
-                        .filter(file -> file != null && !file.isEmpty())
-                        .toList();
-        if (presentFiles.isEmpty()) {
-            throw badRequest("At least one chapter manuscript file is required");
-        }
-        if (presentFiles.size() > MAX_SERIES_FILES_PER_SUBMISSION) {
-            throw badRequest("A chapter manuscript can contain at most 20 images");
-        }
-
-        presentFiles.forEach(this::validateSeriesFile);
-        List<String> extensions = presentFiles.stream()
-                .map(file -> fileExtension(file.getOriginalFilename()))
-                .toList();
-        boolean containsZip = extensions.stream().anyMatch(".zip"::equals);
-        if (containsZip && (presentFiles.size() != 1 || !".zip".equals(extensions.get(0)))) {
-            throw badRequest("Upload either one ZIP file or one or more image files");
-        }
-        if (!containsZip && extensions.stream().anyMatch(extension -> !PAGE_IMAGE_EXTENSIONS.contains(extension))) {
-            throw badRequest("Chapter manuscripts only accept JPG, PNG, WEBP, GIF, or one ZIP file");
-        }
-
-        long totalSize = presentFiles.stream().mapToLong(MultipartFile::getSize).sum();
-        if (totalSize > MAX_SERIES_SUBMISSION_SIZE_BYTES) {
-            throw new ResponseStatusException(
-                    HttpStatus.PAYLOAD_TOO_LARGE,
-                    "A chapter manuscript must be 200MB or smaller in total");
         }
         return presentFiles;
     }

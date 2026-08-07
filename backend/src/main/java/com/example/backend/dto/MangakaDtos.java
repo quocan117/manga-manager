@@ -46,7 +46,8 @@ public final class MangakaDtos {
     public record CreateChapterRequest(
             @NotNull Long seriesId,
             @NotNull @Positive Integer chapterNumber,
-            @NotBlank String title) {
+            @NotBlank String title,
+            @NotNull @Positive Integer expectedPages) {
     }
 
     public record CreatePageRequest(

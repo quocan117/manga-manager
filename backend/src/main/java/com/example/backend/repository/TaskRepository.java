@@ -3,6 +3,7 @@ package com.example.backend.repository;
 import com.example.backend.model.Task;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.Collection;
 import java.util.List;
 
 public interface TaskRepository extends JpaRepository<Task, Long> {
@@ -19,4 +20,6 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     List<Task> findByChapterChapterIdOrderByDueDateAsc(Long chapterId);
 
     List<Task> findAllByOrderByDueDateAsc();
+
+    boolean existsByPagePageIdAndStatusIn(Long pageId, Collection<String> statuses);
 }

@@ -22,6 +22,9 @@ public class Chapter {
 
     private Integer chapterNumber;
 
+    @Column(name = "expected_pages")
+    private Integer expectedPages;
+
     @Column(columnDefinition = "NVARCHAR(255)")
     private String title;
 

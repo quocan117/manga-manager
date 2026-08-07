@@ -152,9 +152,11 @@ class EditorialBoardServiceTests {
 
         @Test
         void userListIncludesCurrentWorkloadForTantouEditorsOnly() {
+                User board = user(1L, "Editorial Board One", BOARD_EMAIL, role("EDITORIAL_BOARD"));
                 User editor = user(7L, "Tantou Seven", "tantou7@manga.test", role("TANTOU_EDITOR"));
                 User mangaka = user(8L, "Mangaka Eight", "mangaka8@manga.test", role("MANGAKA"));
 
+                when(userRepository.findByEmail(BOARD_EMAIL)).thenReturn(Optional.of(board));
                 when(userRepository.findAllByOrderByCreatedAtDesc()).thenReturn(List.of(editor, mangaka));
                 when(mangakaService.countTantouEditorActiveWorkload(7L)).thenReturn(4L);
 
@@ -285,7 +287,7 @@ class EditorialBoardServiceTests {
                 dossier.setSeries(series);
                 dossier.setFileName("dossier.pdf");
                 dossier.setFileUrl("series-files/series-5/dossier.pdf");
-                dossier.setPurpose("SERIES_SUBMISSION");
+                dossier.setPurpose("EDITOR_DOSSIER");
                 dossier.setRoundNumber(1);
                 dossier.setActive(true);
                 SeriesBoardAssignment assignment = new SeriesBoardAssignment();
@@ -316,6 +318,10 @@ class EditorialBoardServiceTests {
                 when(mangaSeriesRepository.save(series)).thenReturn(series);
                 when(boardDecisionRepository.findPanelDecisionsBySeriesIdOrderByDecisionDateDesc(5L))
                                 .thenReturn(List.of(decision));
+                when(seriesFileRepository
+                                .findBySeriesSeriesIdAndPurposeAndActiveTrueOrderByUploadedAtDesc(
+                                        5L, "EDITOR_DOSSIER"))
+                                .thenReturn(List.of(dossier));
                 when(seriesFileRepository
                                 .findBySeriesSeriesIdAndPurposeInAndActiveTrueOrderByUploadedAtDesc(
                                         5L, List.of("SERIES_SUBMISSION", "EDITOR_DOSSIER")))
@@ -419,9 +425,12 @@ class EditorialBoardServiceTests {
 
         @Test
         void boardMemberOutsidePanelCannotOpenSeriesDossier() {
-                User board = user(1L, "Board One", BOARD_EMAIL, role("EDITORIAL_BOARD"));
+                String memberEmail = "editorial2@manga.test";
+                SecurityContextHolder.getContext().setAuthentication(
+                                new UsernamePasswordAuthenticationToken(memberEmail, null));
+                User board = user(1L, "Board One", memberEmail, role("EDITORIAL_BOARD"));
                 MangaSeries series = series(5L, "Restricted Series", "REVIEWING");
-                when(userRepository.findByEmail(BOARD_EMAIL)).thenReturn(Optional.of(board));
+                when(userRepository.findByEmail(memberEmail)).thenReturn(Optional.of(board));
                 when(mangaSeriesRepository.findById(5L)).thenReturn(Optional.of(series));
                 when(seriesBoardAssignmentRepository
                                 .existsBySeriesSeriesIdAndBoardMemberUserId(5L, 1L))
@@ -441,7 +450,10 @@ class EditorialBoardServiceTests {
 
         @Test
         void assignedBoardMemberCanOpenSeriesDossierAndSubmissionFiles() {
-                User board = user(1L, "Board One", BOARD_EMAIL, role("EDITORIAL_BOARD"));
+                String memberEmail = "editorial2@manga.test";
+                SecurityContextHolder.getContext().setAuthentication(
+                                new UsernamePasswordAuthenticationToken(memberEmail, null));
+                User board = user(1L, "Board One", memberEmail, role("EDITORIAL_BOARD"));
                 MangaSeries series = series(5L, "Assigned Series", "REVIEWING");
                 SeriesBoardAssignment assignment = new SeriesBoardAssignment();
                 assignment.setSeries(series);
@@ -453,7 +465,7 @@ class EditorialBoardServiceTests {
                 file.setContentType("application/pdf");
                 file.setActive(true);
 
-                when(userRepository.findByEmail(BOARD_EMAIL)).thenReturn(Optional.of(board));
+                when(userRepository.findByEmail(memberEmail)).thenReturn(Optional.of(board));
                 when(mangaSeriesRepository.findById(5L)).thenReturn(Optional.of(series));
                 when(seriesBoardAssignmentRepository
                                 .existsBySeriesSeriesIdAndBoardMemberUserId(5L, 1L))
@@ -461,9 +473,9 @@ class EditorialBoardServiceTests {
                 when(seriesBoardAssignmentRepository.findBySeriesSeriesIdOrderByAssignedAtAsc(5L))
                                 .thenReturn(List.of(assignment));
                 when(seriesFileRepository
-                                .findBySeriesSeriesIdAndPurposeAndActiveTrueOrderByUploadedAtDesc(
+                                .findBySeriesSeriesIdAndPurposeInAndActiveTrueOrderByUploadedAtDesc(
                                                 5L,
-                                                "SERIES_SUBMISSION"))
+                                                List.of("SERIES_SUBMISSION", "EDITOR_DOSSIER")))
                                 .thenReturn(List.of(file));
 
                 var response = service.getSeriesReview(5L);

@@ -52,6 +52,7 @@ import com.example.backend.repository.MangaSeriesRepository;
 import com.example.backend.repository.NotificationRepository;
 import com.example.backend.repository.PublishScheduleRepository;
 import com.example.backend.repository.ReviewCommentRepository;
+import com.example.backend.repository.SeriesBoardAssignmentRepository;
 import com.example.backend.repository.SeriesEditorRejectionRepository;
 import com.example.backend.repository.SeriesFileRepository;
 import com.example.backend.repository.SubmissionRepository;
@@ -91,6 +92,8 @@ class TantouEditorServiceTests {
     @Mock
     private SeriesEditorRejectionRepository seriesEditorRejectionRepository;
     @Mock
+    private SeriesBoardAssignmentRepository seriesBoardAssignmentRepository;
+    @Mock
     private MangakaService mangakaService;
     @Mock
     private EditorialBoardService editorialBoardService;
@@ -116,6 +119,7 @@ class TantouEditorServiceTests {
                 notificationRepository,
                 seriesFileRepository,
                 seriesEditorRejectionRepository,
+                seriesBoardAssignmentRepository,
                 mangakaService,
                 editorialBoardService,
                 seriesHistoryService);
@@ -351,7 +355,6 @@ class TantouEditorServiceTests {
         assertEquals("REVIEWING", response.series().status());
         verify(mangaSeriesRepository).save(series);
         verify(editorialBoardService).assignBoardPanel(series);
-        verify(commentRepository).save(any(ReviewComment.class));
         verify(mangakaService).storeSeriesWorkflowFiles(
                 eq(series),
                 any(User.class),

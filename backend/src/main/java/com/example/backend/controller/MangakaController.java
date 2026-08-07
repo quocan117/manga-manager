@@ -168,13 +168,15 @@ public class MangakaController {
         return service.getChapter(chapterId);
     }
 
-    @PatchMapping(
-            value = "/chapters/{chapterId}/submit-to-editor",
-            consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ChapterResponse submitChapterToEditor(
-            @PathVariable Long chapterId,
-            @RequestParam(value = "files", required = false) List<MultipartFile> files) {
-        return service.submitChapterToEditor(chapterId, files);
+    @DeleteMapping("/pages/{pageId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deletePage(@PathVariable Long pageId) {
+        service.deletePage(pageId);
+    }
+
+    @PatchMapping("/chapters/{chapterId}/submit-to-editor")
+    public ChapterResponse submitChapterToEditor(@PathVariable Long chapterId) {
+        return service.submitChapterToEditor(chapterId);
     }
 
     @GetMapping("/chapters/{chapterId}/revision-notes")
