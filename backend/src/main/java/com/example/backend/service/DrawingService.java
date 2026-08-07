@@ -79,6 +79,8 @@ public class DrawingService {
             assertVersion(drawing, request.expectedVersion());
             if ("FINALIZED".equals(drawing.getStatus())) {
                 drawing.setStatus("DRAFT");
+                page.setPageStatus("DRAFT");
+                pageRepository.save(page);
             }
         }
 

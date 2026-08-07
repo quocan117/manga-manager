@@ -191,4 +191,9 @@ public class TantouEditorController {
     public NotificationResponse markNotificationRead(@PathVariable Long notificationId) {
         return service.markNotificationRead(notificationId);
     }
+
+    @GetMapping("/chapters/{chapterId}/revision-notes")
+    public List<ChapterRevisionNoteResponse> getChapterRevisionNotes(@PathVariable Long chapterId) {
+        return service.getChapterRevisionNotes(chapterId);
+    }
 }
