@@ -11,6 +11,7 @@ import {
 } from "../../../services/mangakaService";
 import { formatDateTime } from "../../../utils/formatDate";
 import SeriesFileList from "../../../components/SeriesFileList";
+import { fetchSeriesFileBlob } from "../../../services/seriesFileService";
 
 export default function AssistantTasks() {
   const [assistants, setAssistants] = useState([]);
@@ -121,10 +122,7 @@ export default function AssistantTasks() {
   const handleReview = async (submission, decision) => {
     let reviewNote = null;
     if (decision === "REVISION_REQUESTED") {
-      reviewNote = window.prompt(
-        `Nhập lý do yêu cầu trợ lý sửa lại bài:`,
-        "",
-      );
+      reviewNote = window.prompt(`Nhập lý do yêu cầu trợ lý sửa lại bài:`, "");
       if (reviewNote === null) return;
       if (!reviewNote.trim()) {
         alert("Vui lòng nhập lý do khi yêu cầu sửa lại");
@@ -200,7 +198,9 @@ export default function AssistantTasks() {
     formData.append("taskType", form.taskType);
     formData.append("title", form.title);
     if (form.description) formData.append("description", form.description);
-    formData.append("dueDate", form.dueDate);
+    const formattedDueDate =
+      form.dueDate.length === 16 ? `${form.dueDate}:00` : form.dueDate;
+    formData.append("dueDate", formattedDueDate);
     formData.append("areaX", 0);
     formData.append("areaY", 0);
     formData.append("areaWidth", 100);
@@ -218,6 +218,22 @@ export default function AssistantTasks() {
         "Giao việc thất bại: " +
           (error.response?.data?.message || "Vui lòng kiểm tra lại dữ liệu."),
       );
+    }
+  };
+
+  const handleDownloadFile = async (file) => {
+    try {
+      const blob = await fetchSeriesFileBlob(file.id);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = file.originalFileName || "file_ho_thanh";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert("Không thể tải xuống tệp: " + (err.message || "Lỗi mạng"));
     }
   };
 
@@ -271,7 +287,7 @@ export default function AssistantTasks() {
                 </div>
                 <div className="mb-3">
                   <label className="form-label text-primary fw-bold">
-                    3. Chọn Trang Truyện 
+                    3. Chọn Trang Truyện
                   </label>
                   <select
                     name="pageId"
@@ -352,9 +368,7 @@ export default function AssistantTasks() {
                   </select>
                 </div>
                 <div className="mb-3">
-                  <label className="form-label">
-                    Loại Công Việc 
-                  </label>
+                  <label className="form-label">Loại Công Việc</label>
                   <select
                     name="taskType"
                     className="form-select"
@@ -379,9 +393,7 @@ export default function AssistantTasks() {
                   />
                 </div>
                 <div className="mb-3">
-                  <label className="form-label">
-                    Mô tả chi tiết 
-                  </label>
+                  <label className="form-label">Mô tả chi tiết</label>
                   <textarea
                     name="description"
                     className="form-control"
@@ -465,15 +477,42 @@ export default function AssistantTasks() {
                           files={s.resultFiles}
                           emptyText="Trợ lý chưa gửi kèm file nào."
                         />
+                        {s.resultFiles && s.resultFiles.length > 0 && (
+                          <div className="mt-3 d-flex flex-column gap-2">
+                            {s.resultFiles.map((file) => (
+                              <div
+                                key={file.id}
+                                className="d-flex align-items-center justify-content-between p-2 border rounded bg-white shadow-sm"
+                              >
+                                <span
+                                  className="text-truncate small me-2 text-dark"
+                                  style={{ maxWidth: "70%" }}
+                                >
+                                  {file.originalFileName}{" "}
+                                  <span className="text-muted">
+                                    ({Math.round(file.fileSize / 1024)} KB)
+                                  </span>
+                                </span>
+                                <button
+                                  className="btn btn-outline-primary btn-sm py-1 px-3 fw-bold"
+                                  onClick={() => handleDownloadFile(file)}
+                                  style={{ fontSize: "0.8rem" }}
+                                >
+                                  Tải xuống
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      
+
                       {s.status === "SUBMITTED" && (
                         <div className="d-flex gap-2 mt-3">
                           <button
                             className="btn btn-success btn-sm flex-fill"
                             onClick={() => handleReview(s, "APPROVED")}
                           >
-                            ✅ Duyệt
+                            Duyệt
                           </button>
                           <button
                             className="btn btn-danger btn-sm flex-fill"
@@ -481,7 +520,7 @@ export default function AssistantTasks() {
                               handleReview(s, "REVISION_REQUESTED")
                             }
                           >
-                            🔁 Yêu cầu sửa lại
+                            Yêu cầu sửa lại
                           </button>
                         </div>
                       )}
