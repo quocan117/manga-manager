@@ -196,6 +196,20 @@ public class EditorialBoardService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<ReviewSeriesResponse> getReviewedSeries() {
+        User currentUser = currentEditorialBoard();
+        return seriesBoardAssignmentRepository
+                .findByBoardMemberUserIdOrderByAssignedAtDesc(currentUser.getUserId())
+                .stream()
+                .map(SeriesBoardAssignment::getSeries)
+                .filter(Objects::nonNull)
+                .filter(series -> !REVIEWING_SERIES_STATUS.equalsIgnoreCase(series.getStatus())
+                        && !DROP_REQUESTED_STATUS.equalsIgnoreCase(series.getStatus()))
+                .map(series -> toReviewSeriesResponse(series, currentUser))
+                .toList();
+    }
+
     public List<ReviewSeriesResponse> getEditorAssignmentRequiredSeries() {
         User currentUser = currentEditorialBoard();
         return mangaSeriesRepository
@@ -231,6 +245,13 @@ public class EditorialBoardService {
     @Transactional(readOnly = true)
     public List<ReviewSeriesResponse> getDropRequestedSeries() {
         User currentUser = currentEditorialBoard();
+        if (isRepresentative(currentUser)) {
+            return mangaSeriesRepository
+                    .findByStatusIgnoreCaseOrderBySubmittedAtDesc(DROP_REQUESTED_STATUS)
+                    .stream()
+                    .map(series -> toReviewSeriesResponse(series, currentUser))
+                    .toList();
+        }
         return seriesBoardAssignmentRepository
                 .findByBoardMemberUserIdAndSeriesStatusIgnoreCaseOrderByAssignedAtDesc(
                         currentUser.getUserId(), DROP_REQUESTED_STATUS)
@@ -1331,9 +1352,9 @@ public class EditorialBoardService {
                 .toList();
 
         List<SeriesFile> sourceFiles = seriesFileRepository
-                .findBySeriesSeriesIdAndPurposeInAndActiveTrueOrderByUploadedAtDesc(
+                .findBySeriesSeriesIdAndPurposeAndActiveTrueOrderByUploadedAtDesc(
                         series.getSeriesId(),
-                        List.of("SERIES_SUBMISSION", "EDITOR_DOSSIER")
+                        "EDITOR_DOSSIER"
                 );
 
         List<UploadedFileResponse> uploadedFilesList = sourceFiles.stream()

@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import SeriesFileList from "../../../components/SeriesFileList";
-import RejectReasonModal from "../../../components/RejectReasonModal";
 import {
   getSeriesDossier,
   submitToBoard,
   requestRevision,
-  requestDropProject,
   acceptSeries,
 } from "../../../services/tantouService";
 
@@ -16,8 +14,6 @@ export default function EditorReviewPage() {
   const [dossier, setDossier] = useState(null);
   const [actionNote, setActionNote] = useState("");
   const [dossierFiles, setDossierFiles] = useState([]);
-  const [showDropModal, setShowDropModal] = useState(false);
-  const [dropping, setDropping] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -99,20 +95,6 @@ export default function EditorReviewPage() {
     }
   };
 
-  const handleRequestDrop = async (reason) => {
-    try {
-      setDropping(true);
-      await requestDropProject(id, reason);
-      alert("Đã gửi báo cáo Yêu cầu Hủy dự án lên Hội đồng!");
-      setShowDropModal(false);
-      navigate("/tantou");
-    } catch (error) {
-      alert(error?.response?.data?.message || "Lỗi khi gửi yêu cầu hủy dự án.");
-    } finally {
-      setDropping(false);
-    }
-  };
-
   if (!dossier)
     return <div className="p-4">Đang tải hồ sơ bảo vệ Series...</div>;
 
@@ -127,7 +109,7 @@ export default function EditorReviewPage() {
         <button
           className="btn btn-secondary"
           onClick={() => navigate("/tantou")}
-          disabled={submitting || dropping}
+          disabled={submitting}
         >
           Trở về
         </button>
@@ -151,7 +133,7 @@ export default function EditorReviewPage() {
                     onClick={handleAccept}
                     disabled={submitting}
                   >
-                    {submitting ? "Đang xử lý..." : "✅ Chấp nhận phụ trách"}
+                    {submitting ? "Đang xử lý..." : "Chấp nhận phụ trách"}
                   </button>
                 </div>
               ) : (
@@ -211,22 +193,13 @@ export default function EditorReviewPage() {
                     onChange={(e) => setActionNote(e.target.value)}
                     disabled={submitting}
                   />
-                  <div className="d-flex gap-2 mb-2">
-                    <button
-                      className="btn btn-success flex-grow-1 fw-bold"
-                      onClick={() => handleAction(true)}
-                      disabled={submitting}
-                    >
-                      {submitting ? "Đang xử lý..." : "Trình Hội đồng"}
-                    </button>
-                    <button
-                      className="btn btn-danger flex-grow-1 fw-bold"
-                      onClick={() => setShowDropModal(true)}
-                      disabled={submitting}
-                    >
-                      Yêu cầu Hủy
-                    </button>
-                  </div>
+                  <button
+                    className="btn btn-success w-100 fw-bold mb-2"
+                    onClick={() => handleAction(true)}
+                    disabled={submitting}
+                  >
+                    {submitting ? "Đang xử lý..." : "Trình Hội đồng"}
+                  </button>
                   <button
                     className="btn btn-outline-danger w-100 fw-bold"
                     onClick={() => handleAction(false)}
@@ -239,29 +212,22 @@ export default function EditorReviewPage() {
             </div>
           </div>
         </div>
+
         <div className="col-md-8">
           <div className="card shadow-sm border-0 h-100">
-            <div className="card-header bg-white fw-bold">
-              Bản thảo do Mangaka gửi
+            <div className="card-header bg-white fw-bold p-3">
+              <i className="fas fa-file-alt me-2 text-primary"></i> Bản thảo /
+              Hồ sơ do Mangaka nộp
             </div>
-            <div className="card-body">
+            <div
+              className="card-body"
+              style={{ overflowY: "auto", maxHeight: "calc(100vh - 200px)" }}
+            >
               <SeriesFileList files={dossier.series.uploadedFiles} />
             </div>
           </div>
         </div>
       </div>
-      {showDropModal && (
-        <RejectReasonModal
-          seriesTitle={dossier.series.title}
-          submitting={dropping}
-          onCancel={() => setShowDropModal(false)}
-          onConfirm={handleRequestDrop}
-          title="Yêu cầu Hủy dự án"
-          description="Nhập báo cáo đánh giá hoặc lý do để yêu cầu Hội đồng hủy bỏ dự án này."
-          confirmLabel="Gửi yêu cầu"
-          submittingLabel="Đang gửi..."
-        />
-      )}
     </div>
   );
 }

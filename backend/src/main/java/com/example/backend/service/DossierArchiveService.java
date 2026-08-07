@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.Objects;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
@@ -98,6 +99,81 @@ public class DossierArchiveService {
         return response;
     }
 
+    @Transactional(readOnly = true)
+    public Map<String, List<Map<String, Object>>> getEditorWorkflowHistory(Long seriesId) {
+        List<SeriesReviewHistory> history = seriesReviewHistoryRepository
+                .findBySeriesSeriesIdOrderByCreatedAtAsc(seriesId);
+        List<SeriesFile> allFiles = seriesFileRepository.findBySeriesSeriesId(seriesId);
+        List<Map<String, Object>> submitToBoardHistory = new ArrayList<>();
+        List<Map<String, Object>> requestRevisionHistory = new ArrayList<>();
+        for (SeriesReviewHistory item : history) {
+            String action = item.getAction() != null ? item.getAction().toUpperCase() : "";
+            if (action.contains("SUBMITTED_TO_BOARD")) {
+                List<SeriesFile> editorFiles = allFiles.stream()
+                        .filter(f -> f.getUploadedAt() != null && !f.getUploadedAt().isAfter(item.getCreatedAt()))
+                        .filter(f -> "EDITOR_DOSSIER".equalsIgnoreCase(f.getPurpose())) // <--- QUAN TRỌNG
+                        .toList();
+                java.time.LocalDateTime latestUploadTime = editorFiles.stream()
+                        .map(SeriesFile::getUploadedAt)
+                        .max(java.time.LocalDateTime::compareTo)
+                        .orElse(null);
+                List<Map<String, Object>> relatedFiles = new ArrayList<>();
+                if (latestUploadTime != null) {
+                    relatedFiles = editorFiles.stream()
+                            .filter(f -> f.getUploadedAt().isAfter(latestUploadTime.minusMinutes(5)))
+                            .map(f -> {
+                                Map<String, Object> fMap = new HashMap<>();
+                                fMap.put("id", f.getFileId());
+                                fMap.put("originalFileName", f.getOriginalFileName());
+                                fMap.put("fileUrl", f.getFileUrl());
+                                fMap.put("fileSize", f.getFileSize());
+                                fMap.put("contentType", f.getContentType());
+                                return fMap;
+                            })
+                            .toList();
+                }
+                Map<String, Object> map = new HashMap<>();
+                map.put("createdAt", item.getCreatedAt());
+                map.put("note", item.getReason());
+                map.put("files", relatedFiles);
+                submitToBoardHistory.add(map);
+            } else if (action.contains("REVISION") || action.contains("REJECT")) {
+                List<SeriesFile> mangakaFiles = allFiles.stream()
+                        .filter(f -> f.getUploadedAt() != null && !f.getUploadedAt().isAfter(item.getCreatedAt()))
+                        .filter(f -> "SERIES_SUBMISSION".equalsIgnoreCase(f.getPurpose())) // <--- QUAN TRỌNG
+                        .toList();
+                java.time.LocalDateTime latestUploadTime = mangakaFiles.stream()
+                        .map(SeriesFile::getUploadedAt)
+                        .max(java.time.LocalDateTime::compareTo)
+                        .orElse(null);
+                List<Map<String, Object>> relatedFiles = new ArrayList<>();
+                if (latestUploadTime != null) {
+                    relatedFiles = mangakaFiles.stream()
+                            .filter(f -> f.getUploadedAt().isAfter(latestUploadTime.minusMinutes(5)))
+                            .map(f -> {
+                                Map<String, Object> fMap = new HashMap<>();
+                                fMap.put("id", f.getFileId());
+                                fMap.put("originalFileName", f.getOriginalFileName());
+                                fMap.put("fileUrl", f.getFileUrl());
+                                fMap.put("fileSize", f.getFileSize());
+                                fMap.put("contentType", f.getContentType());
+                                return fMap;
+                            })
+                            .toList();
+                }
+                Map<String, Object> map = new HashMap<>();
+                map.put("createdAt", item.getCreatedAt());
+                map.put("note", item.getReason());
+                map.put("files", relatedFiles);
+                requestRevisionHistory.add(map);
+            }
+        }
+        Map<String, List<Map<String, Object>>> result = new HashMap<>();
+        result.put("submitToBoard", submitToBoardHistory);
+        result.put("requestRevision", requestRevisionHistory);
+        return result;
+    }
+
     private ReviewEvent latestReviewEvent(
             List<SeriesReviewHistory> history,
             List<SeriesEditorRejection> rejections,
@@ -143,10 +219,8 @@ public class DossierArchiveService {
         String normalized = action.toUpperCase();
         return normalized.contains("REJECT")
                 || normalized.contains("REVISION")
-                || normalized.contains("APPROV")
-                || normalized.contains("VOTE")
-                || normalized.contains("SUBMITTED_TO_BOARD")
-                || normalized.contains("DROP");
+                || normalized.contains("APPROVE")
+                || normalized.contains("VOTE");
     }
 
     private LocalDateTime firstUploadAt(List<SeriesFile> files) {
@@ -185,7 +259,7 @@ public class DossierArchiveService {
                 && Objects.equals(series.getTantouEditor().getUserId(), user.getUserId()));
         allowed = allowed || ("EDITORIAL_BOARD".equalsIgnoreCase(role)
                 && seriesBoardAssignmentRepository
-                        .existsBySeriesSeriesIdAndBoardMemberUserId(series.getSeriesId(), user.getUserId()));
+                .existsBySeriesSeriesIdAndBoardMemberUserId(series.getSeriesId(), user.getUserId()));
         if (!allowed) {
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
