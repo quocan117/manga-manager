@@ -55,36 +55,6 @@ export default function DossierHistoryTimeline({ seriesId }) {
                   emptyText="Không có tài liệu nào được đính kèm."
                 />
               </div>
-              <hr />
-              <h6 className="fw-bold mb-2">Kết quả đánh giá:</h6>
-
-              {showDecision ? (
-                <div className="bg-light p-3 rounded">
-                  <p className="mb-1">
-                    <strong>Người duyệt:</strong> {round.reviewedBy}
-                  </p>
-                  <p className="mb-1">
-                    <strong>Quyết định:</strong>{" "}
-                    <span
-                      className={`badge ${round.decision === "APPROVE" ? "bg-success" : "bg-danger"}`}
-                    >
-                      {round.decision}
-                    </span>
-                  </p>
-                  <p className="mb-1">
-                    <strong>Ngày duyệt:</strong>{" "}
-                    {formatDateTime(round.reviewedAt)}
-                  </p>
-                  <p className="mb-0 mt-2 text-danger fst-italic">
-                    <strong>Nhận xét:</strong>{" "}
-                    {round.reviewNote || "Không có ghi chú thêm."}
-                  </p>
-                </div>
-              ) : (
-                <p className="text-muted fst-italic mb-0">
-                  Hồ sơ đang chờ được đánh giá...
-                </p>
-              )}
             </div>
           </div>
         );

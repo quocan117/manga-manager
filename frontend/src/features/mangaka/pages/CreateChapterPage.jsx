@@ -10,7 +10,7 @@ export default function CreateChapterPage() {
     title: "",
     expectedPages: "",
   });
-  // Lưu trữ file theo chỉ mục trang: { 0: fileTrang1, 1: fileTrang2, ... }
+
   const [pageFiles, setPageFiles] = useState({});
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -31,13 +31,10 @@ export default function CreateChapterPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const totalPages = Number(form.expectedPages);
-
     if (!totalPages || totalPages <= 0) {
       setErrorMsg("Vui lòng nhập số lượng trang dự kiến hợp lệ!");
       return;
     }
-
-    // Kiểm tra xem đã chọn đủ file cho tất cả các trang chưa
     const filesArray = [];
     for (let i = 0; i < totalPages; i++) {
       if (!pageFiles[i]) {
@@ -49,17 +46,14 @@ export default function CreateChapterPage() {
 
     try {
       setLoading(true);
-      // 1. Tạo chapter mới kèm expectedPages
+      const finalTitle = `Chapter ${form.chapterNumber}: ${form.title.trim()}`;
       const chapterResponse = await chapterService.createChapter({
         seriesId: Number(id),
         chapterNumber: Number(form.chapterNumber),
-        title: form.title,
+        title: finalTitle, 
         expectedPages: totalPages,
       });
-
       const newChapterId = chapterResponse.id || chapterResponse.chapterId;
-
-      // 2. Upload danh sách ảnh theo đúng thứ tự trang vừa chọn
       if (newChapterId) {
         await chapterService.uploadChapterPages(newChapterId, filesArray);
       }
@@ -70,7 +64,6 @@ export default function CreateChapterPage() {
       console.error(error);
       const backendMsg =
         error?.response?.data?.message || error?.response?.data?.error;
-
       if (error?.response?.status === 409) {
         setErrorMsg(
           "Lỗi: Số Chapter này đã tồn tại trong truyện. Vui lòng nhập số khác!",
@@ -122,14 +115,20 @@ export default function CreateChapterPage() {
               <label className="form-label fw-bold">
                 Tiêu đề Chapter <span className="text-danger">*</span>
               </label>
-              <input
-                type="text"
-                name="title"
-                className="form-control"
-                value={form.title}
-                onChange={handleChange}
-                required
-              />
+              <div className="input-group">
+                <span className="input-group-text bg-light text-secondary fw-bold border-end-0">
+                  Chapter {form.chapterNumber || "X"}:
+                </span>
+                <input
+                  type="text"
+                  name="title"
+                  className="form-control"
+                  placeholder="Nhập nội dung tiêu đề... (VD: Bình minh của cuộc phiêu lưu)"
+                  value={form.title}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
             </div>
 
             <div className="mb-4">
@@ -153,7 +152,6 @@ export default function CreateChapterPage() {
               </small>
             </div>
 
-            {/* KHU VỰC TỰ ĐỘNG SINH CÁC Ô UPLOAD CHO TỪNG TRANG */}
             {numPages > 0 && (
               <div className="mb-4 p-3 border border-primary border-opacity-25 rounded bg-light">
                 <label className="fw-bold text-primary mb-3 d-block">

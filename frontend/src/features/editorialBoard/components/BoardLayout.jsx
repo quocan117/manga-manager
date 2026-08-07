@@ -29,7 +29,7 @@ const BoardLayout = () => {
               to="/board/ranking"
               className={({ isActive }) => (isActive ? "active" : "")}
             >
-              📊 Bảng Xếp Hạng
+              📊 Bảng Thống Kê
             </NavLink>
           </li>
 

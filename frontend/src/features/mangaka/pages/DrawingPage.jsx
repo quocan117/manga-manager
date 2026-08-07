@@ -6,6 +6,7 @@ import {
 } from "../../../services/drawingService";
 import { resolveImageUrl } from "../../../utils/imageUrl";
 import CanvasMarkupTool from "../../../components/CanvasMarkupTool";
+import api from "../../../services/api";
 import "../styles/drawing.css";
 
 export default function DrawingPage() {
@@ -14,7 +15,6 @@ export default function DrawingPage() {
   const location = useLocation();
   const [drawing, setDrawing] = useState(null);
   const [loading, setLoading] = useState(true);
-
   const displayPageNum = location.state?.pageNumber || pageId;
   const originalImageUrl = resolveImageUrl(location.state?.originalImageUrl);
   const isFinalized = drawing?.status === "FINALIZED";
@@ -39,13 +39,7 @@ export default function DrawingPage() {
   };
 
   const handleFinalize = async () => {
-    if (
-      !window.confirm(
-        "XÁC NHẬN CHỐT TRANG"
-      )
-    )
-      return;
-
+    if (!window.confirm("XÁC NHẬN CHỐT TRANG")) return;
     try {
       const data = await finalizeDrawing(pageId, drawing?.version || 0);
       setDrawing(data);
@@ -56,6 +50,31 @@ export default function DrawingPage() {
         "Lỗi khi chốt bản vẽ: " +
           (error.response?.data?.message ||
             "Phiên bản đã cũ, vui lòng tải lại trang."),
+      );
+    }
+  };
+
+  const handleUnlock = async () => {
+    if (
+      !window.confirm(
+        "XÁC NHẬN MỞ CHỐT TRANG?\nTrang sẽ quay về trạng thái Bản Nháp để bạn có thể đổi ảnh hoặc chỉnh sửa.",
+      )
+    )
+      return;
+    try {
+      const payload = {
+        canvasData: drawing?.canvasData || {},
+        previewImageUrl: drawing?.previewImageUrl || "",
+        expectedVersion: drawing?.version || 0,
+      };
+      await api.put(`/mangaka/pages/${pageId}/drawing`, payload);
+      alert("Đã mở chốt trang thành công!");
+      loadDrawing(); 
+    } catch (error) {
+      console.error("Lỗi khi mở chốt:", error);
+      alert(
+        "Lỗi khi mở chốt: " +
+          (error.response?.data?.message || "Vui lòng tải lại trang."),
       );
     }
   };
@@ -99,7 +118,6 @@ export default function DrawingPage() {
             </div>
           </div>
         </div>
-
         <div className="col-md-3">
           <div className="card shadow info-card border-primary">
             <div className="card-header bg-primary text-white fw-bold">
@@ -118,31 +136,30 @@ export default function DrawingPage() {
                     : (drawing?.status ?? "ĐANG XỬ LÝ")}
                 </span>
               </div>
-
               <div className="alert alert-info small py-2 mb-3">
                 <i className="fas fa-info-circle me-1"></i>
                 Nút <strong>"Lưu đánh dấu"</strong> bên trái dùng để lưu nét vẽ
                 nháp cho trợ lý xem. Nút chốt bên dưới dùng để khóa trang nộp
                 Biên tập.
               </div>
-
               <hr />
-              <button
-                className={`btn w-100 fw-bold py-2 ${isFinalized ? "btn-secondary" : "btn-danger shadow-sm"}`}
-                onClick={handleFinalize}
-                disabled={isFinalized}
-              >
-                {isFinalized ? (
-                  <>
-                    <i className="fas fa-lock me-2"></i> Đã Chốt
-                  </>
-                ) : (
-                  <>
-                    <i className="fas fa-check-circle me-2"></i> Chốt Bản Hoàn
-                    Thiện
-                  </>
-                )}
-              </button>
+
+              {isFinalized ? (
+                <button
+                  className="btn btn-warning w-100 fw-bold py-2 shadow-sm text-dark"
+                  onClick={handleUnlock}
+                >
+                  <i className="fas fa-unlock me-2"></i> Mở Chốt Trang
+                </button>
+              ) : (
+                <button
+                  className="btn btn-danger w-100 fw-bold py-2 shadow-sm"
+                  onClick={handleFinalize}
+                >
+                  <i className="fas fa-check-circle me-2"></i> Chốt Bản Hoàn
+                  Thiện
+                </button>
+              )}
             </div>
           </div>
         </div>
