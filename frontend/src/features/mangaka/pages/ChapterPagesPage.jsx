@@ -16,6 +16,8 @@ export default function ChapterPages() {
   const [chapter, setChapter] = useState(null);
   const [newFiles, setNewFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
+
+  const [revisionNotes, setRevisionNotes] = useState([]);
   const fileInputRefs = useRef({});
 
   const fetchData = async () => {
@@ -27,6 +29,13 @@ export default function ChapterPages() {
       ]);
       setChapter(chapterData);
       setPages(pagesData || []);
+
+      if (chapterData?.status === "REVISION_REQUESTED") {
+        const notesRes = await api.get(
+          `/mangaka/chapters/${chapterId}/revision-notes`,
+        );
+        setRevisionNotes(notesRes.data || []);
+      }
     } catch (error) {
       console.error("Lỗi khi tải dữ liệu chapter:", error);
     } finally {
@@ -106,6 +115,47 @@ export default function ChapterPages() {
         </button>
       </div>
 
+      {chapter?.status === "REVISION_REQUESTED" && revisionNotes.length > 0 && (
+        <div className="alert alert-warning shadow-sm mb-4 border-warning">
+          <h5 className="fw-bold text-danger mb-3">
+            <i className="fas fa-exclamation-triangle me-2"></i> Biên tập yêu
+            cầu chỉnh sửa các trang sau:
+          </h5>
+          <div className="row g-3">
+            {revisionNotes.map((note, idx) => (
+              <div key={note.id || idx} className="col-md-6">
+                <div className="d-flex bg-white p-2 rounded border shadow-sm h-100">
+                  <a
+                    href={resolveImageUrl(note.imageUrl)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <img
+                      src={resolveImageUrl(note.imageUrl)}
+                      alt="Lỗi"
+                      style={{
+                        width: "80px",
+                        height: "120px",
+                        objectFit: "cover",
+                        borderRadius: "4px",
+                      }}
+                    />
+                  </a>
+                  <div className="ms-3 flex-grow-1">
+                    <span className="badge bg-danger mb-2">
+                      Ảnh đánh dấu {idx + 1}
+                    </span>
+                    <p className="mb-0 small text-dark lh-base">
+                      {note.description}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="mb-4 p-4 border rounded bg-white shadow-sm">
         <label className="fw-bold mb-3 d-block text-primary">
           ➕ Thêm trang truyện (Upload ảnh nối tiếp)
@@ -170,14 +220,25 @@ export default function ChapterPages() {
                     />
                     <button
                       className="btn btn-sm btn-dark position-absolute top-0 end-0 m-2"
-                      title="Upload ảnh đè lên trang này để vẽ tiếp"
-                      onClick={() => fileInputRefs.current[page.id].click()}
+                      title={
+                        isFinalized
+                          ? "Trang đã chốt, vui lòng mở chốt trước khi đổi ảnh"
+                          : "Upload ảnh đè lên trang này để vẽ tiếp"
+                      }
+                      onClick={() => {
+                        if (isFinalized) {
+                          alert(
+                            "Trang này đã chốt! Vui lòng bấm 'Thao tác' -> 'Mở Chốt Trang' trước khi thay ảnh mới.",
+                          );
+                        } else {
+                          fileInputRefs.current[page.id].click();
+                        }
+                      }}
                       disabled={uploading}
                     >
                       Đổi ảnh
                     </button>
                   </div>
-
                   <div className="card-body text-center d-flex flex-column">
                     <h5 className="card-title fw-bold">
                       Trang {page.pageNumber}
