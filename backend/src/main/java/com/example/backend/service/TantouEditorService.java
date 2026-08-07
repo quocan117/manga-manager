@@ -387,6 +387,21 @@ public class TantouEditorService {
         return toChapterManuscript(chapterForCurrentEditor(chapterId));
     }
 
+    @Transactional(readOnly = true)
+    public List<ChapterRevisionNoteResponse> getChapterRevisionNotes(Long chapterId) {
+        return chapterRevisionNoteRepository.findByChapterChapterIdOrderByOrderIndexAscCreatedAtAsc(chapterId)
+                .stream()
+                .map(note -> new ChapterRevisionNoteResponse(
+                        note.getNoteId(),
+                        note.getChapter().getChapterId(),
+                        note.getImageUrl(),
+                        note.getDescription(),
+                        note.getRoundNumber(),
+                        note.getOrderIndex(),
+                        note.getCreatedAt()))
+                .toList();
+    }
+
     @Transactional
     public ChapterRevisionNoteResponse createChapterRevisionNote(
             Long chapterId,
@@ -465,9 +480,9 @@ public class TantouEditorService {
                 savedChapter.getTitle(),
                 savedChapter.getChapterId());
         notify(series.getAuthor(), "CHAPTER_APPROVED", chapterId,
-                "Chapter \"" + chapter.getTitle() + "\" was approved by the Tantou Editor.");
+                "\"" + chapter.getTitle() + "\" was approved by the Tantou Editor.");
         notify(series.getPublicationCoordinator(), "CHAPTER_READY_FOR_SCHEDULE", chapterId,
-                "Chapter \"" + chapter.getTitle() + "\" is ready for its publication schedule.");
+                "\"" + chapter.getTitle() + "\" is ready for its publication schedule.");
         return toChapterManuscript(savedChapter);
     }
 
@@ -778,7 +793,7 @@ public class TantouEditorService {
                 .stream()
                 .filter(comment -> comment.getStatus() == null
                         || (!"RESOLVED".equalsIgnoreCase(comment.getStatus())
-                                && !"DELETED".equalsIgnoreCase(comment.getStatus())))
+                        && !"DELETED".equalsIgnoreCase(comment.getStatus())))
                 .count();
         long finalizedPages = pages.stream()
                 .filter(page -> page.getPageStatus() != null
