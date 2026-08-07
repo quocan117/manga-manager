@@ -6,12 +6,9 @@ import {
   cancelSeries,
   getAssignmentHistory,
   getSeriesReview,
-  getDropRequestedSeries,
-  voteSeriesDecision,
 } from "../../../services/boardService";
 import { formatDateTime } from "../../../utils/formatDate";
 import SeriesFileList from "../../../components/SeriesFileList";
-import RejectReasonModal from "../../../components/RejectReasonModal";
 import { useAuth } from "../../../context/AuthContext";
 import "../styles/EditorialBoard.css";
 
@@ -22,7 +19,6 @@ export default function EditorAssignmentPage() {
   const [activeTab, setActiveTab] = useState("pending");
 
   const [pendingList, setPendingList] = useState([]);
-  const [dropList, setDropList] = useState([]);
   const [historyList, setHistoryList] = useState([]);
   const [editors, setEditors] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -31,17 +27,11 @@ export default function EditorAssignmentPage() {
   const [assigningId, setAssigningId] = useState(null);
   const [rejectingId, setRejectingId] = useState(null);
 
-  const [actionTarget, setActionTarget] = useState(null);
-  const [actionType, setActionType] = useState("");
-  const [submittingVote, setSubmittingVote] = useState(false);
-
   const [previewSeries, setPreviewSeries] = useState(null);
 
   useEffect(() => {
     if (activeTab === "pending") {
       fetchPendingData();
-    } else if (activeTab === "drop_requested") {
-      fetchDropData();
     } else if (activeTab === "history" && isRepresentative) {
       fetchHistoryData();
     }
@@ -62,18 +52,6 @@ export default function EditorAssignmentPage() {
       );
     } catch (error) {
       console.error("Lỗi tải danh sách cần phân công:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchDropData = async () => {
-    try {
-      setLoading(true);
-      const dropData = await getDropRequestedSeries();
-      setDropList(dropData || []);
-    } catch (error) {
-      console.error("Lỗi tải danh sách yêu cầu hủy:", error);
     } finally {
       setLoading(false);
     }
@@ -141,28 +119,6 @@ export default function EditorAssignmentPage() {
     }
   };
 
-  const triggerDropAction = (series, type) => {
-    setActionTarget(series);
-    setActionType(type);
-  };
-
-  const handleVoteDrop = async (seriesId, decisionType, reason = "") => {
-    try {
-      setSubmittingVote(true);
-      await voteSeriesDecision(seriesId, decisionType, reason);
-      alert("Đã xử lý yêu cầu hủy thành công!");
-      setActionTarget(null);
-      fetchDropData();
-    } catch (error) {
-      console.error("Lỗi khi gửi quyết định:", error);
-      alert(
-        error.response?.data?.message || "Không thể gửi quyết định lúc này.",
-      );
-    } finally {
-      setSubmittingVote(false);
-    }
-  };
-
   const handleViewHistoryDossier = async (seriesId) => {
     try {
       const data = await getSeriesReview(seriesId);
@@ -202,19 +158,6 @@ export default function EditorAssignmentPage() {
           >
             <i className="fas fa-hourglass-half me-2"></i> Cần phân công{" "}
             {activeTab === "pending" && `(${pendingList.length})`}
-          </button>
-        </li>
-        <li className="nav-item">
-          <button
-            className={`nav-link fw-bold ${activeTab === "drop_requested" ? "active text-danger" : "text-secondary"}`}
-            onClick={() => setActiveTab("drop_requested")}
-            style={{
-              borderBottom:
-                activeTab === "drop_requested" ? "3px solid #dc3545" : "none",
-            }}
-          >
-            <i className="fas fa-exclamation-circle me-2"></i> BTV Yêu cầu hủy{" "}
-            {activeTab === "drop_requested" && `(${dropList.length})`}
           </button>
         </li>
         {isRepresentative && (
@@ -422,126 +365,6 @@ export default function EditorAssignmentPage() {
             ))
           )}
         </>
-      ) : activeTab === "drop_requested" ? (
-        <>
-          <p className="text-muted mb-3">
-            Danh sách các tác phẩm đang chạy nhưng bị BTV báo cáo xin hủy.
-            Trưởng ban có thể đồng ý hủy hoặc tước quyền BTV đó để giao cho
-            người khác.
-          </p>
-          <div className="table-wrapper">
-            <table className="admin-table table-hover">
-              <thead
-                className="table-light"
-                style={{ position: "sticky", top: 0, zIndex: 1 }}
-              >
-                <tr>
-                  <th>ID</th>
-                  <th>Bìa</th>
-                  <th>Tên Series</th>
-                  <th>BTV / Tác giả</th>
-                  <th>Quyết định của bạn</th>
-                  <th>Hành động</th>
-                </tr>
-              </thead>
-              <tbody>
-                {dropList.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan="6"
-                      className="text-center py-5 text-muted fst-italic"
-                    >
-                      Hiện không có yêu cầu hủy dự án nào.
-                    </td>
-                  </tr>
-                ) : (
-                  dropList.map((series) => (
-                    <tr key={series.id} className="align-middle">
-                      <td>
-                        <strong>#{series.id}</strong>
-                      </td>
-                      <td>
-                        <img
-                          src={
-                            series.coverUrl
-                              ? `http://localhost:8080/covers/${series.coverUrl}`
-                              : "https://placehold.co/50x70?text=No+Cover"
-                          }
-                          alt={series.title}
-                          className="shadow-sm"
-                          style={{
-                            width: "50px",
-                            height: "70px",
-                            objectFit: "cover",
-                            borderRadius: "4px",
-                          }}
-                        />
-                      </td>
-                      <td>
-                        <strong className="text-primary">{series.title}</strong>
-                        <br />
-                        <small className="text-muted">
-                          {series.genres?.join(", ")}
-                        </small>
-                      </td>
-                      <td>
-                        <div style={{ fontSize: "0.9rem" }}>
-                          <span className="text-danger">
-                            💼 <strong>BTV:</strong> {series.tantouEditorName}
-                          </span>
-                          <br />
-                          <span className="text-muted">
-                            👤 <strong>Tác giả:</strong> {series.author}
-                          </span>
-                        </div>
-                      </td>
-                      <td>
-                        <span className="text-muted fst-italic">
-                          Chờ Trưởng ban quyết định
-                        </span>
-                      </td>
-                      <td>
-                        {isRepresentative ? (
-                          <div className="d-flex flex-wrap gap-2">
-                            <button
-                              className="btn btn-outline-primary btn-sm fw-bold shadow-sm"
-                              onClick={() => setPreviewSeries(series)}
-                            >
-                              <i className="fas fa-eye me-1"></i> Xem hồ sơ &
-                              Báo cáo
-                            </button>
-                            <button
-                              className="btn btn-danger btn-sm fw-bold shadow-sm"
-                              onClick={() =>
-                                triggerDropAction(series, "APPROVE_DROP")
-                              }
-                              disabled={submittingVote}
-                            >
-                              Đồng ý Hủy Series
-                            </button>
-                            <button
-                              className="btn btn-success btn-sm fw-bold shadow-sm"
-                              onClick={() =>
-                                handleVoteDrop(series.id, "REJECT")
-                              }
-                              disabled={submittingVote}
-                            >
-                              Bác bỏ & Đổi BTV
-                            </button>
-                          </div>
-                        ) : (
-                          <span className="text-muted fst-italic">
-                            Chỉ dành cho Trưởng ban
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </>
       ) : (
         <div className="card shadow-sm border-0">
           <div className="card-body p-0">
@@ -564,9 +387,6 @@ export default function EditorAssignmentPage() {
                   {historyList.map((h) => {
                     const isAssign =
                       h.action === "BOARD_FORCED_EDITOR_ASSIGNMENT";
-                    const isCancel =
-                      h.action === "BOARD_CANCELLED_SERIES" ||
-                      h.action === "BOARD_VOTE_APPROVE";
                     return (
                       <tr key={h.id}>
                         <td
@@ -672,7 +492,7 @@ export default function EditorAssignmentPage() {
               </div>
             </div>
             <h6 className="fw-bold mb-3 mt-4 text-uppercase text-muted">
-              <i className="fas fa-folder-open me-2"></i>Hồ sơ 
+              <i className="fas fa-folder-open me-2"></i>Hồ sơ
             </h6>
             <div className="mb-4 bg-light p-3 rounded border">
               <SeriesFileList
@@ -682,36 +502,6 @@ export default function EditorAssignmentPage() {
             </div>
           </div>
         </div>
-      )}
-
-      {actionTarget && (
-        <RejectReasonModal
-          seriesTitle={actionTarget.title}
-          submitting={submittingVote}
-          onCancel={() => setActionTarget(null)}
-          onConfirm={(reason) => {
-            const decision =
-              actionType === "APPROVE_DROP" ? "APPROVE" : "REJECT";
-            handleVoteDrop(actionTarget.id, decision, reason);
-          }}
-          title={
-            actionType === "APPROVE_DROP"
-              ? "Đồng ý Hủy Series"
-              : "Bác bỏ & Đổi BTV"
-          }
-          description={
-            actionType === "APPROVE_DROP"
-              ? "Nhập đánh giá về việc tại sao lại đồng ý hủy bỏ hoàn toàn series này."
-              : "Nhập ghi chú cho quyết định giữ lại Series (không bắt buộc)."
-          }
-          confirmLabel={
-            actionType === "APPROVE_DROP" ? "Xác nhận Hủy" : "Xác nhận Giữ lại"
-          }
-          confirmButtonClass={
-            actionType === "APPROVE_DROP" ? "btn btn-danger" : "btn btn-success"
-          }
-          requireReason={actionType === "APPROVE_DROP"}
-        />
       )}
     </div>
   );

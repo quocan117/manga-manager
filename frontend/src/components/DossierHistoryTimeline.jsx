@@ -33,7 +33,6 @@ export default function DossierHistoryTimeline({ seriesId }) {
   return (
     <div className="dossier-timeline">
       {historyRounds.map((round, index) => {
-        // Lọc bỏ quyết định từ chối nội bộ của BTV (ẩn đi đối với Mangaka)
         const isInternalRejection = round.decision === "EDITOR_REJECTED_SERIES";
         const showDecision = round.decision && !isInternalRejection;
 
@@ -44,9 +43,6 @@ export default function DossierHistoryTimeline({ seriesId }) {
             style={{ borderLeft: "4px solid #6c757d" }}
           >
             <div className="card-header bg-light d-flex justify-content-between align-items-center">
-              <span className="fw-bold text-dark">
-                Vòng {round.roundNumber}
-              </span>
               <small className="text-muted">
                 Nộp lúc: {formatDateTime(round.submittedAt)}
               </small>

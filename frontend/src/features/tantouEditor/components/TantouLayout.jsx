@@ -73,6 +73,18 @@ export default function TantouLayout() {
               <i className="fas fa-book-open"></i> Chapter cần duyệt
             </NavLink>
           </li>
+
+          <li>
+            <NavLink
+              to="/tantou/history"
+              className={({ isActive }) =>
+                isActive ? "nav-link active" : "nav-link"
+              }
+            >
+              <i className="fas fa-history"></i> Lịch sử xử lý
+            </NavLink>
+          </li>
+
           <li>
             <NavLink
               to="/tantou/notifications"
