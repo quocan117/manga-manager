@@ -61,6 +61,12 @@ public class EditorialBoardController {
     }
 
     @PreAuthorize("hasRole('EDITORIAL_BOARD')")
+    @GetMapping("/series/reviewed")
+    public List<ReviewSeriesResponse> getReviewedSeries() {
+        return service.getReviewedSeries();
+    }
+
+    @PreAuthorize("hasRole('EDITORIAL_BOARD')")
     @GetMapping("/series/editor-assignment-required")
     public List<ReviewSeriesResponse> getEditorAssignmentRequiredSeries() {
         return service.getEditorAssignmentRequiredSeries();
@@ -179,6 +185,7 @@ public class EditorialBoardController {
     public List<RankingPeriodResponse> getRankingPeriods() {
         return service.getRankingPeriods();
     }
+
     @PreAuthorize("hasRole('EDITORIAL_BOARD')")
     @GetMapping("/rankings/total-votes")
     public List<SeriesTotalVotesResponse> getSeriesTotalVotes() {

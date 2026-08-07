@@ -13,6 +13,7 @@ import com.example.backend.dto.DossierArchiveDtos.DossierRoundResponse;
 import com.example.backend.service.DossierArchiveService;
 
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/series")
@@ -29,5 +30,10 @@ public class DossierArchiveController {
     @GetMapping("/{seriesId}/archive-history")
     public List<DossierRoundResponse> getArchiveHistory(@PathVariable Long seriesId) {
         return service.getArchiveHistory(seriesId);
+    }
+
+    @GetMapping("/{seriesId}/editor-workflow-history")
+    public Map<String, List<Map<String, Object>>> getEditorWorkflowHistory(@PathVariable Long seriesId) {
+        return service.getEditorWorkflowHistory(seriesId);
     }
 }

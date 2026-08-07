@@ -23,6 +23,9 @@ public interface SeriesFileRepository extends JpaRepository<SeriesFile, Long> {
             Long seriesId,
             List<String> purposes);
 
+    List<SeriesFile> findBySeriesSeriesIdAndActiveTrueOrderByUploadedAtDesc(Long seriesId);
+    List<SeriesFile> findBySeriesSeriesId(Long seriesId);
+
     boolean existsBySeriesSeriesIdAndPurpose(Long seriesId, String purpose);
 
     @Query("""
