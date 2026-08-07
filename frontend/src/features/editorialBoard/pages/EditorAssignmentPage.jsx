@@ -131,6 +131,16 @@ export default function EditorAssignmentPage() {
     }
   };
 
+  let displayFiles = [];
+  if (previewSeries) {
+    const allFiles = previewSeries.uploadedFiles || [];
+    const editorFiles = allFiles.filter((f) => f.purpose === "EDITOR_DOSSIER");
+    const mangakaFiles = allFiles.filter(
+      (f) => f.purpose === "SERIES_SUBMISSION",
+    );
+    displayFiles = editorFiles.length > 0 ? editorFiles : mangakaFiles;
+  }
+
   return (
     <div className="tab-content">
       <h2 className="mb-4">🧭 Quản Lý Phân Công & Điều Phối</h2>
@@ -331,20 +341,6 @@ export default function EditorAssignmentPage() {
 
                   <div className="d-flex gap-3 justify-content-end border-top pt-4">
                     <button
-                      className="btn btn-outline-danger px-4"
-                      disabled={
-                        !isRepresentative ||
-                        assigningId === series.id ||
-                        rejectingId === series.id
-                      }
-                      onClick={() => handleRejectFinal(series.id)}
-                    >
-                      <i className="fas fa-ban me-2"></i>{" "}
-                      {rejectingId === series.id
-                        ? "Đang xử lý..."
-                        : "Đình bản Series"}
-                    </button>
-                    <button
                       className="btn btn-success px-4 shadow-sm"
                       disabled={
                         !isRepresentative ||
@@ -357,7 +353,7 @@ export default function EditorAssignmentPage() {
                       <i className="fas fa-check me-2"></i>{" "}
                       {assigningId === series.id
                         ? "Đang phân công..."
-                        : "Xác nhận ép phân công"}
+                        : "Xác nhận phân công"}
                     </button>
                   </div>
                 </div>
@@ -379,7 +375,7 @@ export default function EditorAssignmentPage() {
                     <th className="ps-4 py-3">Thời gian</th>
                     <th>ID Series</th>
                     <th>Hành động</th>
-                    <th>Chi tiết / Lý do</th>
+                    <th>Chi tiết</th>
                     <th>Hồ sơ</th>
                   </tr>
                 </thead>
@@ -422,7 +418,7 @@ export default function EditorAssignmentPage() {
                             className="btn btn-outline-primary btn-sm shadow-sm fw-bold"
                             onClick={() => handleViewHistoryDossier(h.seriesId)}
                           >
-                            <i className="fas fa-eye me-1"></i> Xem
+                            <i className="fas fa-eye me-1"></i> Xem hồ sơ
                           </button>
                         </td>
                       </tr>
@@ -491,13 +487,15 @@ export default function EditorAssignmentPage() {
                 </div>
               </div>
             </div>
+
             <h6 className="fw-bold mb-3 mt-4 text-uppercase text-muted">
-              <i className="fas fa-folder-open me-2"></i>Hồ sơ
+              <i className="fas fa-folder-open me-2"></i>Hồ sơ tác phẩm đính kèm
             </h6>
+
             <div className="mb-4 bg-light p-3 rounded border">
               <SeriesFileList
-                files={previewSeries.uploadedFiles || []}
-                emptyText="Biên tập viên chưa đính kèm hồ sơ trình duyệt nào."
+                files={displayFiles}
+                emptyText="Chưa có hồ sơ nào được đính kèm."
               />
             </div>
           </div>

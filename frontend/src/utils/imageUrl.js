@@ -9,6 +9,11 @@ export function resolveImageUrl(value, placeholder = null) {
   ) {
     return value;
   }
+
+  if (value.startsWith("/")) {
+    return `${API_BASE_URL}${value}`;
+  }
+
   return `${API_BASE_URL}/covers/${value}`;
 }
 

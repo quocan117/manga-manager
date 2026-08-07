@@ -52,7 +52,10 @@ export default function PendingChaptersPage() {
                 <h5 className="dashboard-item-title text-success">
                   {c.seriesTitle}
                 </h5>
-                <h6 className="mb-3">Chapter {c.chapterNumber}</h6>
+                <h6 className="mb-1">Chapter {c.chapterNumber}</h6>
+                <p className="text-muted small mb-3">
+                  {c.pages?.length ?? 0} trang đã nộp
+                </p>
                 <button
                   className="btn btn-success w-100 mt-auto"
                   onClick={() => navigate(`/tantou/chapters/${c.id}/review`)}

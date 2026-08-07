@@ -12,6 +12,7 @@ import { resolveImageUrl } from "../../../utils/imageUrl";
 import CanvasMarkupTool from "../../../components/CanvasMarkupTool";
 import { formatDateTime } from "../../../utils/formatDate";
 import SeriesFileList from "../../../components/SeriesFileList";
+import api from "../../../services/api";
 
 const WORKABLE_STATUSES = ["ASSIGNED", "IN_PROGRESS", "REVISION_REQUESTED"];
 
@@ -22,10 +23,12 @@ export default function TaskDetailPage() {
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [drawingVersion, setDrawingVersion] = useState(0);
+  const [masterDrawing, setMasterDrawing] = useState(null);
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [resultFiles, setResultFiles] = useState([]);
   const [fileError, setFileError] = useState("");
+
   const backgroundUrl = resolveImageUrl(task?.pageImageUrl);
 
   const loadTask = useCallback(async () => {
@@ -34,11 +37,21 @@ export default function TaskDetailPage() {
       const [taskData, submissionData, drawingData] = await Promise.all([
         getTask(taskId),
         getTaskSubmissions(taskId),
-        getTaskDrawing(taskId),
+        getTaskDrawing(taskId).catch(() => null),
       ]);
       setTask(taskData);
       setSubmissions(submissionData || []);
       setDrawingVersion(drawingData?.version || 0);
+
+      try {
+        const masterRes = await api.get(
+          `/assistant/tasks/${taskId}/master-drawing`,
+        );
+        setMasterDrawing(masterRes?.data);
+      } catch (err) {
+        console.warn("Chưa có nét vẽ gốc từ Mangaka hoặc lỗi mạng:", err);
+        setMasterDrawing(null);
+      }
     } catch (error) {
       console.error("Lỗi khi tải chi tiết nhiệm vụ:", error);
     } finally {
@@ -61,37 +74,27 @@ export default function TaskDetailPage() {
   };
 
   const handleFilePick = (e) => {
-    const picked = Array.from(e.target.files || []);
-    if (picked.length === 0) return;
-    setResultFiles((prev) => {
-      const combined = [...prev, ...picked];
-      const zipCount = combined.filter((f) =>
-        f.name.toLowerCase().endsWith(".zip"),
-      ).length;
-      if (zipCount > 1) {
-        setFileError("Chỉ được chọn tối đa 1 file .zip.");
-        return prev;
-      }
-      if (combined.length > 20) {
-        setFileError("Chỉ được chọn tối đa 20 file.");
-        return prev;
-      }
-      setFileError("");
-      return combined;
-    });
-    e.target.value = "";
+    const file = e.target.files[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setFileError("Vui lòng chỉ tải lên file ảnh (JPG, PNG, WEBP).");
+      setResultFiles([]);
+      return;
+    }
+
+    setFileError("");
+    setResultFiles([file]);
+    e.target.value = ""; 
   };
 
-  const removeResultFile = (index) => {
-    setResultFiles((prev) => prev.filter((_, i) => i !== index));
+  const removeResultFile = () => {
+    setResultFiles([]);
     setFileError("");
   };
 
   const handleSubmit = async () => {
     if (resultFiles.length === 0) {
-      alert(
-        "Vui lòng đính kèm ít nhất 1 ảnh đã chỉnh sửa hoặc 1 file .zip trước khi nộp.",
-      );
+      alert("Vui lòng tải lên 1 ảnh trang truyện đã hoàn thiện trước khi nộp.");
       return;
     }
     setSubmitting(true);
@@ -110,7 +113,6 @@ export default function TaskDetailPage() {
 
   if (loading)
     return <div className="text-center mt-5">Đang tải nhiệm vụ...</div>;
-
   if (!task)
     return (
       <div className="text-center mt-5 text-muted">
@@ -164,13 +166,12 @@ export default function TaskDetailPage() {
                 <strong>Tài liệu gốc để làm việc:</strong>
               </p>
               <SeriesFileList files={task.sourceFiles} />
-
               {task.status === "ASSIGNED" && (
                 <button
                   className="btn btn-success w-100 mt-3"
                   onClick={handleAccept}
                 >
-                  ✅ Nhận Task
+                Nhận Task
                 </button>
               )}
               {latestSubmission && (
@@ -205,6 +206,7 @@ export default function TaskDetailPage() {
                 backgroundImageUrl={backgroundUrl}
                 readOnly={true}
                 hideControls={true}
+                loadDrawing={async () => masterDrawing}
               />
             </div>
           </div>
@@ -214,21 +216,18 @@ export default function TaskDetailPage() {
                 Nộp cho Mangaka
               </div>
               <div className="card-body">
-
                 <div className="mb-3">
                   <label className="form-label">
-                    File đã hoàn thiện (ảnh đã sửa, có thể thêm 1 file .zip)
+                    Ảnh trang truyện đã hoàn thiện (Chỉ tải lên 1 ảnh duy nhất)
                   </label>
                   <input
                     type="file"
                     className="form-control"
-                    multiple
-                    accept="image/*,.zip,.pdf,.doc,.docx,.txt,.md"
+                    accept="image/png, image/jpeg, image/webp"
                     onChange={handleFilePick}
                   />
                   <small className="text-muted d-block mt-1">
-                    Có thể chọn nhiều lần để gộp thêm ảnh/zip (tối đa 20 file,
-                    mỗi ảnh ≤20MB, zip ≤100MB, tổng ≤200MB, chỉ 1 file .zip).
+                    Hỗ trợ định dạng: JPG, PNG, WEBP. Dung lượng tối đa 20MB.
                   </small>
                   {fileError && (
                     <div className="text-danger small mt-1">{fileError}</div>
@@ -245,14 +244,13 @@ export default function TaskDetailPage() {
                             type="button"
                             className="btn-close btn-sm"
                             aria-label="Xoá"
-                            onClick={() => removeResultFile(i)}
+                            onClick={removeResultFile}
                           />
                         </li>
                       ))}
                     </ul>
                   )}
                 </div>
-
                 <div className="mb-3">
                   <label className="form-label">Ghi chú cho Mangaka</label>
                   <textarea
