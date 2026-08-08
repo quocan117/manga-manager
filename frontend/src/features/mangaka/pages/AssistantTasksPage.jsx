@@ -27,6 +27,7 @@ export default function AssistantTasks() {
     pageId: "",
     assistantId: "",
     taskType: "BACKGROUND",
+    customTaskType: "",
     title: "",
     description: "",
     dueDate: "",
@@ -146,6 +147,7 @@ export default function AssistantTasks() {
   const findTaskTitle = (taskId) =>
     tasks.find((t) => (t.id || t.taskId) === taskId)?.title ||
     `Task #${taskId}`;
+
   const handleChange = (e) => {
     setForm({
       ...form,
@@ -163,19 +165,23 @@ export default function AssistantTasks() {
       const zipCount = combined.filter((f) =>
         f.name.toLowerCase().endsWith(".zip"),
       ).length;
+
       if (zipCount > 1) {
         setFileError(
           "Chỉ được chọn tối đa 1 file .zip trong một lần giao việc.",
         );
         return prev;
       }
+
       if (combined.length > 20) {
         setFileError("Chỉ được chọn tối đa 20 file.");
         return prev;
       }
+
       setFileError("");
       return combined;
     });
+
     e.target.value = "";
   };
 
@@ -186,30 +192,55 @@ export default function AssistantTasks() {
 
   const handleAssign = async (e) => {
     e.preventDefault();
+
     if (originalFiles.length === 0) {
       alert(
         "Vui lòng chọn ít nhất 1 ảnh gốc hoặc 1 file .zip để giao cho trợ lý.",
       );
       return;
     }
+
+    let finalTaskType = form.taskType;
+    let finalTitle = form.title;
+
+    if (form.taskType === "OTHER") {
+      if (!form.customTaskType || !form.customTaskType.trim()) {
+        alert("Vui lòng nhập chi tiết loại công việc khác!");
+        return;
+      }
+      finalTaskType = "OTHER";
+      finalTitle = `[${form.customTaskType.trim()}] ${form.title}`;
+    }
+
     const formData = new FormData();
     formData.append("pageId", Number(form.pageId));
     formData.append("assistantId", Number(form.assistantId));
-    formData.append("taskType", form.taskType);
-    formData.append("title", form.title);
+    formData.append("taskType", finalTaskType);
+    formData.append("title", finalTitle);
     if (form.description) formData.append("description", form.description);
+
     const formattedDueDate =
       form.dueDate.length === 16 ? `${form.dueDate}:00` : form.dueDate;
     formData.append("dueDate", formattedDueDate);
+
     formData.append("areaX", 0);
     formData.append("areaY", 0);
     formData.append("areaWidth", 100);
     formData.append("areaHeight", 100);
+
     originalFiles.forEach((file) => formData.append("originalFiles", file));
+
     try {
       await assignTask(formData);
       alert("Giao việc cho trợ lý thành công!");
-      setForm({ ...form, title: "", description: "", pageId: "" });
+
+      setForm({
+        ...form,
+        title: "",
+        description: "",
+        pageId: "",
+        customTaskType: "",
+      });
       setOriginalFiles([]);
       fetchTasks();
     } catch (error) {
@@ -244,6 +275,7 @@ export default function AssistantTasks() {
   return (
     <div>
       <h2 className="mb-4">Giao việc trợ lý</h2>
+
       <div className="row">
         <div className="col-md-5">
           <div className="card shadow mb-4">
@@ -267,6 +299,7 @@ export default function AssistantTasks() {
                     ))}
                   </select>
                 </div>
+
                 <div className="mb-3">
                   <label className="form-label text-primary fw-bold">
                     2. Chọn Chapter
@@ -285,6 +318,7 @@ export default function AssistantTasks() {
                     ))}
                   </select>
                 </div>
+
                 <div className="mb-3">
                   <label className="form-label text-primary fw-bold">
                     3. Chọn Trang Truyện
@@ -326,9 +360,11 @@ export default function AssistantTasks() {
                     dưới (tối đa 20 file, mỗi ảnh ≤20MB, zip ≤100MB, tổng
                     ≤200MB, chỉ 1 file .zip).
                   </small>
+
                   {fileError && (
                     <div className="text-danger small mt-1">{fileError}</div>
                   )}
+
                   {originalFiles.length > 0 && (
                     <ul className="submit-series-filelist mt-2">
                       {originalFiles.map((f, i) => (
@@ -350,6 +386,7 @@ export default function AssistantTasks() {
                 </div>
 
                 <hr className="my-4" />
+
                 <div className="mb-3">
                   <label className="form-label">Chọn Trợ lý </label>
                   <select
@@ -367,20 +404,34 @@ export default function AssistantTasks() {
                     ))}
                   </select>
                 </div>
+
                 <div className="mb-3">
                   <label className="form-label">Loại Công Việc</label>
                   <select
                     name="taskType"
-                    className="form-select"
+                    className={`form-select ${form.taskType === "OTHER" ? "mb-2" : ""}`}
                     value={form.taskType}
                     onChange={handleChange}
                   >
-                    <option value="BACKGROUND">BACKGROUND</option>
-                    <option value="TEXT">TEXT</option>
-                    <option value="EFFECTS">EFFECTS</option>
-                    <option value="OTHER">OTHER</option>
+                    <option value="BACKGROUND">BACKGROUND (Vẽ nền)</option>
+                    <option value="TEXT">TEXT (Chèn chữ)</option>
+                    <option value="EFFECTS">EFFECTS (Hiệu ứng)</option>
+                    <option value="OTHER">OTHER (Khác)</option>
                   </select>
+
+                  {form.taskType === "OTHER" && (
+                    <input
+                      type="text"
+                      name="customTaskType"
+                      className="form-control"
+                      placeholder="Nhập loại công việc khác... (VD: Tô màu, Chỉnh sửa line...)"
+                      value={form.customTaskType}
+                      onChange={handleChange}
+                      required
+                    />
+                  )}
                 </div>
+
                 <div className="mb-3">
                   <label className="form-label">Tiêu đề</label>
                   <input
@@ -392,6 +443,7 @@ export default function AssistantTasks() {
                     required
                   />
                 </div>
+
                 <div className="mb-3">
                   <label className="form-label">Mô tả chi tiết</label>
                   <textarea
@@ -402,6 +454,7 @@ export default function AssistantTasks() {
                     onChange={handleChange}
                   />
                 </div>
+
                 <div className="mb-4">
                   <label className="form-label">Hạn chót</label>
                   <input
@@ -413,6 +466,7 @@ export default function AssistantTasks() {
                     required
                   />
                 </div>
+
                 <button type="submit" className="btn btn-success w-100 fw-bold">
                   Giao việc
                 </button>
@@ -420,6 +474,7 @@ export default function AssistantTasks() {
             </div>
           </div>
         </div>
+
         <div className="col-md-7">
           <div className="card shadow">
             <div className="card-header bg-white py-3">
@@ -429,25 +484,31 @@ export default function AssistantTasks() {
                   `- Chapter ${selectedChapterData.chapterNumber}`}
               </span>
             </div>
+
             <div>
-              <div className="card-header bg-white py-3">
+              <div className="card-header bg-white py-3 border-top">
                 <span className="fw-bold fs-5">📥 Bài nộp từ Trợ lý</span>
               </div>
-              <div className="card-body">
+              <div className="card-body bg-light">
                 {submissions.length === 0 ? (
-                  <p className="text-muted text-center mb-0">
+                  <p className="text-muted text-center mb-0 py-3">
                     {selectedChapterId
                       ? "Chưa có bài nộp nào cho chapter này."
                       : "Vui lòng chọn Chapter."}
                   </p>
                 ) : (
                   submissions.map((s) => (
-                    <div key={s.id} className="border rounded p-3 mb-3">
+                    <div
+                      key={s.id}
+                      className="border rounded bg-white shadow-sm p-3 mb-3"
+                    >
                       <div className="d-flex justify-content-between align-items-start">
                         <div>
                           <strong>{findTaskTitle(s.taskId)}</strong>
-                          <div className="small text-muted">
-                            Trợ lý: {s.submittedByName} · Nộp lúc:{" "}
+                          <div className="small text-muted mt-1">
+                            <i className="fas fa-user me-1"></i>{" "}
+                            {s.submittedByName} <br />
+                            <i className="far fa-clock me-1"></i>{" "}
                             {s.submittedAt
                               ? formatDateTime(s.submittedAt)
                               : "-"}
@@ -467,38 +528,40 @@ export default function AssistantTasks() {
                       </div>
 
                       {s.note && (
-                        <p className="small mt-2 mb-1">
-                          Ghi chú trợ lý: {s.note}
-                        </p>
+                        <div className="small mt-3 p-2 bg-light border-start border-3 border-info rounded">
+                          <strong>Ghi chú từ trợ lý:</strong> <br />
+                          <span className="fst-italic">{s.note}</span>
+                        </div>
                       )}
 
-                      <div className="mt-2">
+                      <div className="mt-3 border-top pt-2">
                         <SeriesFileList
                           files={s.resultFiles}
                           emptyText="Trợ lý chưa gửi kèm file nào."
                         />
+
                         {s.resultFiles && s.resultFiles.length > 0 && (
                           <div className="mt-3 d-flex flex-column gap-2">
                             {s.resultFiles.map((file) => (
                               <div
                                 key={file.id}
-                                className="d-flex align-items-center justify-content-between p-2 border rounded bg-white shadow-sm"
+                                className="d-flex align-items-center justify-content-between p-2 border rounded bg-light"
                               >
                                 <span
                                   className="text-truncate small me-2 text-dark"
                                   style={{ maxWidth: "70%" }}
                                 >
-                                  {file.originalFileName}{" "}
+                                  📄 {file.originalFileName}{" "}
                                   <span className="text-muted">
                                     ({Math.round(file.fileSize / 1024)} KB)
                                   </span>
                                 </span>
                                 <button
-                                  className="btn btn-outline-primary btn-sm py-1 px-3 fw-bold"
+                                  className="btn btn-outline-primary btn-sm py-1 px-3 fw-bold bg-white"
                                   onClick={() => handleDownloadFile(file)}
                                   style={{ fontSize: "0.8rem" }}
                                 >
-                                  Tải xuống
+                                  📥 Tải xuống
                                 </button>
                               </div>
                             ))}
@@ -507,20 +570,22 @@ export default function AssistantTasks() {
                       </div>
 
                       {s.status === "SUBMITTED" && (
-                        <div className="d-flex gap-2 mt-3">
+                        <div className="d-flex gap-2 mt-4 pt-3 border-top">
                           <button
-                            className="btn btn-success btn-sm flex-fill"
+                            className="btn btn-success flex-fill fw-bold shadow-sm"
                             onClick={() => handleReview(s, "APPROVED")}
                           >
-                            Duyệt
+                            <i className="fas fa-check-circle me-1"></i> Duyệt
+                            bài
                           </button>
                           <button
-                            className="btn btn-danger btn-sm flex-fill"
+                            className="btn btn-outline-danger flex-fill fw-bold shadow-sm"
                             onClick={() =>
                               handleReview(s, "REVISION_REQUESTED")
                             }
                           >
-                            Yêu cầu sửa lại
+                            <i className="fas fa-undo-alt me-1"></i> Yêu cầu sửa
+                            lại
                           </button>
                         </div>
                       )}
@@ -529,7 +594,8 @@ export default function AssistantTasks() {
                 )}
               </div>
             </div>
-            <div className="card-body p-0">
+
+            <div className="card-body p-0 border-top">
               <table className="table table-hover mb-0">
                 <thead className="table-light">
                   <tr>
@@ -543,9 +609,12 @@ export default function AssistantTasks() {
                 <tbody>
                   {tasks.length === 0 ? (
                     <tr>
-                      <td colSpan="5" className="text-center text-muted py-5">
+                      <td
+                        colSpan="5"
+                        className="text-center text-muted py-5 fst-italic"
+                      >
                         {selectedChapterId
-                          ? "Chapter này hiện chưa có công việc nào."
+                          ? "Chapter này hiện chưa có công việc nào được giao."
                           : "Vui lòng chọn Series và Chapter ở bên trái để xem Task."}
                       </td>
                     </tr>
@@ -564,7 +633,7 @@ export default function AssistantTasks() {
                         <td>{task.title}</td>
                         <td>
                           <span
-                            className={`badge ${task.status === "ASSIGNED" ? "bg-primary" : "bg-success"}`}
+                            className={`badge ${task.status === "ASSIGNED" ? "bg-primary" : task.status === "IN_PROGRESS" ? "bg-info text-dark" : "bg-success"}`}
                           >
                             {task.status}
                           </span>
