@@ -41,14 +41,13 @@ public class SeriesFileService {
         if (series == null || series.getSeriesId() == null) {
             throw notFound("Series file is not linked to a series");
         }
-
-        String email = currentEmail();
-        if (!canAccess(file, email)) {
+        Authentication authentication = currentAuthentication();
+        String email = authentication.getName();
+        if (!canAccess(file, email, authentication)) {
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
                     "You do not have permission to download this series file");
         }
-
         Path target = resolveStoredFile(file);
         Resource resource;
         try {
@@ -62,7 +61,6 @@ public class SeriesFileService {
         if (!resource.exists() || !resource.isReadable()) {
             throw notFound("Stored series file was not found on disk");
         }
-
         return new DownloadableSeriesFile(
                 resource,
                 safeDownloadName(file),
@@ -70,7 +68,8 @@ public class SeriesFileService {
                 file.getFileSize());
     }
 
-    private boolean canAccess(SeriesFile file, String email) {
+
+    private boolean canAccess(SeriesFile file, String email, Authentication authentication) {
         MangaSeries series = file.getSeries();
         if (file.getTask() != null
                 && file.getTask().getAssignedTo() != null
@@ -85,8 +84,21 @@ public class SeriesFileService {
         if (editor != null && email.equalsIgnoreCase(editor.getEmail())) {
             return true;
         }
+        boolean isBoardMember = authentication.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_EDITORIAL_BOARD".equals(a.getAuthority()));
+        if (isBoardMember) {
+            return true;
+        }
         return seriesBoardAssignmentRepository.existsBySeriesSeriesIdAndBoardMemberEmailIgnoreCase(
                 series.getSeriesId(), email);
+    }
+
+    private Authentication currentAuthentication() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
+        }
+        return authentication;
     }
 
     private Path resolveStoredFile(SeriesFile file) {
@@ -124,14 +136,6 @@ public class SeriesFileService {
             return Path.of(seriesFileUploadRootOverride).toAbsolutePath().normalize();
         }
         return Path.of("uploads/series-files").toAbsolutePath().normalize();
-    }
-
-    private String currentEmail() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated()) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
-        }
-        return authentication.getName();
     }
 
     private ResponseStatusException notFound(String message) {
