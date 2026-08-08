@@ -28,7 +28,7 @@ function useObjectUrl(fileId, enabled) {
 }
 
 function PreviewThumb({ file, onClick }) {
-  const { url } = useObjectUrl(file.id, true);
+  const { url, error } = useObjectUrl(file.id, true);
   if (file.contentType === "application/pdf") {
     return (
       <div className="series-file-thumb" onClick={() => onClick(file)}>
@@ -41,6 +41,8 @@ function PreviewThumb({ file, onClick }) {
     <div className="series-file-thumb" onClick={() => onClick(file)}>
       {url ? (
         <img src={url} alt={file.originalFileName} />
+      ) : error ? (
+        <div className="series-file-loading text-danger">⚠️ Lỗi tải</div>
       ) : (
         <div className="series-file-loading">Đang tải...</div>
       )}
@@ -91,7 +93,10 @@ export default function SeriesFileList({
   emptyText = "Mangaka chưa gửi kèm file nào.",
 }) {
   const [previewFile, setPreviewFile] = useState(null);
-  const { url: modalUrl } = useObjectUrl(previewFile?.id, !!previewFile);
+  const { url: modalUrl, error: modalError } = useObjectUrl(
+    previewFile?.id,
+    !!previewFile,
+  );
   if (!files.length) {
     return <p className="text-muted mb-0">{emptyText}</p>;
   }
@@ -125,13 +130,19 @@ export default function SeriesFileList({
             <button className="close-btn" onClick={() => setPreviewFile(null)}>
               ✕
             </button>
-            {previewFile.contentType === "application/pdf"
-              ? modalUrl && (
-                  <iframe title={previewFile.originalFileName} src={modalUrl} />
-                )
-              : modalUrl && (
-                  <img src={modalUrl} alt={previewFile.originalFileName} />
-                )}
+            {modalError ? (
+              <div className="series-file-preview-error">
+                Không thể tải file: {modalError}
+              </div>
+            ) : previewFile.contentType === "application/pdf" ? (
+              modalUrl && (
+                <iframe title={previewFile.originalFileName} src={modalUrl} />
+              )
+            ) : (
+              modalUrl && (
+                <img src={modalUrl} alt={previewFile.originalFileName} />
+              )
+            )}
           </div>
         </div>
       )}

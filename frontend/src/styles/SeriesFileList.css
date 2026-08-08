@@ -112,3 +112,10 @@
 .series-file-preview-modal .close-btn:hover {
   background: rgba(0, 0, 0, 0.85);
 }
+
+.series-file-preview-error {
+  color: #b02a2a;
+  font-weight: 600;
+  padding: 24px;
+  text-align: center;
+}
